@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MonsterStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/monster_stats.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+name = "Demon"
+hp = 7
+damage = 2
+speed_mult = 1
+spawn_interval = 16
+gold = 5
+color = Color(0.85, 0.15, 0.2, 1)
+radius_tiles = 0.45
