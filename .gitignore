@@ -1,0 +1,33 @@
+# ---- Godot 4 ----
+# Editor cache / imported data (regenerated automatically on each machine)
+.godot/
+/android/
+
+# NOTE: Do NOT ignore *.import or *.uid files — they MUST be committed
+# so both collaborators get identical import settings and resource UIDs.
+
+# Export output (built locally, uploaded to itch.io — never committed)
+export/web/*
+!export/web/.gitkeep
+*.zip
+
+# Godot crash / temp files
+*.tmp
+*.translation
+mono_crash.*.json
+
+# ---- OS / editor junk ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# ---- Secrets (never commit) ----
+*.keystore
+*.jks
+.env
