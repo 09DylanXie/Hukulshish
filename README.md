@@ -5,8 +5,8 @@ Play as the mage Hukulshish, defend the kingdom castle, and destroy the four mon
 
 ## Godot version
 
-> **Both collaborators must use exactly: `Godot 4.x.x stable` (standard, not .NET)**
-> ⚠️ Fill in the exact version (e.g. `4.5.1`) the first time you open the project, and only change it together.
+> **Both collaborators must use exactly: `Godot 4.7.2 stable` (standard, not .NET)**
+> ⚠️ Only change this version together.
 
 ## Getting started
 

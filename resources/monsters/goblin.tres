@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MonsterStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/monster_stats.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+name = "Goblin"
+hp = 3
+damage = 1
+speed_mult = 1.5
+spawn_interval = 5
+gold = 1
+color = Color(0.35, 0.8, 0.3, 1)
+radius_tiles = 0.35
