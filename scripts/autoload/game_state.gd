@@ -2,10 +2,8 @@ extends Node
 ## Current run state (autoload "GameState").
 ## Systems listen to these signals instead of referencing each other.
 
-signal gold_changed(gold: int)
-signal spell_level_changed(level: int)
-signal mods_changed
-signal objectives_changed
+## Emitted whenever anything the HUD / castle menu shows changes.
+signal changed
 signal victory
 signal defeat
 
@@ -16,12 +14,15 @@ var difficulty: DifficultyData
 
 var gold: int = 0
 var spell_level: int = 1
-## Mods that dropped from a nest but haven't been applied at the castle yet.
-var pending_mods: Array[SpellData] = []
-## Applied mods. Each entry: { "data": SpellData, "damage": int } (damage frozen when applied, §6.3).
-var active_mods: Array[Dictionary] = []
+var mod_parts: int = 0
+## Mod id → level (see Config.MODS). Mods only affect the base spell.
+var mod_levels: Dictionary = {}
+## Spells dropped by bosses. Each is a frozen stat Dictionary (see make_spell_stats()).
+var boss_spells: Array[Dictionary] = []
 var nests_destroyed: int = 0
 var bosses_defeated: int = 0
+var mega_boss_spawned: bool = false
+var mega_boss_defeated: bool = false
 var run_over: bool = false
 
 
@@ -34,20 +35,60 @@ func start_run() -> void:
 		difficulty = Config.DIFFICULTIES[1]
 	gold = 0
 	spell_level = 1
-	pending_mods.clear()
-	active_mods.clear()
+	mod_parts = 0
+	mod_levels.clear()
+	for id in Config.MODS:
+		mod_levels[id] = 0
+	boss_spells.clear()
 	nests_destroyed = 0
 	bosses_defeated = 0
+	mega_boss_spawned = false
+	mega_boss_defeated = false
 	run_over = false
-	gold_changed.emit(gold)
-	spell_level_changed.emit(spell_level)
-	mods_changed.emit()
-	objectives_changed.emit()
+	changed.emit()
 
+
+# --- Spell stats ---
+
+## Builds a spell stat Dictionary: { name, damage, fire_rate, speed_tiles, range_tiles, color, radius_tiles }.
+static func make_spell_stats(data: SpellData, damage: float, fire_rate: float, speed_tiles: float, range_tiles: float) -> Dictionary:
+	return {
+		"name": data.name,
+		"damage": damage,
+		"fire_rate": fire_rate,
+		"speed_tiles": speed_tiles,
+		"range_tiles": range_tiles,
+		"color": data.color,
+		"radius_tiles": data.radius_tiles,
+	}
+
+
+func mod_multiplier(id: String) -> float:
+	return 1.0 + Config.MOD_STEP * int(mod_levels.get(id, 0))
+
+
+## Current base spell stats: level damage × mods.
+func base_spell_stats() -> Dictionary:
+	var b: SpellData = Config.BASE_SPELL
+	return make_spell_stats(b,
+		Config.spell_damage(spell_level) * mod_multiplier("damage"),
+		b.fire_rate * mod_multiplier("fire_rate"),
+		b.speed_tiles * mod_multiplier("speed"),
+		b.range_tiles * mod_multiplier("range"))
+
+
+## Every spell the player fires: the base spell first, then boss spells.
+func all_spells() -> Array[Dictionary]:
+	var list: Array[Dictionary] = [base_spell_stats()]
+	list.append_array(boss_spells)
+	return list
+
+
+# --- Gold / base spell level ---
 
 func add_gold(amount: int) -> void:
 	gold += amount
-	gold_changed.emit(gold)
+	changed.emit()
 
 
 func is_spell_maxed() -> bool:
@@ -66,36 +107,81 @@ func try_upgrade_spell() -> bool:
 		return false
 	gold -= cost
 	spell_level += 1
-	gold_changed.emit(gold)
-	spell_level_changed.emit(spell_level)
+	changed.emit()
 	return true
 
 
-func add_pending_mod(mod: SpellData) -> void:
-	pending_mods.append(mod)
-	mods_changed.emit()
+# --- Mods ---
+
+func add_mod_parts(amount: int) -> void:
+	mod_parts += amount
+	changed.emit()
 
 
-## Applies a pending mod: it copies the base spell's CURRENT damage and keeps it forever (§6.3).
-func apply_mod(index: int) -> void:
-	if index < 0 or index >= pending_mods.size():
-		return
-	var mod: SpellData = pending_mods[index]
-	pending_mods.remove_at(index)
-	active_mods.append({"data": mod, "damage": Config.spell_damage(spell_level)})
-	mods_changed.emit()
+func next_mod_cost(id: String) -> int:
+	return Config.mod_cost(int(mod_levels.get(id, 0)))
 
+
+func try_buy_mod(id: String) -> bool:
+	if not Config.MODS.has(id):
+		return false
+	var cost: int = next_mod_cost(id)
+	if mod_parts < cost:
+		return false
+	mod_parts -= cost
+	mod_levels[id] = int(mod_levels.get(id, 0)) + 1
+	changed.emit()
+	return true
+
+
+# --- Boss spells ---
+
+## A boss spell copies the player's spells at pickup time and is frozen after that (can't be upgraded).
+## - First boss spell: 2× the base spell's damage.
+## - Later boss spells: the sum of every spell the player already has.
+## Fire rate is always the base spell's rate × 2/3 (the 1/3 reduction is applied once, not stacked).
+## Speed and range are copied from the base spell. Existing spells are kept.
+func acquire_boss_spell() -> Dictionary:
+	var base: Dictionary = base_spell_stats()
+	var damage: float
+	if boss_spells.is_empty():
+		damage = base["damage"] * 2.0
+	else:
+		damage = 0.0
+		for s in all_spells():
+			damage += s["damage"]
+	var spell: Dictionary = make_spell_stats(Config.BOSS_SPELL, damage,
+		base["fire_rate"] * Config.BOSS_SPELL_FIRE_RATE_MULT, base["speed_tiles"], base["range_tiles"])
+	spell["name"] = "%s %d" % [Config.BOSS_SPELL.name, boss_spells.size() + 1]
+	boss_spells.append(spell)
+	changed.emit()
+	return spell
+
+
+# --- Objectives ---
 
 func on_nest_destroyed() -> void:
 	nests_destroyed += 1
-	objectives_changed.emit()
-	_check_victory()
+	changed.emit()
 
 
 func on_boss_defeated() -> void:
 	bosses_defeated += 1
-	objectives_changed.emit()
-	_check_victory()
+	changed.emit()
+
+
+func on_mega_boss_spawned() -> void:
+	mega_boss_spawned = true
+	changed.emit()
+
+
+## Victory: the mega boss is defeated (it only appears after all 4 nests are destroyed).
+func on_mega_boss_defeated() -> void:
+	mega_boss_defeated = true
+	changed.emit()
+	if not run_over:
+		run_over = true
+		victory.emit()
 
 
 func on_player_died() -> void:
@@ -103,12 +189,3 @@ func on_player_died() -> void:
 		return
 	run_over = true
 	defeat.emit()
-
-
-## Victory: all 4 nests destroyed AND all 4 nest bosses defeated (§5).
-func _check_victory() -> void:
-	if run_over:
-		return
-	if nests_destroyed >= TOTAL_NESTS and bosses_defeated >= TOTAL_NESTS:
-		run_over = true
-		victory.emit()

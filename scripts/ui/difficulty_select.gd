@@ -18,3 +18,4 @@ func _ready() -> void:
 func _choose(data: DifficultyData) -> void:
 	GameState.difficulty = data
 	SceneRouter.goto(SceneRouter.GAME)
+

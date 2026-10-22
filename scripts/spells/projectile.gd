@@ -4,26 +4,29 @@ extends Area2D
 ## Call setup() before adding it to the tree.
 
 var direction: Vector2 = Vector2.RIGHT
-var speed: float = 32.0
-var damage: int = 1
+var speed: float = 160.0
+var damage: float = 1.0
 var from_player: bool = true
 var color: Color = Color.WHITE
 var radius: float = 6.0
-var lifetime: float = Config.SPELL_LIFETIME_SEC
+var max_distance: float = 320.0
 
+var _traveled: float = 0.0
 var _spent: bool = false
 
 
-func setup(dir: Vector2, speed_px: float, dmg: int, is_player: bool, col: Color, radius_px: float) -> void:
+func setup(dir: Vector2, speed_px: float, dmg: float, is_player: bool, col: Color, radius_px: float, max_distance_px: float = 320.0) -> void:
 	direction = dir.normalized()
 	speed = speed_px
 	damage = dmg
 	from_player = is_player
 	color = col
 	radius = radius_px
+	max_distance = max_distance_px
 
 
 func _ready() -> void:
+	monitoring = true
 	monitorable = false
 	collision_layer = Config.LAYER_PLAYER_PROJECTILES if from_player else Config.LAYER_ENEMY_PROJECTILES
 	collision_mask = (Config.LAYER_ENEMIES | Config.LAYER_NESTS) if from_player else Config.LAYER_PLAYER
@@ -37,9 +40,16 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	position += direction * speed * delta
-	lifetime -= delta
-	if lifetime <= 0.0:
+	if _spent:
+		return
+	var step: float = speed * delta
+	position += direction * step
+	_traveled += step
+	for body in get_overlapping_bodies():
+		_on_body_entered(body)
+		if _spent:
+			return
+	if max_distance > 0.0 and _traveled >= max_distance:
 		queue_free()
 
 

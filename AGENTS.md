@@ -108,9 +108,9 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 - The player is a mage named **Hukulshish**.
 - The player spawns in the **center of a preset map**, inside a **kingdom castle**.
 - Goal: defend the castle from monsters.
-- **Victory:** all 4 nests destroyed **and** all nest bosses defeated.
+- **Victory:** all 4 nests destroyed **and** the Mega Boss defeated.
 - **Defeat:** the player dies. *(The castle is only a plot point. It has no HP and can't be destroyed.)*
-- The castle is where you **upgrade the base spell** and **add new spells** (mods).
+- Entering the castle **heals the player up to 7/10 of max HP** (never above 7/10) and opens the upgrade menu for **base spell levels** and **spell mods**.
 
 ---
 
@@ -120,11 +120,11 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 | Stat | Value |
 |---|---|
 | Starting HP | 10 |
-| Move speed | 1 tile/sec |
-| Starting spell | Base spell, level 1: auto-aims at the nearest monster, 1 damage |
+| Move speed | 2.5 tiles/sec |
+| Starting spell | Base spell, level 1: auto-aims at the nearest monster/nest/boss, 1 damage |
 
 ### 6.2 Spells
-- Every player spell moves at **1 tile/sec** unless its definition says otherwise.
+- Every player spell moves at **2× player speed (5.0 tiles/sec)** unless modified.
 - **Base spell levels:** 1 (base) up to 9 (max). You upgrade it **at the castle** with gold.
 - **Damage per level:** +2 per level until level 7, then +5 per level after that.
 
@@ -134,36 +134,40 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 > Assumption: level 7 is still a +2 step and levels 8–9 are +5. Confirm with the user (§9).
 
-- **Upgrade cost:** grows exponentially with each level. **The level 1→2 cost and the growth rate haven't been decided yet** (§9). Keep the formula in data: `cost = base_cost * growth ^ (level - 1)`.
+- **Upgrade cost:** grows exponentially with each level (`cost = base_cost * growth ^ (level - 1)`).
 
-### 6.3 Spell Mods
-- A spell mod **copies the base spell's damage at the moment you apply it**. That value is frozen; later base-spell upgrades don't change it.
-- The mod becomes a **new spell that fires alongside** the base spell.
-- Spell mods **only drop from nests**.
-- Known mods:
-  - **Magic Missile:** 2 tiles/sec, *(the rest of this line was cut off in the manuscript; see §9)*
-  - *More TBD*
+### 6.3 Spell Mods & Boss Spells
+- **Mod Parts:** killing any monster has a **1 in 7 chance** to drop a mod part pickup.
+- **Spell Mods (at the castle):** mod parts can be spent on 4 independent upgrades for the base spell, each adding **+0.1× (+10%)** per level:
+  - **Damage**
+  - **Fire Rate**
+  - **Spell Speed**
+  - **Range**
+- **Mod cost:** costs `+1` part per upgrade for the first 4 upgrades (`1, 2, 3, 4`), then grows exponentially (`8, 16, 32, …`).
+- **Boss Spells:** defeating a nest boss has a **1 in 3 chance** to drop a new spell pickup (along with **1000 gold**):
+  - Cannot be upgraded once acquired (stats are frozen on pickup).
+  - **First boss spell:** copies the current base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`).
+  - **Subsequent boss spells (when 2+ spells exist):** adds the damage of all existing player spells together without reducing fire rate by 1/3 again (existing spells are kept, not absorbed).
 
 ### 6.4 Nests
 - There are **4 nests**, one hidden in each **corner** of the map.
-- Each nest spawns its own monster type (suggested: one class per nest, i.e. Goblin / Undead / Ogre / Demon; confirm).
+- Each nest spawns its own monster type (Goblin / Undead / Ogre / Demon).
 - Spawning starts **5 seconds** after the run begins.
-- Nest HP: **30**
-- When destroyed: **1 in 3 chance** to drop a spell mod.
-- When destroyed: a **boss spawns 20 seconds later** (at the nest's spot unless the user says otherwise).
-- Open: does a destroyed nest stop spawning? (Almost certainly yes.)
+- Nest HP: **20** (reduced by 1/3 from 30; targeted and damaged by player spells).
+- When destroyed: a **nest boss spawns 20 seconds later** at the nest's spot.
+- Once **all 4 nests are destroyed**, the **Mega Boss** spawns.
 
 ### 6.5 Monsters (all melee)
-| Class | HP | Damage | Speed (× player) | Spawn interval | Gold drop |
-|---|---|---|---|---|---|
-| Goblin | 3 | 1 | 1.5× | every 5 s | 1 |
-| Undead | 4 | 2 | 0.5× | every 8 s | 3 |
-| Ogre | 10 | 1 | 0.5× | every 7 s | 4 |
-| Demon | 7 | 2 | 1.0× | every 16 s | 5 |
+| Class | HP | Damage | Radius (tiles) | Speed (from size) | Spawn interval | Gold drop |
+|---|---|---|---|---|---|---|
+| Goblin | 3 | 1 | 0.35 | ~2.14 tiles/s | every 5 s | 1 |
+| Undead | 4 | 2 | 0.40 | ~1.88 tiles/s | every 8 s | 3 |
+| Demon | 7 | 2 | 0.45 | ~1.67 tiles/s | every 16 s | 5 |
+| Ogre | 10 | 1 | 0.60 | ~1.25 tiles/s | every 7 s | 4 |
 
+- Monster speed varies inversely with theoretical size (`PLAYER_SPEED_TILES * min(0.9, 0.3 / radius_tiles)`), and is never faster than the player.
 - HP is multiplied by the difficulty multiplier (§3).
-- Monsters chase the player.
-- Open: the melee attack cooldown and the player's invulnerability frames after taking a hit aren't defined yet (§9).
+- Monsters chase the player around maze walls and have a **1 in 7 chance** to drop a mod part on death.
 
 ### 6.6 Nest Bosses
 | Stat | Value |
@@ -172,8 +176,21 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 | Melee damage | 5 |
 | Ranged attack | Fires a 1-damage projectile at 1 tile/sec in a straight line |
 | Spawn | 20 s after its nest is destroyed |
+| Drops | **1000 gold** + **1 in 3 chance** to drop a new Boss Spell |
 
-- Open: the boss's move speed, fire rate, aim (at the player or a fixed pattern), gold/mod drops, and whether difficulty scales it (§9).
+### 6.7 Mega Boss
+- Spawns once all 4 nests are destroyed.
+- **HP:** 1000 (same melee/ranged damage and speed stats as a Nest Boss).
+- Spawns a **Nest Boss every 50 seconds** and spawns **normal monsters at their normal rate**.
+- **Defeating the Mega Boss ends the game in Victory.**
+
+### 6.8 Gold Mines
+- **2 gold mines** spawn in random regions of the map each run.
+- Each mine produces **10 gold/sec**, capped at **500 gold**.
+- Walk over a gold mine to collect its stored gold.
+
+### 6.9 Random Maze Walls
+- Every new run generates a **spacious random maze** of walls across the outer map, starting **2/3 of the way in from the edge toward the castle** (leaving the inner 1/3 around the castle open).
 
 ---
 

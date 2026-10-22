@@ -53,3 +53,4 @@ func _draw() -> void:
 	# Banner
 	draw_line(Vector2(0, -h * 0.2), Vector2(0, -h * 0.75), Color(0.3, 0.2, 0.1), 2.0)
 	draw_colored_polygon(PackedVector2Array([Vector2(0, -h * 0.75), Vector2(h * 0.35, -h * 0.62), Vector2(0, -h * 0.5)]), Color(0.9, 0.75, 0.15))
+

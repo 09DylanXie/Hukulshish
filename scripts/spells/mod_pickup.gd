@@ -1,8 +1,15 @@
 class_name ModPickup
 extends Area2D
-## A spell mod dropped by a destroyed nest. Walk over it to pick it up, then apply it at the castle.
+## Ground pickup for either:
+## - a Mod Part (1/7 drop from monsters, spent at the castle to mod the base spell), or
+## - a Boss Spell (1/3 drop from nest bosses, immediately grants a new spell).
 
-var mod: SpellData
+enum Kind {
+	MOD_PART,
+	BOSS_SPELL,
+}
+
+var kind: Kind = Kind.MOD_PART
 
 var _t: float = 0.0
 
@@ -12,7 +19,7 @@ func _ready() -> void:
 	collision_mask = Config.LAYER_PLAYER
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
-	circle.radius = Config.tiles(0.5)
+	circle.radius = Config.tiles(0.55)
 	shape.shape = circle
 	add_child(shape)
 	body_entered.connect(_on_body_entered)
@@ -24,14 +31,35 @@ func _process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body is Player and mod != null:
-		GameState.add_pending_mod(mod)
-		queue_free()
+	if not (body is Player):
+		return
+	if kind == Kind.BOSS_SPELL:
+		GameState.acquire_boss_spell()
+	else:
+		GameState.add_mod_parts(1)
+	queue_free()
 
 
 func _draw() -> void:
-	var col: Color = mod.color if mod != null else Color.WHITE
-	var r: float = Config.tiles(0.4) * (1.0 + 0.15 * sin(_t * 4.0))
-	draw_circle(Vector2.ZERO, r * 1.6, Color(col, 0.25))
-	var diamond := PackedVector2Array([Vector2(0, -r), Vector2(r * 0.7, 0), Vector2(0, r), Vector2(-r * 0.7, 0)])
-	draw_colored_polygon(diamond, col)
+	if kind == Kind.BOSS_SPELL:
+		var col := Color(1.0, 0.55, 0.15)
+		var r: float = Config.tiles(0.45) * (1.0 + 0.15 * sin(_t * 5.0))
+		draw_circle(Vector2.ZERO, r * 1.7, Color(col, 0.28))
+		# 8-point star / tome glow
+		var pts1 := PackedVector2Array([Vector2(0, -r), Vector2(r * 0.7, 0), Vector2(0, r), Vector2(-r * 0.7, 0)])
+		var pts2 := PackedVector2Array([Vector2(-r * 0.6, -r * 0.6), Vector2(r * 0.6, -r * 0.6), Vector2(r * 0.6, r * 0.6), Vector2(-r * 0.6, r * 0.6)])
+		draw_colored_polygon(pts2, col.darkened(0.2))
+		draw_colored_polygon(pts1, col.lightened(0.25))
+	else:
+		var col := Color(0.35, 0.9, 1.0)
+		var r: float = Config.tiles(0.32) * (1.0 + 0.12 * sin(_t * 4.0))
+		draw_circle(Vector2.ZERO, r * 1.5, Color(col, 0.25))
+		var hex := PackedVector2Array([
+			Vector2(0, -r),
+			Vector2(r * 0.85, -r * 0.5),
+			Vector2(r * 0.85, r * 0.5),
+			Vector2(0, r),
+			Vector2(-r * 0.85, r * 0.5),
+			Vector2(-r * 0.85, -r * 0.5),
+		])
+		draw_colored_polygon(hex, col)

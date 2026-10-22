@@ -1,16 +1,21 @@
 # Prototype Notes
 
-First playable prototype of Normal mode (milestones 1–9 from `AGENTS.md` §8), built for **Godot 4.7.2**.
+Playable prototype of Normal mode (built for **Godot 4.7.2**).
 All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets are needed yet.
 
 ## How to play
 
-- **Start → Map Size → Difficulty**, then the run begins.
-- **WASD / arrow keys** to move. On touch devices, drag on the left half of the screen (virtual joystick).
-- Spells fire automatically at the nearest monster, boss or nest in range.
-- Walk **out of and back into the castle** to open the upgrade menu (the game pauses). `Esc` or *Leave Castle* closes it.
-- Destroyed nests have a 1-in-3 chance to drop a spell mod (glowing diamond). Pick it up, then apply it at the castle.
-- Win by destroying all 4 nests **and** the 4 bosses that appear 20 s later. Lose if your HP reaches 0.
+- **Start → Map Size → Difficulty**, then the run begins on a freshly generated spacious maze map.
+- **WASD / arrow keys** to move (`2.5` tiles/sec). On touch devices, drag on the left half of the screen (virtual joystick).
+- Spells move at **2× player speed (`5.0` tiles/sec)** and fire automatically at the nearest monster, boss, or nest in range.
+- **Gold Mines:** 2 gold mines spawn in random regions of the map, each generating **10 gold/sec** up to **500 gold**. Walk over a mine to collect its stored gold.
+- **Castle Shop & Heal:** walk out of and back into the castle to heal up to **7/10 of max HP** (never above 7/10) and open the upgrade menu (pauses the game).
+  - Spend **Gold** to upgrade the Base Spell level (Lv 1–9).
+  - Spend **Mod Parts** (1/7 drop from monsters) to upgrade Base Spell **Damage**, **Fire Rate**, **Spell Speed**, or **Range** (+0.1× per level; costs `1, 2, 3, 4`, then `8, 16, 32, …`).
+- **Nests & Bosses:**
+  - All 4 corner nests have **20 HP** and can be targeted and destroyed by player spells.
+  - Each destroyed nest spawns a **Nest Boss** 20 s later, which drops **1000 gold** and has a **1/3 chance** to drop a **Boss Spell** pickup (first boss spell doubles base spell damage at 2/3 fire rate; subsequent boss spells sum the damage of all existing player spells without reducing fire rate by 1/3 again).
+  - Destroying all 4 nests awakens the **Mega Boss** (**1000 HP**, spawns a boss every 50 s and normal monsters at their regular intervals). Defeating the Mega Boss wins the run.
 
 ## Code map
 
@@ -21,36 +26,9 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
 | Balance data | — | `resources/{monsters,spells,difficulty,maps}/*.tres` |
 | Menus | `scenes/ui/MainMenu.tscn`, `MapSizeSelect`, `DifficultySelect`, `GameOver`, `Victory` | `scripts/ui/*.gd` (built with `UIKit`) |
 | Run root | `scenes/main/Game.tscn` | `scripts/main/game.gd` |
-| Map | `scenes/world/World.tscn` | `scripts/world/world.gd` |
+| Map + Maze + Mines | `scenes/world/World.tscn`, `GoldMine.tscn` | `scripts/world/world.gd`, `gold_mine.gd` |
 | Player | `scenes/player/Player.tscn` | `scripts/player/player.gd`, `scripts/spells/spell_caster.gd` |
-| Spells | `scenes/spells/Projectile.tscn`, `ModPickup.tscn` | `scripts/spells/*.gd` |
-| Monsters / nests / bosses | `scenes/monsters/Monster.tscn`, `scenes/nests/Nest.tscn`, `scenes/bosses/NestBoss.tscn` | matching `scripts/` folders |
+| Spells & Pickups | `scenes/spells/Projectile.tscn`, `ModPickup.tscn` | `scripts/spells/*.gd` |
+| Monsters / Nests / Bosses | `scenes/monsters/Monster.tscn`, `scenes/nests/Nest.tscn`, `scenes/bosses/NestBoss.tscn`, `MegaBoss.tscn` | matching `scripts/` folders |
 | Castle | `scenes/castle/Castle.tscn` | `scripts/castle/castle.gd` |
-| HUD / castle menu / joystick | `scenes/ui/HUD.tscn`, `CastleMenu.tscn`, `VirtualJoystick.tscn` | `scripts/ui/*.gd` |
-
-Scenes are just a root node + script; children (collision shapes, camera, UI) are built in code so the
-`.tscn` files almost never change → fewer merge conflicts.
-
-## Placeholder values (answers needed — AGENTS.md §9)
-
-Every one of these is a `# TODO(design)` constant in `scripts/autoload/config.gd` or a `.tres` file.
-
-| Question | Placeholder used |
-|---|---|
-| Q1 Upgrade cost | `5 × 2^(level−1)` gold (5, 10, 20, 40 …) |
-| Q2 Magic Missile stats | 2 tiles/sec, 1 shot/sec, copies base damage |
-| Q3 Level 7 damage | +2 step (1, 3, 5, 7, 9, 11, 13, 18, 23) |
-| Q4 Difficulty scope / rounding | Monsters only; HP rounded **up** |
-| Q5 Map sizes | Small 40, Medium 60, Large 80 tiles |
-| Q6 Fire rates | Base spell & mods 1 shot/sec; boss bolt every 2 s |
-| Q7 Melee / i-frames | Monster attack cooldown 1 s; player i-frames 0.5 s |
-| Q8 Boss | 0.5× player speed, aims at player, drops 10 gold |
-| Q9 Nest → monster | One class per nest (TL Goblin, TR Undead, BL Ogre, BR Demon) |
-| Q10 Castle interaction | Walk in (after leaving once) |
-| — Auto-aim range | 10 tiles (nests are valid targets too) |
-| — Projectile lifetime | 12 s |
-| — Max alive per nest | 25 (performance cap) |
-| — Camera zoom | 2× |
-
-> Note: the spec's speeds (player and spells 1 tile/sec) feel quite slow in play. They're kept as written —
-> tune `PLAYER_SPEED_TILES` / spell `speed_tiles` if you want a faster pace.
+| HUD / Castle Menu / Joystick | `scenes/ui/HUD.tscn`, `CastleMenu.tscn`, `VirtualJoystick.tscn` | `scripts/ui/*.gd` |

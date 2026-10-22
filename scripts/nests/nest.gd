@@ -10,8 +10,8 @@ const MonsterScene: PackedScene = preload("res://scenes/monsters/Monster.tscn")
 
 var stats: MonsterStats
 var hp_mult: float = 1.0
-var max_hp: int = Config.NEST_HP
-var hp: int = Config.NEST_HP
+var max_hp: float = Config.NEST_HP
+var hp: float = Config.NEST_HP
 
 var _radius: float = Config.tiles(Config.NEST_RADIUS_TILES)
 var _spawn_timer: float = Config.NEST_SPAWN_DELAY_SEC
@@ -60,13 +60,13 @@ func _spawn() -> void:
 	monster_spawned.emit(m)
 
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: float) -> void:
 	if _dead:
 		return
 	hp -= amount
 	_flash = 0.1
 	queue_redraw()
-	if hp <= 0:
+	if hp <= 0.0:
 		_dead = true
 		destroyed.emit(self)
 		queue_free()
@@ -84,4 +84,4 @@ func _draw() -> void:
 	var w: float = _radius * 2.0
 	var top: Vector2 = Vector2(-_radius, -_radius - 8.0)
 	draw_rect(Rect2(top, Vector2(w, 4)), Color(0, 0, 0, 0.6))
-	draw_rect(Rect2(top, Vector2(w * float(hp) / max_hp, 4)), Color(0.95, 0.6, 0.1))
+	draw_rect(Rect2(top, Vector2(w * maxf(hp, 0.0) / max_hp, 4)), Color(0.95, 0.6, 0.1))

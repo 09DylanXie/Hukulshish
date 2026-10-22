@@ -1,18 +1,20 @@
 class_name Monster
 extends CharacterBody2D
-## Generic melee monster that chases the player. Configured by a MonsterStats resource (§6.5).
-## Call setup() before adding it to the tree.
+## Generic melee monster that chases the player through the maze. Configured by a MonsterStats resource (§6.5).
+## Speed comes from its size (Config.monster_speed_tiles). Call setup() before adding it to the tree.
 
-signal died(gold: int)
+signal died(gold: int, at: Vector2)
 
 var stats: MonsterStats
-var max_hp: int = 1
-var hp: int = 1
+var max_hp: float = 1.0
+var hp: float = 1.0
 
 var _radius: float = 12.0
+var _speed: float = 32.0
 var _attack_cooldown: float = 0.0
 var _flash: float = 0.0
 var _dead: bool = false
+var _world: World
 
 
 func setup(monster_stats: MonsterStats, hp_mult: float) -> void:
@@ -20,6 +22,7 @@ func setup(monster_stats: MonsterStats, hp_mult: float) -> void:
 	max_hp = Config.scale_hp(stats.hp, hp_mult)
 	hp = max_hp
 	_radius = Config.tiles(stats.radius_tiles)
+	_speed = Config.tiles(Config.monster_speed_tiles(stats.radius_tiles))
 
 
 func _ready() -> void:
@@ -33,6 +36,7 @@ func _ready() -> void:
 	circle.radius = _radius
 	shape.shape = circle
 	add_child(shape)
+	_world = get_tree().get_first_node_in_group("world") as World
 
 
 func _physics_process(delta: float) -> void:
@@ -56,19 +60,20 @@ func _physics_process(delta: float) -> void:
 			player.take_damage(stats.damage)
 			_attack_cooldown = Config.MONSTER_ATTACK_COOLDOWN_SEC
 	else:
-		velocity = to_player.normalized() * Config.tiles(Config.PLAYER_SPEED_TILES * stats.speed_mult)
+		var dir: Vector2 = _world.flow_direction(global_position, player.global_position) if _world != null else to_player.normalized()
+		velocity = dir * _speed
 	move_and_slide()
 
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: float) -> void:
 	if _dead:
 		return
 	hp -= amount
 	_flash = 0.1
 	queue_redraw()
-	if hp <= 0:
+	if hp <= 0.0:
 		_dead = true
-		died.emit(stats.gold)
+		died.emit(stats.gold, global_position)
 		queue_free()
 
 
@@ -86,4 +91,4 @@ func _draw() -> void:
 		var w: float = _radius * 2.0
 		var top: Vector2 = Vector2(-_radius, -_radius - 6.0)
 		draw_rect(Rect2(top, Vector2(w, 3)), Color(0, 0, 0, 0.6))
-		draw_rect(Rect2(top, Vector2(w * float(hp) / max_hp, 3)), Color(0.9, 0.2, 0.2))
+		draw_rect(Rect2(top, Vector2(w * hp / max_hp, 3)), Color(0.9, 0.2, 0.2))

@@ -74,3 +74,4 @@ func _draw() -> void:
 	draw_circle(_origin, RADIUS, Color(1, 1, 1, 0.15))
 	draw_arc(_origin, RADIUS, 0.0, TAU, 48, Color(1, 1, 1, 0.4), 2.0)
 	draw_circle(_knob, KNOB_RADIUS, Color(1, 1, 1, 0.45))
+

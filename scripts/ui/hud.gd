@@ -1,6 +1,6 @@
 class_name HUD
 extends CanvasLayer
-## In-game HUD: HP, gold, spell level, objectives, pending mods, and the mobile joystick.
+## In-game HUD: HP, gold, mod parts, spell stats, objectives, and the mobile joystick.
 
 const JoystickScene: PackedScene = preload("res://scenes/ui/VirtualJoystick.tscn")
 
@@ -25,7 +25,7 @@ func _ready() -> void:
 
 	_hp_label = _label(box, "HP")
 	_hp_bar = ProgressBar.new()
-	_hp_bar.custom_minimum_size = Vector2(220, 14)
+	_hp_bar.custom_minimum_size = Vector2(240, 14)
 	_hp_bar.show_percentage = false
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = Color(0.85, 0.2, 0.25)
@@ -37,8 +37,8 @@ func _ready() -> void:
 
 	_hint_label = Label.new()
 	_hint_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_hint_label.position = Vector2(-300, 16)
-	_hint_label.custom_minimum_size = Vector2(600, 0)
+	_hint_label.position = Vector2(-320, 16)
+	_hint_label.custom_minimum_size = Vector2(640, 0)
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint_label.add_theme_font_size_override("font_size", 20)
 	_hint_label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -47,10 +47,7 @@ func _ready() -> void:
 
 	add_child(JoystickScene.instantiate())
 
-	GameState.gold_changed.connect(func(_g: int) -> void: _refresh())
-	GameState.spell_level_changed.connect(func(_l: int) -> void: _refresh())
-	GameState.mods_changed.connect(_refresh)
-	GameState.objectives_changed.connect(_refresh)
+	GameState.changed.connect(_refresh)
 	_refresh()
 
 
@@ -63,8 +60,8 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	if _elapsed < Config.NEST_SPAWN_DELAY_SEC:
 		_hint_label.text = "Monsters awaken in %d…" % ceili(Config.NEST_SPAWN_DELAY_SEC - _elapsed)
-	elif not GameState.pending_mods.is_empty():
-		_hint_label.text = "You found a spell mod! Return to the castle to apply it."
+	elif GameState.mega_boss_spawned and not GameState.mega_boss_defeated:
+		_hint_label.text = "THE MEGA BOSS HAS AWAKENED! Defeat it to win!"
 	else:
 		_hint_label.text = ""
 
@@ -76,12 +73,17 @@ func _on_hp_changed(hp: int, max_hp: int) -> void:
 
 
 func _refresh() -> void:
-	_gold_label.text = "Gold  %d" % GameState.gold
-	var mods: String = ""
-	if not GameState.active_mods.is_empty():
-		mods = "  +%d mod(s)" % GameState.active_mods.size()
-	_spell_label.text = "Spell  Lv %d  (%d dmg)%s" % [GameState.spell_level, Config.spell_damage(GameState.spell_level), mods]
-	_objective_label.text = "Nests  %d/4    Bosses  %d/4" % [GameState.nests_destroyed, GameState.bosses_defeated]
+	_gold_label.text = "Gold  %d    Mod Parts  %d" % [GameState.gold, GameState.mod_parts]
+	var base: Dictionary = GameState.base_spell_stats()
+	var extra: String = ""
+	if not GameState.boss_spells.is_empty():
+		extra = "  +%d boss spell(s)" % GameState.boss_spells.size()
+	_spell_label.text = "Spell Lv %d  (%.1f dmg, %.1f/s)%s" % [
+		GameState.spell_level, float(base["damage"]), float(base["fire_rate"]), extra]
+	if GameState.mega_boss_spawned:
+		_objective_label.text = "Nests  4/4    Mega Boss  ACTIVE"
+	else:
+		_objective_label.text = "Nests  %d/4    Bosses  %d/4" % [GameState.nests_destroyed, GameState.bosses_defeated]
 
 
 func _label(parent: Node, text: String) -> Label:

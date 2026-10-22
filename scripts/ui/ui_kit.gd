@@ -44,3 +44,4 @@ static func make_button(text: String, on_pressed: Callable, size: int = 26) -> B
 	b.add_theme_font_size_override("font_size", size)
 	b.pressed.connect(on_pressed)
 	return b
+

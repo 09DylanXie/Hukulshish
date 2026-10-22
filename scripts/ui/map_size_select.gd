@@ -18,3 +18,4 @@ func _ready() -> void:
 func _choose(data: MapSizeData) -> void:
 	GameState.map_size = data
 	SceneRouter.goto(SceneRouter.DIFFICULTY_SELECT)
+

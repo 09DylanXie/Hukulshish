@@ -66,16 +66,27 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: float) -> void:
 	if _dead or _iframes > 0.0:
 		return
-	hp = maxi(0, hp - amount)
+	hp = maxi(0, hp - int(round(amount)))
 	_iframes = Config.PLAYER_IFRAMES_SEC
 	hp_changed.emit(hp, max_hp)
 	if hp <= 0:
 		_dead = true
 		died.emit()
 		GameState.on_player_died()
+
+
+## Heals the player up to 7/10 of max HP when entering the castle shop (§5).
+## Never reduces HP if the player is already above 7/10.
+func heal_at_castle() -> void:
+	if _dead:
+		return
+	var cap: int = int(floor(max_hp * Config.CASTLE_HEAL_FRACTION))
+	if hp < cap:
+		hp = cap
+		hp_changed.emit(hp, max_hp)
 
 
 func is_dead() -> bool:

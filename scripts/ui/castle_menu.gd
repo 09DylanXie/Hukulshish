@@ -1,12 +1,14 @@
 class_name CastleMenu
 extends CanvasLayer
 ## Castle upgrade menu (§5, §6.2–6.3). Pauses the game while open.
-## Upgrade the base spell with gold, and apply spell mods picked up from nests.
+## Upgrade the base spell with gold, spend mod parts on the 4 base-spell mods,
+## and inspect boss spells acquired during the run.
 
 var _root: Control
-var _gold_label: Label
+var _resources_label: Label
 var _upgrade_button: Button
 var _mods_box: VBoxContainer
+var _spells_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -14,9 +16,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build()
 	_root.hide()
-	GameState.gold_changed.connect(func(_g: int) -> void: _refresh())
-	GameState.spell_level_changed.connect(func(_l: int) -> void: _refresh())
-	GameState.mods_changed.connect(_refresh)
+	GameState.changed.connect(_refresh)
 
 
 func open() -> void:
@@ -54,26 +54,32 @@ func _build() -> void:
 	_root.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(520, 0)
+	panel.custom_minimum_size = Vector2(560, 0)
 	center.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 20)
 	panel.add_child(margin)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
+	box.add_theme_constant_override("separation", 10)
 	margin.add_child(box)
 
-	box.add_child(UIKit.make_label("Kingdom Castle", 36, Color(0.95, 0.8, 0.3)))
-	_gold_label = UIKit.make_label("", 20)
-	box.add_child(_gold_label)
-	_upgrade_button = UIKit.make_button("", _on_upgrade_pressed, 20)
+	box.add_child(UIKit.make_label("Kingdom Castle", 34, Color(0.95, 0.8, 0.3)))
+	box.add_child(UIKit.make_label("Restored HP up to 70% max", 15, Color(0.55, 0.9, 0.65)))
+	_resources_label = UIKit.make_label("", 20)
+	box.add_child(_resources_label)
+	_upgrade_button = UIKit.make_button("", _on_upgrade_pressed, 19)
 	box.add_child(_upgrade_button)
 
-	box.add_child(UIKit.make_label("Spell Mods", 24, Color(0.85, 0.6, 1)))
+	box.add_child(UIKit.make_label("Spell Mods (+0.1× per level)", 22, Color(0.45, 0.85, 1.0)))
 	_mods_box = VBoxContainer.new()
 	_mods_box.add_theme_constant_override("separation", 6)
 	box.add_child(_mods_box)
+
+	box.add_child(UIKit.make_label("Boss Spells", 22, Color(1.0, 0.65, 0.25)))
+	_spells_box = VBoxContainer.new()
+	_spells_box.add_theme_constant_override("separation", 4)
+	box.add_child(_spells_box)
 
 	box.add_child(UIKit.make_button("Leave Castle", close, 20))
 
@@ -81,33 +87,46 @@ func _build() -> void:
 func _refresh() -> void:
 	if _root == null:
 		return
-	_gold_label.text = "Gold: %d" % GameState.gold
+	_resources_label.text = "Gold: %d      Mod Parts: %d" % [GameState.gold, GameState.mod_parts]
 	var lvl: int = GameState.spell_level
 	if GameState.is_spell_maxed():
-		_upgrade_button.text = "Base Spell Lv %d (%d dmg) — MAX" % [lvl, Config.spell_damage(lvl)]
+		_upgrade_button.text = "Base Spell Lv %d (%d base dmg) — MAX" % [lvl, Config.spell_damage(lvl)]
 		_upgrade_button.disabled = true
 	else:
 		var cost: int = GameState.next_upgrade_cost()
-		_upgrade_button.text = "Upgrade Base Spell  Lv %d → %d  (%d → %d dmg)  —  %d gold" % [
+		_upgrade_button.text = "Upgrade Base Spell  Lv %d → %d  (%d → %d base dmg)  —  %d gold" % [
 			lvl, lvl + 1, Config.spell_damage(lvl), Config.spell_damage(lvl + 1), cost]
 		_upgrade_button.disabled = GameState.gold < cost
 
 	for c in _mods_box.get_children():
 		c.queue_free()
-	if GameState.pending_mods.is_empty() and GameState.active_mods.is_empty():
-		_mods_box.add_child(UIKit.make_label("None yet — destroyed nests sometimes drop one.", 16, Color(0.7, 0.7, 0.75)))
-	for i in GameState.pending_mods.size():
-		var mod: SpellData = GameState.pending_mods[i]
-		var text: String = "Apply %s  (locks in %d dmg)" % [mod.name, Config.spell_damage(lvl)]
-		_mods_box.add_child(UIKit.make_button(text, _on_apply_mod.bind(i), 18))
-	for m in GameState.active_mods:
-		var data: SpellData = m["data"]
-		_mods_box.add_child(UIKit.make_label("✔ %s — %d dmg" % [data.name, m["damage"]], 16, data.color))
+	for id in Config.MODS:
+		var label_name: String = Config.MODS[id]
+		var mod_lvl: int = int(GameState.mod_levels.get(id, 0))
+		var cur_mult: float = GameState.mod_multiplier(id)
+		var next_mult: float = cur_mult + Config.MOD_STEP
+		var cost: int = GameState.next_mod_cost(id)
+		var text: String = "%s  Lv %d (×%.1f → ×%.1f)  —  %d part%s" % [
+			label_name, mod_lvl, cur_mult, next_mult, cost, "" if cost == 1 else "s"]
+		var btn: Button = UIKit.make_button(text, _on_buy_mod.bind(id), 17)
+		btn.custom_minimum_size = Vector2(0, 42)
+		btn.disabled = GameState.mod_parts < cost
+		_mods_box.add_child(btn)
+
+	for c in _spells_box.get_children():
+		c.queue_free()
+	if GameState.boss_spells.is_empty():
+		_spells_box.add_child(UIKit.make_label("None yet — bosses have a 1/3 chance to drop a new spell.", 15, Color(0.7, 0.7, 0.75)))
+	else:
+		for s in GameState.boss_spells:
+			var info: String = "★ %s — %.1f dmg, %.2f/s, %.1f tiles/s (frozen)" % [
+				s["name"], float(s["damage"]), float(s["fire_rate"]), float(s["speed_tiles"])]
+			_spells_box.add_child(UIKit.make_label(info, 16, s["color"] as Color))
 
 
 func _on_upgrade_pressed() -> void:
 	GameState.try_upgrade_spell()
 
 
-func _on_apply_mod(index: int) -> void:
-	GameState.apply_mod(index)
+func _on_buy_mod(id: String) -> void:
+	GameState.try_buy_mod(id)

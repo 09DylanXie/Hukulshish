@@ -1,27 +1,30 @@
 class_name NestBoss
 extends CharacterBody2D
 ## Spawns 20 s after its nest is destroyed (§6.6). Melee + a straight 1-damage bolt aimed at the player.
+## Drops 1000 gold and has a 1-in-3 chance to drop a new spell (handled by Game via `died`).
 
-signal died(gold: int)
+signal died(gold: int, at: Vector2)
 
 const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tscn")
 
 var color: Color = Color(0.6, 0.1, 0.6)
-var max_hp: int = Config.BOSS_HP
-var hp: int = Config.BOSS_HP
+var max_hp: float = Config.BOSS_HP
+var hp: float = Config.BOSS_HP
+var gold: int = Config.BOSS_GOLD
 
 var _radius: float = Config.tiles(Config.BOSS_RADIUS_TILES)
 var _attack_cooldown: float = 0.0
 var _fire_cooldown: float = Config.BOSS_FIRE_INTERVAL_SEC
 var _flash: float = 0.0
 var _dead: bool = false
+var _world: World
 
 
 ## `tint` = colour of the nest it came from. `hp_mult` only applies if Config says so (§9 Q4).
 func setup(tint: Color, hp_mult: float) -> void:
 	color = tint.darkened(0.3)
 	if Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES:
-		max_hp = Config.scale_hp(Config.BOSS_HP, hp_mult)
+		max_hp = Config.scale_hp(int(max_hp), hp_mult)
 		hp = max_hp
 
 
@@ -36,6 +39,7 @@ func _ready() -> void:
 	circle.radius = _radius
 	shape.shape = circle
 	add_child(shape)
+	_world = get_tree().get_first_node_in_group("world") as World
 
 
 func _physics_process(delta: float) -> void:
@@ -58,18 +62,20 @@ func _physics_process(delta: float) -> void:
 			player.take_damage(Config.BOSS_MELEE_DAMAGE)
 			_attack_cooldown = Config.MONSTER_ATTACK_COOLDOWN_SEC
 	else:
-		velocity = to_player.normalized() * Config.tiles(Config.PLAYER_SPEED_TILES * Config.BOSS_SPEED_MULT)
+		var dir: Vector2 = _world.flow_direction(global_position, player.global_position) if _world != null else to_player.normalized()
+		velocity = dir * Config.tiles(Config.PLAYER_SPEED_TILES * Config.BOSS_SPEED_MULT)
 	move_and_slide()
 
-	if _fire_cooldown <= 0.0:
+	if _fire_cooldown <= 0.0 and to_player.length() <= Config.tiles(Config.BOSS_FIRE_RANGE_TILES):
 		_fire_cooldown = Config.BOSS_FIRE_INTERVAL_SEC
 		_fire_at(player.global_position)
 
 
 func _fire_at(target_pos: Vector2) -> void:
 	var p: Projectile = ProjectileScene.instantiate()
-	p.setup(global_position.direction_to(target_pos), Config.tiles(Config.BOSS_BOLT_SPEED_TILES),
-		Config.BOSS_BOLT_DAMAGE, false, Color(1, 0.3, 0.1), Config.tiles(0.2))
+	var speed: float = Config.tiles(Config.BOSS_BOLT_SPEED_TILES)
+	p.setup(global_position.direction_to(target_pos), speed, Config.BOSS_BOLT_DAMAGE, false,
+		Color(1, 0.3, 0.1), Config.tiles(0.2), Config.tiles(Config.BOSS_FIRE_RANGE_TILES * 1.5))
 	p.global_position = global_position
 	var container: Node = get_tree().get_first_node_in_group("projectile_container")
 	if container == null:
@@ -77,15 +83,21 @@ func _fire_at(target_pos: Vector2) -> void:
 	container.add_child(p)
 
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: float) -> void:
 	if _dead:
 		return
 	hp -= amount
 	_flash = 0.1
-	if hp <= 0:
+	if hp <= 0.0:
 		_dead = true
-		died.emit(Config.BOSS_GOLD)
+		_on_killed()
+		died.emit(gold, global_position)
 		queue_free()
+
+
+## Hook for subclasses.
+func _on_killed() -> void:
+	pass
 
 
 func _draw() -> void:
@@ -100,4 +112,4 @@ func _draw() -> void:
 	var w: float = _radius * 2.0
 	var top: Vector2 = Vector2(-_radius, -_radius - 10.0)
 	draw_rect(Rect2(top, Vector2(w, 4)), Color(0, 0, 0, 0.6))
-	draw_rect(Rect2(top, Vector2(w * float(hp) / max_hp, 4)), Color(0.9, 0.2, 0.9))
+	draw_rect(Rect2(top, Vector2(w * maxf(hp, 0.0) / max_hp, 4)), Color(0.9, 0.2, 0.9))
