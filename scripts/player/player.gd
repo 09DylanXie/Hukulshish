@@ -1,14 +1,17 @@
 class_name Player
 extends CharacterBody2D
-## The mage Hukulshish. WASD / virtual joystick movement; spells fire automatically (SpellCaster child).
+## The mage Hukulshish. WASD movement; click to shoot (or auto-aim once unlocked in the Gold Shop).
 
 signal hp_changed(hp: int, max_hp: int)
+signal shield_changed(shield: int, max_shield: int)
 signal died
 
 const SpellCasterScript: GDScript = preload("res://scripts/spells/spell_caster.gd")
 
 var max_hp: int = Config.PLAYER_MAX_HP
 var hp: int = Config.PLAYER_MAX_HP
+var max_shield: int = Config.PLAYER_MAX_SHIELD
+var shield: int = 0
 ## Map area the player is kept inside. Set by Game; empty = unlimited.
 var bounds: Rect2 = Rect2()
 
@@ -45,6 +48,7 @@ func _ready() -> void:
 	add_child(caster)
 
 	hp_changed.emit(hp, max_hp)
+	shield_changed.emit(shield, max_shield)
 
 
 func _physics_process(delta: float) -> void:
@@ -69,13 +73,40 @@ func _physics_process(delta: float) -> void:
 func take_damage(amount: float) -> void:
 	if _dead or _iframes > 0.0:
 		return
-	hp = maxi(0, hp - int(round(amount)))
+	var dmg: int = maxi(1, int(round(amount)))
+	if shield > 0:
+		var absorbed: int = mini(shield, dmg)
+		shield -= absorbed
+		dmg -= absorbed
+		shield_changed.emit(shield, max_shield)
+	if dmg > 0:
+		hp = maxi(0, hp - dmg)
+		hp_changed.emit(hp, max_hp)
 	_iframes = Config.PLAYER_IFRAMES_SEC
-	hp_changed.emit(hp, max_hp)
+	queue_redraw()
 	if hp <= 0:
 		_dead = true
 		died.emit()
 		GameState.on_player_died()
+
+
+## Adds shield points up to `max_shield` (5). Returns false if already full.
+func add_shield(amount: int) -> bool:
+	if _dead or shield >= max_shield:
+		return false
+	shield = mini(max_shield, shield + amount)
+	shield_changed.emit(shield, max_shield)
+	queue_redraw()
+	return true
+
+
+## Heals the player by `amount` up to `max_hp` (used by 3 HP healing potions).
+func heal_amount(amount: int) -> bool:
+	if _dead or hp >= max_hp:
+		return false
+	hp = mini(max_hp, hp + amount)
+	hp_changed.emit(hp, max_hp)
+	return true
 
 
 ## Heals the player up to 7/10 of max HP when entering the castle shop (§5).
@@ -94,6 +125,10 @@ func is_dead() -> bool:
 
 
 func _draw() -> void:
+	# Magic shield aura when shield > 0
+	if shield > 0:
+		draw_circle(Vector2.ZERO, _radius * 1.35, Color(0.2, 0.7, 1.0, 0.22))
+		draw_arc(Vector2.ZERO, _radius * 1.35, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
 	# Robe
 	draw_circle(Vector2.ZERO, _radius, Color(0.25, 0.3, 0.85))
 	# Hat

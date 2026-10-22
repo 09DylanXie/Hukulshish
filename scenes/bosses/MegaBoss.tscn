@@ -4,3 +4,4 @@
 
 [node name="MegaBoss" type="CharacterBody2D"]
 script = ExtResource("1")
+

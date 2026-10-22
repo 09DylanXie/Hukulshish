@@ -4,3 +4,4 @@
 
 [node name="GoldMine" type="Area2D"]
 script = ExtResource("1")
+

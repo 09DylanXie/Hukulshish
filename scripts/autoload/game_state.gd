@@ -15,10 +15,21 @@ var difficulty: DifficultyData
 var gold: int = 0
 var spell_level: int = 1
 var mod_parts: int = 0
+## How many mod parts have been purchased with gold in the Gold Shop (max 10).
+var mod_parts_bought_with_gold: int = 0
 ## Mod id → level (see Config.MODS). Mods only affect the base spell.
 var mod_levels: Dictionary = {}
 ## Spells dropped by bosses. Each is a frozen stat Dictionary (see make_spell_stats()).
 var boss_spells: Array[Dictionary] = []
+
+# --- Gold Shop unlocks & hotbar consumables ---
+var auto_shoot_unlocked: bool = false
+var shield_items: int = 0
+var heal_potions: int = 0
+var damage_potions: int = 0
+var heal_potion_timer: float = 0.0
+var damage_boost_timer: float = 0.0
+
 var nests_destroyed: int = 0
 var bosses_defeated: int = 0
 var mega_boss_spawned: bool = false
@@ -36,16 +47,36 @@ func start_run() -> void:
 	gold = 0
 	spell_level = 1
 	mod_parts = 0
+	mod_parts_bought_with_gold = 0
 	mod_levels.clear()
 	for id in Config.MODS:
 		mod_levels[id] = 0
 	boss_spells.clear()
+	auto_shoot_unlocked = false
+	shield_items = 0
+	heal_potions = 0
+	damage_potions = 0
+	heal_potion_timer = 0.0
+	damage_boost_timer = 0.0
 	nests_destroyed = 0
 	bosses_defeated = 0
 	mega_boss_spawned = false
 	mega_boss_defeated = false
 	run_over = false
 	changed.emit()
+
+
+func _process(delta: float) -> void:
+	if get_tree().paused or run_over:
+		return
+	var prev_dmg_active: bool = damage_boost_timer > 0.0
+	var prev_heal_active: bool = heal_potion_timer > 0.0
+	if damage_boost_timer > 0.0:
+		damage_boost_timer = maxf(0.0, damage_boost_timer - delta)
+	if heal_potion_timer > 0.0:
+		heal_potion_timer = maxf(0.0, heal_potion_timer - delta)
+	if (prev_dmg_active and damage_boost_timer <= 0.0) or (prev_heal_active and heal_potion_timer <= 0.0):
+		changed.emit()
 
 
 # --- Spell stats ---
@@ -67,7 +98,11 @@ func mod_multiplier(id: String) -> float:
 	return 1.0 + Config.MOD_STEP * int(mod_levels.get(id, 0))
 
 
-## Current base spell stats: level damage × mods.
+func damage_boost_multiplier() -> float:
+	return Config.DAMAGE_POTION_MULT if damage_boost_timer > 0.0 else 1.0
+
+
+## Current base spell stats: level damage × mods (before temporary potion boost).
 func base_spell_stats() -> Dictionary:
 	var b: SpellData = Config.BASE_SPELL
 	return make_spell_stats(b,
@@ -130,6 +165,97 @@ func try_buy_mod(id: String) -> bool:
 		return false
 	mod_parts -= cost
 	mod_levels[id] = int(mod_levels.get(id, 0)) + 1
+	changed.emit()
+	return true
+
+
+# --- Gold Shop purchases ---
+
+func can_buy_gold_mod_part() -> bool:
+	return mod_parts_bought_with_gold < Config.GOLD_SHOP_MOD_PART_MAX
+
+
+func next_gold_mod_part_cost() -> int:
+	return Config.gold_mod_part_cost(mod_parts_bought_with_gold)
+
+
+func try_buy_gold_mod_part() -> bool:
+	if not can_buy_gold_mod_part():
+		return false
+	var cost: int = next_gold_mod_part_cost()
+	if gold < cost:
+		return false
+	gold -= cost
+	mod_parts_bought_with_gold += 1
+	mod_parts += 1
+	changed.emit()
+	return true
+
+
+func try_buy_shield_item() -> bool:
+	if gold < Config.GOLD_SHOP_SHIELD_COST:
+		return false
+	gold -= Config.GOLD_SHOP_SHIELD_COST
+	shield_items += 1
+	changed.emit()
+	return true
+
+
+func try_buy_heal_potion() -> bool:
+	if gold < Config.GOLD_SHOP_POTION_COST:
+		return false
+	gold -= Config.GOLD_SHOP_POTION_COST
+	heal_potions += 1
+	changed.emit()
+	return true
+
+
+func try_buy_damage_potion() -> bool:
+	if gold < Config.GOLD_SHOP_POTION_COST:
+		return false
+	gold -= Config.GOLD_SHOP_POTION_COST
+	damage_potions += 1
+	changed.emit()
+	return true
+
+
+func try_buy_auto_shoot() -> bool:
+	if auto_shoot_unlocked or gold < Config.GOLD_SHOP_AUTO_SHOOT_COST:
+		return false
+	gold -= Config.GOLD_SHOP_AUTO_SHOOT_COST
+	auto_shoot_unlocked = true
+	changed.emit()
+	return true
+
+
+# --- Using hotbar items ---
+
+func try_use_shield_item(player: Node) -> bool:
+	if shield_items <= 0 or player == null or not player.has_method("add_shield"):
+		return false
+	if not player.add_shield(Config.SHIELD_ITEM_AMOUNT):
+		return false
+	shield_items -= 1
+	changed.emit()
+	return true
+
+
+func try_use_heal_potion(player: Node) -> bool:
+	if heal_potions <= 0 or player == null or not player.has_method("heal_amount"):
+		return false
+	if not player.heal_amount(Config.HEAL_POTION_AMOUNT):
+		return false
+	heal_potions -= 1
+	heal_potion_timer = Config.POTION_DURATION_SEC
+	changed.emit()
+	return true
+
+
+func try_use_damage_potion() -> bool:
+	if damage_potions <= 0:
+		return false
+	damage_potions -= 1
+	damage_boost_timer = Config.POTION_DURATION_SEC
 	changed.emit()
 	return true
 

@@ -65,6 +65,10 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 
+func get_hit_radius() -> float:
+	return _radius
+
+
 func take_damage(amount: float) -> void:
 	if _dead:
 		return

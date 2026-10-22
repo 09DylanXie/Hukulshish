@@ -120,11 +120,12 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 | Stat | Value |
 |---|---|
 | Starting HP | 10 |
-| Move speed | 2.5 tiles/sec |
-| Starting spell | Base spell, level 1: auto-aims at the nearest monster/nest/boss, 1 damage |
+| Max Shield | 5 (absorbs damage before HP) |
+| Move speed | 3.0 tiles/sec |
+| Starting spell | Base spell, level 1: left-click to shoot toward cursor (or auto-aim once unlocked for 1500 gold), 1 damage |
 
 ### 6.2 Spells
-- Every player spell moves at **2× player speed (5.0 tiles/sec)** unless modified.
+- Every player spell moves at **2× player speed (6.0 tiles/sec)** unless modified.
 - **Base spell levels:** 1 (base) up to 9 (max). You upgrade it **at the castle** with gold.
 - **Damage per level:** +2 per level until level 7, then +5 per level after that.
 
@@ -136,7 +137,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 - **Upgrade cost:** grows exponentially with each level (`cost = base_cost * growth ^ (level - 1)`).
 
-### 6.3 Spell Mods & Boss Spells
+### 6.3 Spell Mods, Gold Shop & Boss Spells
 - **Mod Parts:** killing any monster has a **1 in 7 chance** to drop a mod part pickup.
 - **Spell Mods (at the castle):** mod parts can be spent on 4 independent upgrades for the base spell, each adding **+0.1× (+10%)** per level:
   - **Damage**
@@ -144,6 +145,12 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
   - **Spell Speed**
   - **Range**
 - **Mod cost:** costs `+1` part per upgrade for the first 4 upgrades (`1, 2, 3, 4`), then grows exponentially (`8, 16, 32, …`).
+- **Gold Shop (at the castle):**
+  - **Mod Part:** `100` gold for the 1st, then `+100` gold for each additional part up to 10 (`100, 200, …, 1000`).
+  - **Magic Shield (`200` gold):** adds 1 shield item to the bottom circular hotbar; using it adds `+1` shield point (up to the 5-shield cap).
+  - **3 HP Healing Potion (`100` gold):** adds 1 healing potion to the bottom circular hotbar; using it heals `+3 HP` (30 s effect timer).
+  - **2× Damage Boost Potion (`100` gold):** adds 1 damage potion to the bottom circular hotbar; using it grants `2×` spell damage for **30 seconds**.
+  - **Auto-Shooting Unlock (`1500` gold):** unlocks automatic targeting and firing alongside manual click-to-shoot.
 - **Boss Spells:** defeating a nest boss has a **1 in 3 chance** to drop a new spell pickup (along with **1000 gold**):
   - Cannot be upgraded once acquired (stats are frozen on pickup).
   - **First boss spell:** copies the current base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`).
@@ -151,19 +158,19 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 ### 6.4 Nests
 - There are **4 nests**, one hidden in each **corner** of the map.
-- Each nest spawns its own monster type (Goblin / Undead / Ogre / Demon).
+- Each nest spawns its own monster type (Goblin / Undead / Ogre / Demon) directly from its center hole.
 - Spawning starts **5 seconds** after the run begins.
-- Nest HP: **20** (reduced by 1/3 from 30; targeted and damaged by player spells).
+- Nest HP: **70** (damaged by player spells via swept-segment hit detection).
 - When destroyed: a **nest boss spawns 20 seconds later** at the nest's spot.
 - Once **all 4 nests are destroyed**, the **Mega Boss** spawns.
 
 ### 6.5 Monsters (all melee)
 | Class | HP | Damage | Radius (tiles) | Speed (from size) | Spawn interval | Gold drop |
 |---|---|---|---|---|---|---|
-| Goblin | 3 | 1 | 0.35 | ~2.14 tiles/s | every 5 s | 1 |
-| Undead | 4 | 2 | 0.40 | ~1.88 tiles/s | every 8 s | 3 |
-| Demon | 7 | 2 | 0.45 | ~1.67 tiles/s | every 16 s | 5 |
-| Ogre | 10 | 1 | 0.60 | ~1.25 tiles/s | every 7 s | 4 |
+| Goblin | 3 | 1 | 0.35 | ~2.57 tiles/s | every 5 s | 1 |
+| Undead | 4 | 2 | 0.40 | ~2.25 tiles/s | every 8 s | 3 |
+| Demon | 7 | 2 | 0.45 | ~2.00 tiles/s | every 16 s | 5 |
+| Ogre | 10 | 1 | 0.60 | ~1.50 tiles/s | every 7 s | 4 |
 
 - Monster speed varies inversely with theoretical size (`PLAYER_SPEED_TILES * min(0.9, 0.3 / radius_tiles)`), and is never faster than the player.
 - HP is multiplied by the difficulty multiplier (§3).
@@ -186,7 +193,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 ### 6.8 Gold Mines
 - **2 gold mines** spawn in random regions of the map each run.
-- Each mine produces **10 gold/sec**, capped at **500 gold**.
+- Each mine produces **7.5 gold/sec** (reduced by 1/4 from 10), capped at **333 gold** (reduced by 1/3 from 500).
 - Walk over a gold mine to collect its stored gold.
 
 ### 6.9 Random Maze Walls

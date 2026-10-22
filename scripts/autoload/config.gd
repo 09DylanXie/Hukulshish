@@ -8,7 +8,8 @@ const TILE_SIZE: int = 32
 
 # --- Player (§6.1) ---
 const PLAYER_MAX_HP: int = 10
-const PLAYER_SPEED_TILES: float = 2.5
+const PLAYER_MAX_SHIELD: int = 5
+const PLAYER_SPEED_TILES: float = 3.0
 const PLAYER_RADIUS_TILES: float = 0.4
 # TODO(design): invulnerability frames after a hit are undefined (§9 Q7).
 const PLAYER_IFRAMES_SEC: float = 0.5
@@ -37,6 +38,17 @@ const MOD_LINEAR_UPGRADES: int = 4
 ## Chance for a killed monster to drop a mod part.
 const MOD_PART_DROP_CHANCE: float = 1.0 / 7.0
 
+# --- Gold Shop (§6.3) ---
+const GOLD_SHOP_MOD_PART_BASE_COST: int = 100
+const GOLD_SHOP_MOD_PART_MAX: int = 10
+const GOLD_SHOP_SHIELD_COST: int = 200
+const GOLD_SHOP_POTION_COST: int = 100
+const GOLD_SHOP_AUTO_SHOOT_COST: int = 1500
+const POTION_DURATION_SEC: float = 30.0
+const HEAL_POTION_AMOUNT: int = 3
+const DAMAGE_POTION_MULT: float = 2.0
+const SHIELD_ITEM_AMOUNT: int = 1
+
 # --- Boss spells (§6.3) ---
 ## Chance for a nest boss to drop a new spell.
 const BOSS_SPELL_DROP_CHANCE: float = 1.0 / 3.0
@@ -44,7 +56,7 @@ const BOSS_SPELL_DROP_CHANCE: float = 1.0 / 3.0
 const BOSS_SPELL_FIRE_RATE_MULT: float = 2.0 / 3.0
 
 # --- Nests (§6.4) ---
-const NEST_HP: int = 20
+const NEST_HP: int = 70
 const NEST_SPAWN_DELAY_SEC: float = 5.0
 const NEST_BOSS_DELAY_SEC: float = 20.0
 const NEST_RADIUS_TILES: float = 1.0
@@ -86,8 +98,10 @@ const CASTLE_SIZE_TILES: float = 4.0
 
 # --- Gold mines (§6.8) ---
 const GOLD_MINE_COUNT: int = 2
-const GOLD_MINE_RATE: float = 10.0
-const GOLD_MINE_CAP: int = 500
+## Reduced by 1/4 from 10.0 → 7.5 gold/sec.
+const GOLD_MINE_RATE: float = 7.5
+## Reduced by 1/3 from 500 → 333 gold.
+const GOLD_MINE_CAP: int = 333
 
 # --- Maze walls (§6.9) ---
 ## Maze grid cell size in tiles (corridor width ≈ this minus wall thickness).
@@ -155,6 +169,11 @@ func mod_cost(level: int) -> int:
 	if n <= MOD_LINEAR_UPGRADES:
 		return n
 	return MOD_LINEAR_UPGRADES * int(pow(2, n - MOD_LINEAR_UPGRADES))
+
+
+## Gold cost for the next Mod Part in the Gold Shop (100, 200, ..., 1000).
+func gold_mod_part_cost(bought_so_far: int) -> int:
+	return (bought_so_far + 1) * GOLD_SHOP_MOD_PART_BASE_COST
 
 
 ## Monster speed in tiles/sec from its size.

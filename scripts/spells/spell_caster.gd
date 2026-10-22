@@ -1,6 +1,7 @@
 extends Node2D
-## Fires the player's base spell and any acquired boss spells at the nearest target (child of Player).
-## Base spell stats scale with level + castle mods; boss spells use their frozen stats (§6.2–6.3).
+## Fires the player's base spell and any acquired boss spells (child of Player).
+## By default, the player clicks to shoot toward the cursor (respecting each spell's fire rate cooldown).
+## Once Auto-Shooting is unlocked in the Gold Shop (1500 gold), spells also auto-aim at the nearest target.
 
 const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tscn")
 
@@ -17,14 +18,28 @@ func _physics_process(delta: float) -> void:
 	while _cooldowns.size() < spells.size():
 		_cooldowns.append(0.0)
 
+	var manual_click: bool = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and get_viewport().gui_get_hovered_control() == null
+	var mouse_world: Vector2 = get_global_mouse_position()
+
 	for i in spells.size():
-		_cooldowns[i] -= delta
-		if _cooldowns[i] <= 0.0:
-			var spell: Dictionary = spells[i]
-			var max_range: float = Config.tiles(float(spell["range_tiles"]))
+		_cooldowns[i] = maxf(0.0, _cooldowns[i] - delta)
+		if _cooldowns[i] > 0.0:
+			continue
+
+		var spell: Dictionary = spells[i]
+		var max_range: float = Config.tiles(float(spell["range_tiles"]))
+
+		if manual_click:
+			var dir: Vector2 = global_position.direction_to(mouse_world)
+			if dir == Vector2.ZERO:
+				dir = Vector2.RIGHT
+			_fire_dir(spell, dir, max_range)
+			_cooldowns[i] = 1.0 / maxf(0.05, float(spell["fire_rate"]))
+		elif GameState.auto_shoot_unlocked:
 			var target: Node2D = _find_target(max_range)
 			if target != null:
-				_fire(spell, target, max_range)
+				var dir: Vector2 = global_position.direction_to(target.global_position)
+				_fire_dir(spell, dir, max_range)
 				_cooldowns[i] = 1.0 / maxf(0.05, float(spell["fire_rate"]))
 
 
@@ -43,13 +58,13 @@ func _find_target(max_range: float) -> Node2D:
 	return best
 
 
-func _fire(spell: Dictionary, target: Node2D, max_range: float) -> void:
+func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 	var p: Projectile = ProjectileScene.instantiate()
-	var dir: Vector2 = global_position.direction_to(target.global_position)
+	var dmg: float = float(spell["damage"]) * GameState.damage_boost_multiplier()
 	p.setup(
 		dir,
 		Config.tiles(float(spell["speed_tiles"])),
-		float(spell["damage"]),
+		dmg,
 		true,
 		spell["color"] as Color,
 		Config.tiles(float(spell["radius_tiles"])),

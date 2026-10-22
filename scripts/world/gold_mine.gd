@@ -64,3 +64,4 @@ func _draw() -> void:
 	var top := Vector2(-_radius, -_radius - 8.0)
 	draw_rect(Rect2(top, Vector2(w, 4)), Color(0, 0, 0, 0.65))
 	draw_rect(Rect2(top, Vector2(w * ratio, 4)), Color(1.0, 0.85, 0.15))
+

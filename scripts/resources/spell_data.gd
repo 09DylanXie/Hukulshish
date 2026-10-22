@@ -4,7 +4,7 @@ extends Resource
 ## Mods multiply these at runtime; boss spells copy the base spell when picked up.
 
 @export var name: String = ""
-@export var speed_tiles: float = 5.0
+@export var speed_tiles: float = 6.0
 ## Max travel distance (also the auto-aim range).
 @export var range_tiles: float = 10.0
 ## Only used for spells with fixed damage. The base spell uses Config.SPELL_DAMAGE_BY_LEVEL.

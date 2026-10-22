@@ -35,6 +35,10 @@ func _ready() -> void:
 	add_child(shape)
 
 
+func get_hit_radius() -> float:
+	return _radius
+
+
 func _physics_process(delta: float) -> void:
 	if _dead or stats == null:
 		return
@@ -53,7 +57,8 @@ func _spawn() -> void:
 	var m: Monster = scene.instantiate()
 	m.setup(stats, hp_mult)
 	var angle: float = randf() * TAU
-	m.position = position + Vector2.from_angle(angle) * (_radius + Config.tiles(0.8))
+	# Spawn right on the nest's center hole (tiny offset so multiple monsters don't stack at 0,0).
+	m.position = position + Vector2.from_angle(angle) * Config.tiles(0.1)
 	_alive += 1
 	m.tree_exited.connect(func() -> void: _alive -= 1)
 	get_parent().add_child(m)
@@ -64,7 +69,7 @@ func take_damage(amount: float) -> void:
 	if _dead:
 		return
 	hp -= amount
-	_flash = 0.1
+	_flash = 0.12
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true

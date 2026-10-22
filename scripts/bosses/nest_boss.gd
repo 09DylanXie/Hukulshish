@@ -83,6 +83,10 @@ func _fire_at(target_pos: Vector2) -> void:
 	container.add_child(p)
 
 
+func get_hit_radius() -> float:
+	return _radius
+
+
 func take_damage(amount: float) -> void:
 	if _dead:
 		return

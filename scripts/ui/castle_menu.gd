@@ -1,14 +1,15 @@
 class_name CastleMenu
 extends CanvasLayer
-## Castle upgrade menu (§5, §6.2–6.3). Pauses the game while open.
-## Upgrade the base spell with gold, spend mod parts on the 4 base-spell mods,
-## and inspect boss spells acquired during the run.
+## Castle upgrade & shop menu (§5, §6.2–6.3). Pauses the game while open.
+## Left side: Base Spell upgrade, Spell Mods, and Boss Spells.
+## Right side: Gold Shop (Mod Parts, Magic Shield, Healing Potion, 2× Damage Potion, Auto-Shooting).
 
 var _root: Control
 var _resources_label: Label
 var _upgrade_button: Button
 var _mods_box: VBoxContainer
 var _spells_box: VBoxContainer
+var _gold_shop_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -45,7 +46,7 @@ func _build() -> void:
 	add_child(_root)
 
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.55)
+	dim.color = Color(0, 0, 0, 0.6)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
 
@@ -54,34 +55,56 @@ func _build() -> void:
 	_root.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(560, 0)
+	panel.custom_minimum_size = Vector2(980, 0)
 	center.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 20)
+		margin.add_theme_constant_override("margin_" + side, 24)
 	panel.add_child(margin)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
-	margin.add_child(box)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 14)
+	margin.add_child(outer)
 
-	box.add_child(UIKit.make_label("Kingdom Castle", 34, Color(0.95, 0.8, 0.3)))
-	box.add_child(UIKit.make_label("Restored HP up to 70% max", 15, Color(0.55, 0.9, 0.65)))
-	_resources_label = UIKit.make_label("", 20)
-	box.add_child(_resources_label)
-	_upgrade_button = UIKit.make_button("", _on_upgrade_pressed, 19)
-	box.add_child(_upgrade_button)
+	outer.add_child(UIKit.make_label("Kingdom Castle", 36, Color(0.95, 0.8, 0.3)))
+	outer.add_child(UIKit.make_label("Restored HP up to 70% max", 15, Color(0.55, 0.9, 0.65)))
+	_resources_label = UIKit.make_label("", 22)
+	outer.add_child(_resources_label)
 
-	box.add_child(UIKit.make_label("Spell Mods (+0.1× per level)", 22, Color(0.45, 0.85, 1.0)))
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 28)
+	outer.add_child(columns)
+
+	# Left column: Base spell + Spell Mods + Boss Spells
+	var left_col := VBoxContainer.new()
+	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_col.add_theme_constant_override("separation", 10)
+	columns.add_child(left_col)
+
+	_upgrade_button = UIKit.make_button("", _on_upgrade_pressed, 18)
+	left_col.add_child(_upgrade_button)
+
+	left_col.add_child(UIKit.make_label("Spell Mods", 24, Color(0.45, 0.85, 1.0)))
 	_mods_box = VBoxContainer.new()
 	_mods_box.add_theme_constant_override("separation", 6)
-	box.add_child(_mods_box)
+	left_col.add_child(_mods_box)
 
-	box.add_child(UIKit.make_label("Boss Spells", 22, Color(1.0, 0.65, 0.25)))
+	left_col.add_child(UIKit.make_label("Boss Spells", 22, Color(1.0, 0.65, 0.25)))
 	_spells_box = VBoxContainer.new()
 	_spells_box.add_theme_constant_override("separation", 4)
-	box.add_child(_spells_box)
+	left_col.add_child(_spells_box)
 
-	box.add_child(UIKit.make_button("Leave Castle", close, 20))
+	# Right column: Gold Shop
+	var right_col := VBoxContainer.new()
+	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_col.add_theme_constant_override("separation", 10)
+	columns.add_child(right_col)
+
+	right_col.add_child(UIKit.make_label("Gold Shop", 24, Color(1.0, 0.85, 0.25)))
+	_gold_shop_box = VBoxContainer.new()
+	_gold_shop_box.add_theme_constant_override("separation", 8)
+	right_col.add_child(_gold_shop_box)
+
+	outer.add_child(UIKit.make_button("Leave Castle", close, 20))
 
 
 func _refresh() -> void:
@@ -121,7 +144,65 @@ func _refresh() -> void:
 		for s in GameState.boss_spells:
 			var info: String = "★ %s — %.1f dmg, %.2f/s, %.1f tiles/s (frozen)" % [
 				s["name"], float(s["damage"]), float(s["fire_rate"]), float(s["speed_tiles"])]
-			_spells_box.add_child(UIKit.make_label(info, 16, s["color"] as Color))
+			_spells_box.add_child(UIKit.make_label(info, 15, s["color"] as Color))
+
+	# Populate Gold Shop
+	for c in _gold_shop_box.get_children():
+		c.queue_free()
+
+	# 1. Mod Part (100 gold first, +100 each up to 10)
+	var bought: int = GameState.mod_parts_bought_with_gold
+	if GameState.can_buy_gold_mod_part():
+		var mp_cost: int = GameState.next_gold_mod_part_cost()
+		var mp_btn: Button = UIKit.make_button(
+			"Mod Part (%d/%d)  —  %d gold" % [bought, Config.GOLD_SHOP_MOD_PART_MAX, mp_cost],
+			func() -> void: GameState.try_buy_gold_mod_part(), 17)
+		mp_btn.custom_minimum_size = Vector2(0, 42)
+		mp_btn.disabled = GameState.gold < mp_cost
+		_gold_shop_box.add_child(mp_btn)
+	else:
+		var mp_done: Button = UIKit.make_button("Mod Part (%d/%d) — SOLD OUT" % [bought, Config.GOLD_SHOP_MOD_PART_MAX], func() -> void: pass, 17)
+		mp_done.custom_minimum_size = Vector2(0, 42)
+		mp_done.disabled = true
+		_gold_shop_box.add_child(mp_done)
+
+	# 2. Temporary Magic Shield (+1 Shield, 200 gold)
+	var sh_btn: Button = UIKit.make_button(
+		"Magic Shield (+1 Shield) [Owned: %d]  —  %d gold" % [GameState.shield_items, Config.GOLD_SHOP_SHIELD_COST],
+		func() -> void: GameState.try_buy_shield_item(), 17)
+	sh_btn.custom_minimum_size = Vector2(0, 42)
+	sh_btn.disabled = GameState.gold < Config.GOLD_SHOP_SHIELD_COST
+	_gold_shop_box.add_child(sh_btn)
+
+	# 3. 3 HP Healing Potion (100 gold)
+	var hp_btn: Button = UIKit.make_button(
+		"3 HP Healing Potion [Owned: %d]  —  %d gold" % [GameState.heal_potions, Config.GOLD_SHOP_POTION_COST],
+		func() -> void: GameState.try_buy_heal_potion(), 17)
+	hp_btn.custom_minimum_size = Vector2(0, 42)
+	hp_btn.disabled = GameState.gold < Config.GOLD_SHOP_POTION_COST
+	_gold_shop_box.add_child(hp_btn)
+
+	# 4. 2× Damage Boost Potion (30s, 100 gold)
+	var dmg_btn: Button = UIKit.make_button(
+		"2× Damage Boost Potion (30s) [Owned: %d]  —  %d gold" % [GameState.damage_potions, Config.GOLD_SHOP_POTION_COST],
+		func() -> void: GameState.try_buy_damage_potion(), 17)
+	dmg_btn.custom_minimum_size = Vector2(0, 42)
+	dmg_btn.disabled = GameState.gold < Config.GOLD_SHOP_POTION_COST
+	_gold_shop_box.add_child(dmg_btn)
+
+	# 5. Auto-Shooting Unlock (1500 gold)
+	if GameState.auto_shoot_unlocked:
+		var auto_done: Button = UIKit.make_button("Auto-Shooting — UNLOCKED", func() -> void: pass, 17)
+		auto_done.custom_minimum_size = Vector2(0, 42)
+		auto_done.disabled = true
+		_gold_shop_box.add_child(auto_done)
+	else:
+		var auto_btn: Button = UIKit.make_button(
+			"Unlock Auto-Shooting  —  %d gold" % Config.GOLD_SHOP_AUTO_SHOOT_COST,
+			func() -> void: GameState.try_buy_auto_shoot(), 17)
+		auto_btn.custom_minimum_size = Vector2(0, 42)
+		auto_btn.disabled = GameState.gold < Config.GOLD_SHOP_AUTO_SHOOT_COST
+		_gold_shop_box.add_child(auto_btn)
 
 
 func _on_upgrade_pressed() -> void:
