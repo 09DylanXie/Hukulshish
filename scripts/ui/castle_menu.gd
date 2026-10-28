@@ -190,7 +190,7 @@ func _refresh() -> void:
 	dmg_btn.disabled = GameState.gold < Config.GOLD_SHOP_POTION_COST
 	_gold_shop_box.add_child(dmg_btn)
 
-	# 5. Auto-Shooting Unlock (1500 gold)
+	# 5. Auto-Shooting Unlock (1000 gold)
 	if GameState.auto_shoot_unlocked:
 		var auto_done: Button = UIKit.make_button("Auto-Shooting — UNLOCKED", func() -> void: pass, 17)
 		auto_done.custom_minimum_size = Vector2(0, 42)
@@ -203,6 +203,20 @@ func _refresh() -> void:
 		auto_btn.custom_minimum_size = Vector2(0, 42)
 		auto_btn.disabled = GameState.gold < Config.GOLD_SHOP_AUTO_SHOOT_COST
 		_gold_shop_box.add_child(auto_btn)
+
+	# 6. Homing Unlock (1500 gold)
+	if GameState.homing_unlocked:
+		var homing_done: Button = UIKit.make_button("Homing — UNLOCKED", func() -> void: pass, 17)
+		homing_done.custom_minimum_size = Vector2(0, 42)
+		homing_done.disabled = true
+		_gold_shop_box.add_child(homing_done)
+	else:
+		var homing_btn: Button = UIKit.make_button(
+			"Unlock Homing  —  %d gold" % Config.GOLD_SHOP_HOMING_COST,
+			func() -> void: GameState.try_buy_homing(), 17)
+		homing_btn.custom_minimum_size = Vector2(0, 42)
+		homing_btn.disabled = GameState.gold < Config.GOLD_SHOP_HOMING_COST
+		_gold_shop_box.add_child(homing_btn)
 
 
 func _on_upgrade_pressed() -> void:

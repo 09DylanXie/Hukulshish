@@ -231,6 +231,8 @@ func _refresh() -> void:
 	if not GameState.boss_spells.is_empty():
 		extra = "  +%d boss spell(s)" % GameState.boss_spells.size()
 	var mode_tag: String = " [Auto]" if GameState.auto_shoot_unlocked else " [Click]"
+	if GameState.homing_unlocked:
+		mode_tag += " [Homing]"
 	_spell_label.text = "Spell Lv %d  (%.1f dmg, %.1f/s)%s%s" % [
 		GameState.spell_level, dmg, float(base["fire_rate"]), extra, mode_tag]
 	if GameState.mega_boss_spawned:

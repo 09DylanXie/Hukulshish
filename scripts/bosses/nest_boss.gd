@@ -1,6 +1,6 @@
 class_name NestBoss
 extends CharacterBody2D
-## Spawns 20 s after its nest is destroyed (§6.6). Melee + a straight 1-damage bolt aimed at the player.
+## Spawns immediately when its nest is destroyed (§6.6). Melee + a straight 1-damage bolt aimed at the player.
 ## Drops 1000 gold and has a 1-in-3 chance to drop a new spell (handled by Game via `died`).
 
 signal died(gold: int, at: Vector2)

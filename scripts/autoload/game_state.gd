@@ -24,6 +24,7 @@ var boss_spells: Array[Dictionary] = []
 
 # --- Gold Shop unlocks & hotbar consumables ---
 var auto_shoot_unlocked: bool = false
+var homing_unlocked: bool = false
 var shield_items: int = 0
 var heal_potions: int = 0
 var damage_potions: int = 0
@@ -53,6 +54,7 @@ func start_run() -> void:
 		mod_levels[id] = 0
 	boss_spells.clear()
 	auto_shoot_unlocked = false
+	homing_unlocked = false
 	shield_items = 0
 	heal_potions = 0
 	damage_potions = 0
@@ -224,6 +226,15 @@ func try_buy_auto_shoot() -> bool:
 		return false
 	gold -= Config.GOLD_SHOP_AUTO_SHOOT_COST
 	auto_shoot_unlocked = true
+	changed.emit()
+	return true
+
+
+func try_buy_homing() -> bool:
+	if homing_unlocked or gold < Config.GOLD_SHOP_HOMING_COST:
+		return false
+	gold -= Config.GOLD_SHOP_HOMING_COST
+	homing_unlocked = true
 	changed.emit()
 	return true
 

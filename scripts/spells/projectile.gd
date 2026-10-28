@@ -10,12 +10,13 @@ var from_player: bool = true
 var color: Color = Color.WHITE
 var radius: float = 6.0
 var max_distance: float = 320.0
+var homing: bool = false
 
 var _traveled: float = 0.0
 var _spent: bool = false
 
 
-func setup(dir: Vector2, speed_px: float, dmg: float, is_player: bool, col: Color, radius_px: float, max_distance_px: float = 320.0) -> void:
+func setup(dir: Vector2, speed_px: float, dmg: float, is_player: bool, col: Color, radius_px: float, max_distance_px: float = 320.0, is_homing: bool = false) -> void:
 	direction = dir.normalized()
 	speed = speed_px
 	damage = dmg
@@ -23,6 +24,7 @@ func setup(dir: Vector2, speed_px: float, dmg: float, is_player: bool, col: Colo
 	color = col
 	radius = radius_px
 	max_distance = max_distance_px
+	homing = is_homing
 
 
 func _ready() -> void:
@@ -42,6 +44,17 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _spent:
 		return
+	if from_player and homing:
+		var target: Node2D = _find_homing_target()
+		if target != null:
+			var to_target: Vector2 = global_position.direction_to(target.global_position)
+			if to_target != Vector2.ZERO:
+				if global_position.distance_to(target.global_position) <= Config.tiles(2.5):
+					direction = to_target
+				else:
+					var new_angle: float = rotate_toward(direction.angle(), to_target.angle(), Config.HOMING_TURN_SPEED * delta)
+					direction = Vector2.from_angle(new_angle)
+				rotation = direction.angle()
 	var prev_pos: Vector2 = global_position
 	var step: float = speed * delta
 	position += direction * step
@@ -54,6 +67,22 @@ func _physics_process(delta: float) -> void:
 
 	if max_distance > 0.0 and _traveled >= max_distance:
 		queue_free()
+
+
+func _find_homing_target() -> Node2D:
+	var best: Node2D = null
+	var best_score: float = INF
+	for node in get_tree().get_nodes_in_group("targets"):
+		var target := node as Node2D
+		if target == null or target.is_queued_for_deletion() or not target.has_method("take_damage"):
+			continue
+		var d: float = global_position.distance_to(target.global_position)
+		# Prefer active enemies (monsters & bosses) over static nests when nearby.
+		var score: float = d if not target.is_in_group("nests") else d + Config.tiles(1.5)
+		if score < best_score:
+			best_score = score
+			best = target
+	return best
 
 
 func _check_swept_hits(from_pos: Vector2, to_pos: Vector2) -> void:

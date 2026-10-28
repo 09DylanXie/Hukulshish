@@ -150,7 +150,8 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
   - **Magic Shield (`200` gold):** adds 1 shield item to the bottom circular hotbar; using it adds `+1` shield point (up to the 5-shield cap).
   - **3 HP Healing Potion (`100` gold):** adds 1 healing potion to the bottom circular hotbar; using it heals `+3 HP` (30 s effect timer).
   - **2× Damage Boost Potion (`100` gold):** adds 1 damage potion to the bottom circular hotbar; using it grants `2×` spell damage for **30 seconds**.
-  - **Auto-Shooting Unlock (`1500` gold):** unlocks automatic targeting and firing alongside manual click-to-shoot.
+  - **Auto-Shooting Unlock (`1000` gold):** unlocks automatic targeting and firing alongside manual click-to-shoot.
+  - **Homing Unlock (`1500` gold):** makes player spells home toward the closest enemy.
 - **Boss Spells:** defeating a nest boss has a **1 in 3 chance** to drop a new spell pickup (along with **1000 gold**):
   - Cannot be upgraded once acquired (stats are frozen on pickup).
   - **First boss spell:** copies the current base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`).
@@ -161,7 +162,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 - Each nest spawns its own monster type (Goblin / Undead / Ogre / Demon) directly from its center hole.
 - Spawning starts **5 seconds** after the run begins.
 - Nest HP: **70** (damaged by player spells via swept-segment hit detection).
-- When destroyed: a **nest boss spawns 20 seconds later** at the nest's spot.
+- When destroyed: a **nest boss spawns immediately** at the nest's spot.
 - Once **all 4 nests are destroyed**, the **Mega Boss** spawns.
 
 ### 6.5 Monsters (all melee)
@@ -182,7 +183,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 | HP | 20 |
 | Melee damage | 5 |
 | Ranged attack | Fires a 1-damage projectile at 1 tile/sec in a straight line |
-| Spawn | 20 s after its nest is destroyed |
+| Spawn | Immediately after its nest is destroyed |
 | Drops | **1000 gold** + **1 in 3 chance** to drop a new Boss Spell |
 
 ### 6.7 Mega Boss

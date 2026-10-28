@@ -162,15 +162,14 @@ func _on_nest_destroyed(nest: Nest) -> void:
 	if GameState.nests_destroyed >= GameState.TOTAL_NESTS and not GameState.mega_boss_spawned:
 		_spawn_mega_boss(pos, tint)
 
-	# Nest boss appears at the nest's spot 20 s later (timer respects pause).
-	await get_tree().create_timer(Config.NEST_BOSS_DELAY_SEC, false).timeout
+	# Nest boss spawns directly after destroying the nest (spawner).
 	if not is_inside_tree() or GameState.run_over:
 		return
 	var boss: NestBoss = BossScene.instantiate()
 	boss.setup(tint, GameState.difficulty.hp_mult)
 	boss.position = pos
 	boss.died.connect(_on_boss_died)
-	_entities.add_child(boss)
+	_entities.call_deferred("add_child", boss)
 
 
 func _spawn_mega_boss(pos: Vector2, tint: Color) -> void:

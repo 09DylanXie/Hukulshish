@@ -1,7 +1,8 @@
 extends Node2D
 ## Fires the player's base spell and any acquired boss spells (child of Player).
 ## By default, the player clicks to shoot toward the cursor (respecting each spell's fire rate cooldown).
-## Once Auto-Shooting is unlocked in the Gold Shop (1500 gold), spells also auto-aim at the nearest target.
+## Once Auto-Shooting is unlocked in the Gold Shop (1000 gold), spells also auto-aim at the nearest target.
+## Once Homing is unlocked in the Gold Shop (1500 gold), fired projectiles home toward the closest enemy.
 
 const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tscn")
 
@@ -68,7 +69,8 @@ func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 		true,
 		spell["color"] as Color,
 		Config.tiles(float(spell["radius_tiles"])),
-		max_range
+		max_range,
+		GameState.homing_unlocked
 	)
 	p.global_position = global_position
 	var container: Node = get_tree().get_first_node_in_group("projectile_container")

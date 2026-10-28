@@ -43,7 +43,9 @@ const GOLD_SHOP_MOD_PART_BASE_COST: int = 100
 const GOLD_SHOP_MOD_PART_MAX: int = 10
 const GOLD_SHOP_SHIELD_COST: int = 200
 const GOLD_SHOP_POTION_COST: int = 100
-const GOLD_SHOP_AUTO_SHOOT_COST: int = 1500
+const GOLD_SHOP_AUTO_SHOOT_COST: int = 1000
+const GOLD_SHOP_HOMING_COST: int = 1500
+const HOMING_TURN_SPEED: float = 16.0
 const POTION_DURATION_SEC: float = 30.0
 const HEAL_POTION_AMOUNT: int = 3
 const DAMAGE_POTION_MULT: float = 2.0
@@ -58,7 +60,7 @@ const BOSS_SPELL_FIRE_RATE_MULT: float = 2.0 / 3.0
 # --- Nests (§6.4) ---
 const NEST_HP: int = 70
 const NEST_SPAWN_DELAY_SEC: float = 5.0
-const NEST_BOSS_DELAY_SEC: float = 20.0
+const NEST_BOSS_DELAY_SEC: float = 0.0
 const NEST_RADIUS_TILES: float = 1.0
 # TODO(design): per-nest alive cap, only here to keep the web build fast.
 const NEST_MAX_ALIVE: int = 25
