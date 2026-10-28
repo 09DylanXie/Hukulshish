@@ -11,5 +11,3 @@ func _ready() -> void:
 	else:
 		box.add_child(UIKit.make_button("Quit Game", func() -> void: get_tree().quit()))
 	box.add_child(UIKit.make_label("WASD to move • left-click to shoot • walk into the castle to shop & upgrade", 16, Color(0.6, 0.6, 0.7)))
-	start.grab_focus.call_deferred()
-

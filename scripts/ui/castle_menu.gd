@@ -26,7 +26,6 @@ func open() -> void:
 	_refresh()
 	_root.show()
 	get_tree().paused = true
-	_upgrade_button.grab_focus.call_deferred()
 
 
 func close() -> void:

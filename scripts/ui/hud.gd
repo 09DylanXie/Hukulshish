@@ -15,7 +15,15 @@ var _hint_label: Label
 var _pause_button: Button
 var _pause_overlay: Control
 var _slots: Array[Control] = []
+var _slot_hovered: Array[bool] = [false, false, false]
 var _elapsed: float = 0.0
+
+const _SLOT_TITLES: Array[String] = ["Shield [1]", "Heal +3 [2]", "2× Dmg [3]"]
+const _SLOT_COLORS: Array[Color] = [
+	Color(0.25, 0.72, 1.0),
+	Color(0.95, 0.28, 0.42),
+	Color(0.95, 0.68, 0.18),
+]
 
 
 func _ready() -> void:
@@ -59,7 +67,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if GameState.run_over:
 		return
 	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_P):
-		# Only toggle pause here if the castle menu didn't already pause the tree.
 		if _pause_overlay.visible:
 			_set_paused(false)
 			get_viewport().set_input_as_handled()
@@ -120,22 +127,20 @@ func _build_hint_label() -> void:
 	_hint_label.add_theme_font_size_override("font_size", 22)
 	_hint_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	_hint_label.add_theme_constant_override("outline_size", 6)
+	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint_label)
 
 
 func _build_pause_ui() -> void:
-	_pause_button = Button.new()
-	_pause_button.text = "⏸ Pause"
-	_pause_button.custom_minimum_size = Vector2(130, 44)
-	_pause_button.add_theme_font_size_override("font_size", 20)
-	_pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_pause_button.position = Vector2(-146, 16)
-	_pause_button.pressed.connect(func() -> void:
+	_pause_button = UIKit.make_button("⏸ Pause", func() -> void:
 		if _pause_overlay.visible:
 			_set_paused(false)
 		elif not get_tree().paused:
 			_set_paused(true)
-	)
+	, 20)
+	_pause_button.custom_minimum_size = Vector2(130, 44)
+	_pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_pause_button.position = Vector2(-146, 16)
 	add_child(_pause_button)
 
 	_pause_overlay = Control.new()
@@ -187,15 +192,80 @@ func _build_hotbar() -> void:
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar_wrap.add_child(hbox)
 
-	var defs: Array[Dictionary] = [
-		{"index": 0, "title": "Shield [1]", "color": Color(0.25, 0.72, 1.0)},
-		{"index": 1, "title": "Heal +3 [2]", "color": Color(0.95, 0.28, 0.42)},
-		{"index": 2, "title": "2× Dmg [3]", "color": Color(0.95, 0.68, 0.18)},
-	]
-	for d in defs:
-		var slot := _HotbarSlot.new(int(d["index"]), String(d["title"]), d["color"] as Color, _use_slot)
+	for idx in 3:
+		var slot := Control.new()
+		slot.custom_minimum_size = Vector2(84, 88)
+		slot.mouse_filter = Control.MOUSE_FILTER_STOP
+		slot.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		slot.mouse_entered.connect(_on_slot_hover.bind(idx, true))
+		slot.mouse_exited.connect(_on_slot_hover.bind(idx, false))
+		slot.gui_input.connect(_on_slot_gui_input.bind(idx, slot))
+		slot.draw.connect(_draw_slot.bind(idx, slot))
 		hbox.add_child(slot)
 		_slots.append(slot)
+
+
+func _on_slot_hover(idx: int, hovered: bool) -> void:
+	_slot_hovered[idx] = hovered
+	_slots[idx].queue_redraw()
+
+
+func _on_slot_gui_input(event: InputEvent, idx: int, slot: Control) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			_use_slot(idx)
+			slot.accept_event()
+
+
+func _draw_slot(idx: int, slot: Control) -> void:
+	var center := Vector2(slot.size.x * 0.5, 34.0)
+	var r: float = 28.0
+	var tint: Color = _SLOT_COLORS[idx]
+	var title: String = _SLOT_TITLES[idx]
+	var count: int = 0
+	var active_timer: float = 0.0
+	match idx:
+		0:
+			count = GameState.shield_items
+		1:
+			count = GameState.heal_potions
+			active_timer = GameState.heal_potion_timer
+		2:
+			count = GameState.damage_potions
+			active_timer = GameState.damage_boost_timer
+
+	var bg_col := Color(0.14, 0.16, 0.22, 0.92) if not _slot_hovered[idx] else Color(0.22, 0.25, 0.34, 0.96)
+	slot.draw_circle(center, r, bg_col)
+	var ring_col: Color = tint if (count > 0 or active_timer > 0.0) else Color(0.45, 0.48, 0.55, 0.7)
+	slot.draw_arc(center, r, 0.0, TAU, 36, ring_col, 3.0 if active_timer > 0.0 else 2.0)
+
+	if active_timer > 0.0:
+		var ratio: float = clampf(active_timer / Config.POTION_DURATION_SEC, 0.0, 1.0)
+		slot.draw_arc(center, r + 4.0, -PI * 0.5, -PI * 0.5 + TAU * ratio, 36, Color(1.0, 0.95, 0.35), 3.0)
+
+	var icon_alpha: float = 1.0 if (count > 0 or active_timer > 0.0) else 0.35
+	var ic := Color(tint.r, tint.g, tint.b, icon_alpha)
+	if idx == 0:
+		var pts := PackedVector2Array([
+			center + Vector2(0, -14),
+			center + Vector2(12, -8),
+			center + Vector2(10, 6),
+			center + Vector2(0, 15),
+			center + Vector2(-10, 6),
+			center + Vector2(-12, -8),
+		])
+		slot.draw_colored_polygon(pts, ic)
+	else:
+		slot.draw_circle(center + Vector2(0, 4), 11.0, ic)
+		slot.draw_rect(Rect2(center + Vector2(-4, -13), Vector2(8, 8)), ic.lightened(0.25))
+		slot.draw_rect(Rect2(center + Vector2(-6, -15), Vector2(12, 3)), Color(0.85, 0.75, 0.55, icon_alpha))
+
+	var font: Font = ThemeDB.fallback_font
+	slot.draw_string(font, center + Vector2(10, 18), "×%d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
+	if active_timer > 0.0:
+		slot.draw_string(font, center + Vector2(-14, 5), "%ds" % ceili(active_timer), HORIZONTAL_ALIGNMENT_CENTER, 28, 13, Color(1, 1, 0.4))
+	slot.draw_string(font, Vector2(0, 78), title, HORIZONTAL_ALIGNMENT_CENTER, slot.size.x, 13, Color(0.88, 0.9, 0.95))
 
 
 func _use_slot(index: int) -> void:
@@ -249,91 +319,3 @@ func _label(parent: Node, text: String) -> Label:
 	l.add_theme_font_size_override("font_size", 18)
 	parent.add_child(l)
 	return l
-
-
-## Circular Minecraft-style hotbar slot at the bottom of the screen.
-class _HotbarSlot extends Control:
-	var slot_index: int = 0
-	var title: String = ""
-	var tint: Color = Color.WHITE
-	var on_click: Callable
-	var _hovered: bool = false
-
-	func _init(idx: int, label_text: String, col: Color, callback: Callable) -> void:
-		slot_index = idx
-		title = label_text
-		tint = col
-		on_click = callback
-		custom_minimum_size = Vector2(84, 88)
-		mouse_filter = Control.MOUSE_FILTER_STOP
-		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		mouse_entered.connect(func() -> void:
-			_hovered = true
-			queue_redraw()
-		)
-		mouse_exited.connect(func() -> void:
-			_hovered = false
-			queue_redraw()
-		)
-
-	func _gui_input(event: InputEvent) -> void:
-		if event is InputEventMouseButton:
-			var mb := event as InputEventMouseButton
-			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-				on_click.call(slot_index)
-				accept_event()
-
-	func _draw() -> void:
-		var center := Vector2(size.x * 0.5, 34.0)
-		var r: float = 28.0
-		var count: int = 0
-		var active_timer: float = 0.0
-		match slot_index:
-			0:
-				count = GameState.shield_items
-			1:
-				count = GameState.heal_potions
-				active_timer = GameState.heal_potion_timer
-			2:
-				count = GameState.damage_potions
-				active_timer = GameState.damage_boost_timer
-
-		# Outer slot circle
-		var bg_col := Color(0.14, 0.16, 0.22, 0.92) if not _hovered else Color(0.22, 0.25, 0.34, 0.96)
-		draw_circle(center, r, bg_col)
-		var ring_col: Color = tint if (count > 0 or active_timer > 0.0) else Color(0.45, 0.48, 0.55, 0.7)
-		draw_arc(center, r, 0.0, TAU, 36, ring_col, 3.0 if active_timer > 0.0 else 2.0)
-
-		# Active 30s radial arc when potion effect is running
-		if active_timer > 0.0:
-			var ratio: float = clampf(active_timer / Config.POTION_DURATION_SEC, 0.0, 1.0)
-			draw_arc(center, r + 4.0, -PI * 0.5, -PI * 0.5 + TAU * ratio, 36, Color(1.0, 0.95, 0.35), 3.0)
-
-		# Item icon inside circle
-		var icon_alpha: float = 1.0 if (count > 0 or active_timer > 0.0) else 0.35
-		var ic := Color(tint.r, tint.g, tint.b, icon_alpha)
-		if slot_index == 0:
-			# Shield emblem
-			var pts := PackedVector2Array([
-				center + Vector2(0, -14),
-				center + Vector2(12, -8),
-				center + Vector2(10, 6),
-				center + Vector2(0, 15),
-				center + Vector2(-10, 6),
-				center + Vector2(-12, -8),
-			])
-			draw_colored_polygon(pts, ic)
-		else:
-			# Potion bottle
-			draw_circle(center + Vector2(0, 4), 11.0, ic)
-			draw_rect(Rect2(center + Vector2(-4, -13), Vector2(8, 8)), ic.lightened(0.25))
-			draw_rect(Rect2(center + Vector2(-6, -15), Vector2(12, 3)), Color(0.85, 0.75, 0.55, icon_alpha))
-
-		var font: Font = ThemeDB.fallback_font
-		# Count badge
-		draw_string(font, center + Vector2(10, 18), "×%d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
-		# Active timer countdown
-		if active_timer > 0.0:
-			draw_string(font, center + Vector2(-14, 5), "%ds" % ceili(active_timer), HORIZONTAL_ALIGNMENT_CENTER, 28, 13, Color(1, 1, 0.4))
-		# Label under circle
-		draw_string(font, Vector2(0, 78), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Color(0.88, 0.9, 0.95))

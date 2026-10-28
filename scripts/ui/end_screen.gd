@@ -13,4 +13,3 @@ func _ready() -> void:
 	var again: Button = UIKit.make_button("Play Again", func() -> void: SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT))
 	box.add_child(again)
 	box.add_child(UIKit.make_button("Main Menu", func() -> void: SceneRouter.goto(SceneRouter.MAIN_MENU)))
-	again.grab_focus.call_deferred()
