@@ -11,6 +11,7 @@ var color: Color = Color(0.6, 0.1, 0.6)
 var max_hp: float = Config.BOSS_HP
 var hp: float = Config.BOSS_HP
 var gold: int = Config.BOSS_GOLD
+var bolt_speed_tiles: float = Config.BOSS_BOLT_SPEED_TILES
 
 var _radius: float = Config.tiles(Config.BOSS_RADIUS_TILES)
 var _attack_cooldown: float = 0.0
@@ -21,11 +22,10 @@ var _world: World
 
 
 ## `tint` = colour of the nest it came from. `hp_mult` only applies if Config says so (§9 Q4).
-func setup(tint: Color, hp_mult: float) -> void:
+func setup(tint: Color, _hp_mult: float) -> void:
 	color = tint.darkened(0.3)
-	if Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES:
-		max_hp = Config.scale_hp(int(max_hp), hp_mult)
-		hp = max_hp
+	max_hp = GameState.scaled_boss_hp()
+	hp = max_hp
 
 
 func _ready() -> void:
@@ -73,7 +73,7 @@ func _physics_process(delta: float) -> void:
 
 func _fire_at(target_pos: Vector2) -> void:
 	var p: Projectile = ProjectileScene.instantiate()
-	var speed: float = Config.tiles(Config.BOSS_BOLT_SPEED_TILES)
+	var speed: float = Config.tiles(bolt_speed_tiles)
 	p.setup(global_position.direction_to(target_pos), speed, Config.BOSS_BOLT_DAMAGE, false,
 		Color(1, 0.3, 0.1), Config.tiles(0.2), Config.tiles(Config.BOSS_FIRE_RANGE_TILES * 1.5))
 	p.global_position = global_position

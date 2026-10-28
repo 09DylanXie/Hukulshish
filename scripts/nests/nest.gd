@@ -25,9 +25,8 @@ func _ready() -> void:
 	add_to_group("nests")
 	collision_layer = Config.LAYER_NESTS
 	collision_mask = 0
-	if Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES:
-		max_hp = Config.scale_hp(Config.NEST_HP, hp_mult)
-		hp = max_hp
+	max_hp = GameState.scaled_nest_hp()
+	hp = max_hp
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = _radius

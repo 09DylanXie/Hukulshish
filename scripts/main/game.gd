@@ -19,19 +19,21 @@ const NEST_CORNER_INSET_TILES: float = 4.0
 var _entities: Node2D
 var _player: Player
 var _castle_menu: CastleMenu
+var _nest_positions: Array[Vector2] = []
 
 
 func _ready() -> void:
 	GameState.start_run()
 	GameState.victory.connect(_on_victory)
 	GameState.defeat.connect(_on_defeat)
+	GameState.endless_wave_started.connect(_on_endless_wave_started)
 
 	var map: MapSizeData = GameState.map_size
 	var half: float = Config.tiles(map.size_in_tiles) * 0.5
 	var bounds := Rect2(-half, -half, half * 2.0, half * 2.0)
 
-	var nest_positions: Array[Vector2] = _compute_nest_positions(bounds)
-	var mine_positions: Array[Vector2] = _pick_gold_mine_positions(bounds, nest_positions)
+	_nest_positions = _compute_nest_positions(bounds)
+	var mine_positions: Array[Vector2] = _pick_gold_mine_positions(bounds, _nest_positions)
 
 	var world: Node2D
 	if map.scene != null:
@@ -40,7 +42,7 @@ func _ready() -> void:
 		var w: World = WorldScene.instantiate()
 		w.size_in_tiles = map.size_in_tiles
 		var clear_radius: float = Config.tiles(3.0)
-		for np in nest_positions:
+		for np in _nest_positions:
 			w.clear_zones.append(Vector3(np.x, np.y, clear_radius))
 		for mp in mine_positions:
 			w.clear_zones.append(Vector3(mp.x, mp.y, clear_radius))
@@ -64,7 +66,7 @@ func _ready() -> void:
 	_player.position = Vector2.ZERO
 	_entities.add_child(_player)
 
-	_spawn_nests(nest_positions)
+	_spawn_nests(_nest_positions)
 	_spawn_gold_mines(mine_positions)
 
 	var hud: HUD = HUDScene.instantiate()
@@ -206,6 +208,24 @@ func _on_boss_died(gold: int, pos: Vector2) -> void:
 
 func _on_mega_boss_died(_gold: int, _pos: Vector2) -> void:
 	GameState.on_mega_boss_defeated()
+
+
+func _on_endless_wave_started(_wave: int) -> void:
+	if not is_inside_tree() or GameState.run_over:
+		return
+	# Double the HP of any already-active monsters and bosses on the map.
+	for node in get_tree().get_nodes_in_group("monsters"):
+		var m := node as Monster
+		if m != null and not m.is_queued_for_deletion():
+			m.max_hp *= Config.ENDLESS_WAVE_HP_MULT
+			m.hp *= Config.ENDLESS_WAVE_HP_MULT
+	for node in get_tree().get_nodes_in_group("bosses"):
+		var b := node as NestBoss
+		if b != null and not b.is_queued_for_deletion():
+			b.max_hp *= Config.ENDLESS_WAVE_HP_MULT
+			b.hp *= Config.ENDLESS_WAVE_HP_MULT
+	# Spawn 4 new spawners in the corners with 2× HP.
+	call_deferred("_spawn_nests", _nest_positions)
 
 
 func _on_victory() -> void:

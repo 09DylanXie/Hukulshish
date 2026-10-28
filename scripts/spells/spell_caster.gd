@@ -1,5 +1,5 @@
 extends Node2D
-## Fires the player's base spell (1 mana) and any acquired boss spells (2 mana each).
+## Fires the player's base spell (2 mana) and any acquired boss spells (3 mana each).
 ## By default, the player clicks to shoot toward the cursor (respecting each spell's fire rate cooldown and mana).
 ## Once Auto-Shooting is unlocked in the Gold Shop (1000 gold), spells also auto-aim at the nearest target.
 ## Once Homing is unlocked in the Gold Shop (1500 gold), fired projectiles home toward the closest enemy.

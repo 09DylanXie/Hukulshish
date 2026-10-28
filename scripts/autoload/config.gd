@@ -22,8 +22,8 @@ const BASE_MANA_REGEN: float = 1.0
 const MANA_REGEN_STEP: float = 0.5
 const MANA_POOL_MAX: int = 29
 const MANA_POOL_MAX_LEVEL: int = 12
-const BASE_SPELL_MANA_COST: float = 1.0
-const BOSS_SPELL_MANA_COST: float = 2.0
+const BASE_SPELL_MANA_COST: float = 2.0
+const BOSS_SPELL_MANA_COST: float = 3.0
 
 # --- Base spell (§6.2) ---
 const SPELL_MAX_LEVEL: int = 9
@@ -123,10 +123,16 @@ const BOSS_FIRE_RANGE_TILES: float = 12.0
 
 # --- Mega boss (§6.7) — 2× previous HP (1000 → 2000) ---
 const MEGA_BOSS_HP: int = 2000
+const MEGA_BOSS_SHIELD_HP: float = 100.0
+const MEGA_BOSS_BOLT_SPEED_TILES: float = 6.0
 const MEGA_BOSS_RADIUS_TILES: float = 1.5
-const MEGA_BOSS_SPAWN_BOSS_SEC: float = 50.0
+const MEGA_BOSS_SPAWN_RATE_MULT: float = 2.0
+const MEGA_BOSS_SPAWN_BOSS_SEC: float = 25.0
 # TODO(design): cap on monsters the mega boss keeps alive (performance).
 const MEGA_BOSS_MAX_MINIONS: int = 40
+
+# --- Endless Mode (§3) ---
+const ENDLESS_WAVE_HP_MULT: float = 2.0
 
 # TODO(design): does the difficulty HP multiplier also scale nests + bosses? (§9 Q4). Assumed no.
 const DIFFICULTY_SCALES_NESTS_AND_BOSSES: bool = false

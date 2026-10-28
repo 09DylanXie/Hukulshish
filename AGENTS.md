@@ -76,7 +76,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 1. **Main Menu:** `Start`, `Quit Game`
 2. **Map Size:** `Small`, `Medium`, `Large`
-3. **Difficulty:** `Easy`, `Medium`, `Hard`, `Extreme`
+3. **Difficulty:** `Easy`, `Medium`, `Hard`, `Extreme`, plus **Endless Mode** (either chosen directly or toggled on for any difficulty; when the Mega Boss dies, 4 new spawners appear and everything's HP goes up by `2×`).
 4. **Game:** the run starts. Show the Victory or Game Over screen at the end.
 
 ### Difficulty (monster HP multiplier & 3-minute time scaling)
@@ -123,11 +123,11 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 | Max Shield | 5 (absorbs damage before HP) |
 | Starting Mana | 10 max (regenerates at 1.0/sec base) |
 | Move speed | 3.0 tiles/sec |
-| Starting spell | Base spell, level 1: left-click to shoot toward cursor (or auto-aim once unlocked for 1000 gold), 1 damage, costs 1 mana per cast |
+| Starting spell | Base spell, level 1: left-click to shoot toward cursor (or auto-aim once unlocked for 1000 gold), 1 damage, fires at 2.0 shots/sec, costs 2 mana per cast |
 
 ### 6.2 Spells & Mana
 - Every player spell moves at **2× player speed (6.0 tiles/sec)** unless modified (e.g., 5× speed Sniper shot).
-- **Mana Consumption:** casting the **Base Spell** costs **1 mana**; casting each **Boss Spell** costs **2 mana**.
+- **Fire Rate & Mana Consumption:** player spells fire **2× faster** (`2.0/sec` base for Base Spell). Casting the **Base Spell** costs **2 mana**; casting each **Boss Spell** costs **3 mana** (+1 mana per cast across all spells).
 - **Base spell levels:** 1 (base) up to 9 (max). You upgrade it **at the castle** with gold.
 - **Damage per level:** +2 per level until level 7, then +5 per level after that.
 
@@ -162,7 +162,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
   - **Auto-Shooting Unlock (`1000` gold):** unlocks automatic targeting and firing alongside manual click-to-shoot.
   - **Homing Unlock (`1500` gold):** makes player spells (and Split Spell projectiles) home toward the closest enemy.
 - **Boss Spells:** defeating a nest boss has a **1 in 3 chance** to drop a new spell pickup (along with **1000 gold**):
-  - Costs **2 mana** per cast and cannot be upgraded once acquired (stats are frozen on pickup).
+  - Costs **3 mana** per cast and cannot be upgraded once acquired (stats are frozen on pickup).
   - **First boss spell:** copies the current base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`).
   - **Subsequent boss spells (when 2+ spells exist):** adds the damage of all existing player spells together without reducing fire rate by 1/3 again (existing spells are kept, not absorbed).
 
@@ -197,9 +197,11 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 ### 6.7 Mega Boss
 - Spawns once all 4 nests are destroyed.
-- **HP:** 2000 (increased 2× from 1000; same melee/ranged damage and speed stats as a Nest Boss).
-- Spawns a **Nest Boss every 50 seconds** and spawns **normal monsters at their normal rate**.
-- **Defeating the Mega Boss ends the game in Victory.**
+- **HP:** 2000 (increased 2× from 1000; same melee/ranged damage and movement speed stats as a Nest Boss).
+- **Spell Speed:** Fires projectiles at the **same speed as the player's base spell (`6.0` tiles/sec)**.
+- **Regenerating Shield:** Starts with a **100 HP shield** that **regenerates to 100 HP after each 1/4 of its max HP is lost** (at 75%, 50%, and 25% HP).
+- **Spawn Rates (2×):** Spawns a **Nest Boss every 25 seconds** (2× rate from 50 s) and spawns **normal monsters at 2× their normal rate**.
+- **Defeating the Mega Boss** ends the game in Victory in Normal mode, or in **Endless Mode** spawns **4 new spawners** and increases **everything's HP by 2×**.
 
 ### 6.8 Gold Mines
 - **2 gold mines** spawn in random regions of the map each run.

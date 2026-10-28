@@ -54,3 +54,4 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, r, Color(1.0, 0.32, 0.05, 0.28 * fade))
 	draw_circle(Vector2.ZERO, r * 0.65, Color(1.0, 0.65, 0.1, 0.32 * fade))
 	draw_arc(Vector2.ZERO, r, 0.0, TAU, 36, Color(1.0, 0.5, 0.1, 0.85 * fade), 2.5)
+

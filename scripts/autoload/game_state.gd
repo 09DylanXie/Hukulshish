@@ -5,6 +5,7 @@ extends Node
 ## Emitted whenever anything the HUD / castle menu shows changes.
 signal changed
 signal mana_changed(mana: float, max_mana: int, regen: float)
+signal endless_wave_started(wave: int)
 signal victory
 signal defeat
 
@@ -12,6 +13,9 @@ const TOTAL_NESTS: int = 4
 
 var map_size: MapSizeData
 var difficulty: DifficultyData
+var endless_mode: bool = false
+var endless_wave: int = 0
+var endless_hp_mult: float = 1.0
 
 var run_time: float = 0.0
 var gold: int = 0
@@ -84,6 +88,8 @@ func start_run() -> void:
 	bosses_defeated = 0
 	mega_boss_spawned = false
 	mega_boss_defeated = false
+	endless_wave = 0
+	endless_hp_mult = 1.0
 	run_over = false
 	changed.emit()
 	mana_changed.emit(mana, max_mana(), mana_regen())
@@ -112,7 +118,7 @@ func _process(delta: float) -> void:
 
 # --- Enemy HP scaling (difficulty + time after 3 minutes) ---
 
-## Scales monster base HP by difficulty and, once 3 minutes have elapsed, every 30 seconds:
+## Scales monster base HP by difficulty, 3-minute time scaling, and Endless Mode wave multiplier:
 ## - Easy: no time scaling
 ## - Medium: +5 HP per 30 s
 ## - Hard: ×1.2 per 30 s
@@ -120,17 +126,31 @@ func _process(delta: float) -> void:
 func scaled_monster_hp(base_hp: int) -> float:
 	var mult: float = difficulty.hp_mult if difficulty != null else 1.0
 	var hp: float = float(Config.scale_hp(base_hp, mult))
-	if run_time < Config.TIME_SCALE_START_SEC or difficulty == null:
-		return hp
-	var steps: int = int(floor((run_time - Config.TIME_SCALE_START_SEC) / Config.TIME_SCALE_INTERVAL_SEC)) + 1
-	match difficulty.name:
-		"Medium":
-			hp += Config.TIME_SCALE_MEDIUM_ADD * steps
-		"Hard":
-			hp *= pow(Config.TIME_SCALE_HARD_MULT, steps)
-		"Extreme":
-			hp *= pow(Config.TIME_SCALE_EXTREME_MULT, steps)
-	return hp
+	if run_time >= Config.TIME_SCALE_START_SEC and difficulty != null:
+		var steps: int = int(floor((run_time - Config.TIME_SCALE_START_SEC) / Config.TIME_SCALE_INTERVAL_SEC)) + 1
+		match difficulty.name:
+			"Medium":
+				hp += Config.TIME_SCALE_MEDIUM_ADD * steps
+			"Hard":
+				hp *= pow(Config.TIME_SCALE_HARD_MULT, steps)
+			"Extreme":
+				hp *= pow(Config.TIME_SCALE_EXTREME_MULT, steps)
+	return hp * endless_hp_mult
+
+
+func scaled_nest_hp() -> float:
+	var mult: float = difficulty.hp_mult if (Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES and difficulty != null) else 1.0
+	return float(Config.scale_hp(Config.NEST_HP, mult)) * endless_hp_mult
+
+
+func scaled_boss_hp() -> float:
+	var mult: float = difficulty.hp_mult if (Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES and difficulty != null) else 1.0
+	return float(Config.scale_hp(Config.BOSS_HP, mult)) * endless_hp_mult
+
+
+func scaled_mega_boss_hp() -> float:
+	var mult: float = difficulty.hp_mult if (Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES and difficulty != null) else 1.0
+	return float(Config.scale_hp(Config.MEGA_BOSS_HP, mult)) * endless_hp_mult
 
 
 # --- Mana & Spell Mods ---
@@ -461,8 +481,18 @@ func on_mega_boss_spawned() -> void:
 	changed.emit()
 
 
-## Victory: the mega boss is defeated (it only appears after all 4 nests are destroyed).
+## Victory in Normal mode when the mega boss is defeated; in Endless mode, spawns 4 new spawners
+## and doubles everything's HP (×2 per Mega Boss kill).
 func on_mega_boss_defeated() -> void:
+	if endless_mode:
+		endless_wave += 1
+		endless_hp_mult *= Config.ENDLESS_WAVE_HP_MULT
+		nests_destroyed = 0
+		mega_boss_spawned = false
+		mega_boss_defeated = false
+		changed.emit()
+		endless_wave_started.emit(endless_wave)
+		return
 	mega_boss_defeated = true
 	changed.emit()
 	if not run_over:

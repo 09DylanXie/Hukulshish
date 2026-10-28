@@ -204,11 +204,13 @@ func _refresh() -> void:
 	for c in _spells_box.get_children():
 		c.queue_free()
 	if GameState.boss_spells.is_empty():
-		_spells_box.add_child(UIKit.make_label("None yet — bosses have a 1/3 chance to drop a new spell (costs 2 mana).", 15, Color(0.7, 0.7, 0.75)))
+		_spells_box.add_child(UIKit.make_label(
+			"None yet — bosses have a 1/3 chance to drop a new spell (costs %d mana)." % int(Config.BOSS_SPELL_MANA_COST),
+			15, Color(0.7, 0.7, 0.75)))
 	else:
 		for s in GameState.boss_spells:
-			var info: String = "★ %s — %.1f dmg, %.2f/s, 2 mana (frozen)" % [
-				s["name"], float(s["damage"]), float(s["fire_rate"])]
+			var info: String = "★ %s — %.1f dmg, %.2f/s, %d mana (frozen)" % [
+				s["name"], float(s["damage"]), float(s["fire_rate"]), int(s.get("mana_cost", Config.BOSS_SPELL_MANA_COST))]
 			_spells_box.add_child(UIKit.make_label(info, 15, s["color"] as Color))
 
 	# Populate Gold Shop

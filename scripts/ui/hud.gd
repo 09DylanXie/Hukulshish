@@ -19,6 +19,7 @@ var _pause_overlay: Control
 var _slots: Array[Control] = []
 var _slot_hovered: Array[bool] = [false, false, false]
 var _elapsed: float = 0.0
+var _endless_banner_timer: float = 0.0
 
 const _SLOT_TITLES: Array[String] = ["Shield [1]", "Heal +3 [2]", "2× Dmg [3]"]
 const _SLOT_COLORS: Array[Color] = [
@@ -39,6 +40,7 @@ func _ready() -> void:
 
 	GameState.changed.connect(_refresh)
 	GameState.mana_changed.connect(_on_mana_changed)
+	GameState.endless_wave_started.connect(_on_endless_wave_started)
 	_on_mana_changed(GameState.mana, GameState.max_mana(), GameState.mana_regen())
 	_refresh()
 
@@ -51,13 +53,24 @@ func bind_player(player: Player) -> void:
 	_on_shield_changed(player.shield, player.max_shield)
 
 
+func _on_endless_wave_started(_wave: int) -> void:
+	_endless_banner_timer = 5.0
+	_refresh()
+
+
 func _process(delta: float) -> void:
 	if not get_tree().paused:
 		_elapsed += delta
-	if _elapsed < Config.NEST_SPAWN_DELAY_SEC:
+		if _endless_banner_timer > 0.0:
+			_endless_banner_timer = maxf(0.0, _endless_banner_timer - delta)
+	if _endless_banner_timer > 0.0:
+		_hint_label.text = "ENDLESS WAVE %d! 4 new spawners appeared — all HP ×%d!" % [
+			GameState.endless_wave + 1, int(round(GameState.endless_hp_mult))]
+	elif _elapsed < Config.NEST_SPAWN_DELAY_SEC:
 		_hint_label.text = "Monsters awaken in %d…" % ceili(Config.NEST_SPAWN_DELAY_SEC - _elapsed)
 	elif GameState.mega_boss_spawned and not GameState.mega_boss_defeated:
-		_hint_label.text = "THE MEGA BOSS HAS AWAKENED! Defeat it to win!"
+		var msg: String = "THE MEGA BOSS HAS AWAKENED! Defeat it to spawn the next wave!" if GameState.endless_mode else "THE MEGA BOSS HAS AWAKENED! Defeat it to win!"
+		_hint_label.text = msg
 	elif not GameState.auto_shoot_unlocked and _elapsed < 12.0:
 		_hint_label.text = "Left-click to shoot toward cursor • Enter castle to shop & heal"
 	else:
@@ -325,12 +338,15 @@ func _refresh() -> void:
 		mode_tag += " [Homing]"
 	if GameState.magnet_unlocked:
 		mode_tag += " [Magnet]"
-	_spell_label.text = "Spell Lv %d  (%.1f dmg, 1 mana)%s%s" % [
-		GameState.spell_level, dmg, extra, mode_tag]
+	_spell_label.text = "Spell Lv %d  (%.1f dmg, %d mana)%s%s" % [
+		GameState.spell_level, dmg, int(Config.BASE_SPELL_MANA_COST), extra, mode_tag]
+	var wave_tag: String = ""
+	if GameState.endless_mode:
+		wave_tag = "   [Endless W%d • ×%d HP]" % [GameState.endless_wave + 1, int(round(GameState.endless_hp_mult))]
 	if GameState.mega_boss_spawned:
-		_objective_label.text = "Nests  4/4    Mega Boss  ACTIVE"
+		_objective_label.text = "Nests  4/4    Mega Boss  ACTIVE%s" % wave_tag
 	else:
-		_objective_label.text = "Nests  %d/4    Bosses  %d/4" % [GameState.nests_destroyed, GameState.bosses_defeated]
+		_objective_label.text = "Nests  %d/4    Bosses  %d%s" % [GameState.nests_destroyed, GameState.bosses_defeated, wave_tag]
 	for s in _slots:
 		s.queue_redraw()
 
