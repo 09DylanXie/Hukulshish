@@ -139,8 +139,8 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 - **Upgrade cost:** grows exponentially with each level (`cost = base_cost * growth ^ (level - 1)`).
 
-### 6.3 Spell Mods ("Spell Scrolls"), Augmentations, Gold Shop & Boss Spells
-- **Spell Scrolls (formerly Mod Parts):** killing any monster has a **1 in 7 chance** to drop a Spell Scroll pickup.
+### 6.3 Spell Mods ("Spell Scrolls"), Augmentations, Personal Shop, Gold Shop & Boss Spells
+- **Spell Scrolls (formerly Mod Parts):** killing any monster has a **1 in 7 chance** (scaled by Luck) to drop a Spell Scroll pickup.
 - **Spell Mods (at the castle):** Spell Scrolls can be spent on 4 independent upgrades for the base spell:
   - **Damage:** `+0.1×` (+10%) damage multiplier per level.
   - **Mana Regen** (replaces Fire Rate): starts at `1.0/sec` and increases by **`+0.5/sec`** each upgrade.
@@ -148,19 +148,27 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
   - **Range:** `+0.1×` (+10%) range multiplier per level.
 - **Spell Mod cost:** costs `+1` Spell Scroll per upgrade for the first 4 upgrades (`1, 2, 3, 4`), then grows exponentially (`8, 16, 32, …`).
 - **Augmentations & Augmentation Scrolls (at the bottom of the Spell Mod menu):**
-  - **Augmentation Scrolls** drop **only from Demons** with a **1 in 5 chance**.
+  - **Augmentation Scrolls** drop **only from Demons** with a **1 in 5 chance** (scaled by Luck).
   - Each of the 3 Augmentations can be upgraded a maximum of **3 times**, costing **1**, then **2**, then **3** Augmentation Scrolls:
-    1. **Split Spell:** splits the player's spell into **2** (Lv 1), **3** (Lv 2), or **4** (Lv 3) projectiles (+1 split per upgrade) upon contact with an enemy. Splits travel in straight lines separated by **30°** angles from the point of splitting (unless the player has Homing unlocked), and each split deals **1/2** the damage of the original spell.
+    1. **Split Spell:** splits the player's spell into **2** (Lv 1), **3** (Lv 2), or **4** (Lv 3) projectiles (+1 split per upgrade) upon contact with an enemy. Splits travel in straight lines separated by **30°** angles from the point of splitting (unless the player has Homing active), and each split deals **1/2** the damage of the original spell.
     2. **Bombspell:** creates a medium-sized fire explosion (`2.2` tiles radius) upon hitting a target that lasts **3 seconds** and deals **3 dmg/sec** (Lv 1), **5 dmg/sec** (Lv 2), or **7 dmg/sec** (Lv 3) (+2 dmg/sec per upgrade). Applies on final split spells (not initial split impact when Split Spell is active), and **1 tick of fire damage breaks a Demon's bubble shield**.
     3. **Sniper:** upon initial player spell contact with an enemy, fires a super-accurate **5× speed** shot that directly homes to the nearest enemy and deals **2×** (Lv 1), **3×** (Lv 2), or **4×** (Lv 3) damage (+1× per upgrade). Does not apply other augmentations upon impact, does not repeat, and sniper shot count does not change with split upgrades (only initial first impact of player spell on an enemy).
+- **Personal Shop & Enhancers (Goblin Drops):**
+  - **Enhancers** drop **only from Goblins** with a **1 in 3 chance** (scaled by Luck).
+  - All 5 Personal Shop upgrades max out at **Level 3** and cost **3** Enhancers for the 1st upgrade, **5** for the 2nd, and **9** for the 3rd:
+    1. **Luck:** increases drop rate by **+20% per upgrade** (non-cumulative: `+20%`, `+40%`, `+60%`).
+    2. **Movement Speed:** increases player movement speed by **+5% per upgrade** (non-cumulative: `+5%`, `+10%`, `+15%`).
+    3. **Health Regen:** regenerates **+1 HP / 10 secs per upgrade** (`+1`, `+2`, `+3` HP every 10 seconds).
+    4. **Capacity:** increases Gold Mine capacity by **+1/3 per upgrade** (non-cumulative: `+1/3`, `+2/3`, `+3/3`).
+    5. **Rate:** increases Gold Mine gold generation rate by **+15% per upgrade** (non-cumulative: `+15%`, `+30%`, `+45%`).
 - **Gold Shop (at the castle):**
   - **Spell Scroll:** `100` gold for the 1st, then `+100` gold for each additional scroll up to 10 (`100, 200, …, 1000`).
   - **Magic Shield (`200` gold):** adds 1 shield item to the bottom circular hotbar; using it adds `+1` shield point (up to the 5-shield cap).
   - **3 HP Healing Potion (`100` gold):** adds 1 healing potion to the bottom circular hotbar; using it heals `+3 HP` (30 s effect timer).
   - **2× Damage Boost Potion (`100` gold):** adds 1 damage potion to the bottom circular hotbar; using it grants `2×` spell damage for **30 seconds**.
-  - **Magnet (`100` gold):** automatically pulls dropped Spell Scrolls, Augmentation Scrolls, and Boss Spell pickups on the map toward the player.
-  - **Auto-Shooting Unlock (`1000` gold):** unlocks automatic targeting and firing alongside manual click-to-shoot.
-  - **Homing Unlock (`1500` gold):** makes player spells (and Split Spell projectiles) home toward the closest enemy.
+  - **Magnet (`100` gold):** automatically pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups on the map toward the player.
+  - **Auto-Shooting Unlock (`1000` gold):** unlocks automatic targeting and firing at **1/2 of the spell's fire rate** so players can still manually fire; press **`E`** to toggle auto-fire on/off once unlocked.
+  - **Homing Unlock (`1500` gold):** makes player spells (and Split Spell projectiles) home toward the closest enemy; press **`F`** to toggle homing on/off once unlocked.
 - **Boss Spells:** defeating a nest boss has a **1 in 3 chance** to drop a new spell pickup (along with **1000 gold**):
   - Costs **3 mana** per cast and cannot be upgraded once acquired (stats are frozen on pickup).
   - **First boss spell:** copies the current base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`).
@@ -177,7 +185,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 ### 6.5 Monsters (all melee)
 | Class | HP | Damage | Radius (tiles) | Speed (from size) | Spawn interval | Gold drop | Special |
 |---|---|---|---|---|---|---|---|
-| Goblin | 3 | 1 | 0.35 | ~2.57 tiles/s | every 5 s | 1 | — |
+| Goblin | 3 | 1 | 0.35 | ~2.57 tiles/s | every 5 s | 1 | 1/3 chance to drop an Enhancer |
 | Undead | 4 | 2 | 0.40 | ~2.25 tiles/s | every 8 s | 3 | — |
 | Demon | 7 | 2 | 0.45 | ~2.00 tiles/s | every 16 s | 5 | Bubble shield (breaks after 1 spell hit or 1 Bombspell fire tick); 1/5 chance to drop an Augmentation Scroll |
 | Ogre | 10 | 1 | 0.60 | ~1.50 tiles/s | every 7 s | 4 | — |

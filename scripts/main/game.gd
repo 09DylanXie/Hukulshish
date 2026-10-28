@@ -147,18 +147,24 @@ func _on_monster_spawned(monster: Monster) -> void:
 	monster.died.connect(_on_monster_died)
 
 
-func _on_monster_died(gold: int, pos: Vector2, is_demon: bool) -> void:
+func _on_monster_died(gold: int, pos: Vector2, is_demon: bool, is_goblin: bool) -> void:
 	GameState.add_gold(gold)
-	if randf() < Config.MOD_PART_DROP_CHANCE:
+	var luck: float = GameState.luck_multiplier()
+	if randf() < Config.MOD_PART_DROP_CHANCE * luck:
 		var pickup: ModPickup = ModPickupScene.instantiate()
 		pickup.kind = ModPickup.Kind.MOD_PART
 		pickup.position = pos
 		_entities.call_deferred("add_child", pickup)
-	if is_demon and randf() < Config.AUG_SCROLL_DROP_CHANCE:
+	if is_demon and randf() < Config.AUG_SCROLL_DROP_CHANCE * luck:
 		var aug_pickup: ModPickup = ModPickupScene.instantiate()
 		aug_pickup.kind = ModPickup.Kind.AUG_SCROLL
 		aug_pickup.position = pos + Vector2(12, 0)
 		_entities.call_deferred("add_child", aug_pickup)
+	if is_goblin and randf() < Config.ENHANCER_DROP_CHANCE * luck:
+		var enh_pickup: ModPickup = ModPickupScene.instantiate()
+		enh_pickup.kind = ModPickup.Kind.ENHANCER
+		enh_pickup.position = pos + Vector2(-12, 0)
+		_entities.call_deferred("add_child", enh_pickup)
 
 
 func _on_nest_destroyed(nest: Nest) -> void:
@@ -199,7 +205,7 @@ func _on_mega_minion_spawned(minion: Node) -> void:
 func _on_boss_died(gold: int, pos: Vector2) -> void:
 	GameState.add_gold(gold)
 	GameState.on_boss_defeated()
-	if randf() < Config.BOSS_SPELL_DROP_CHANCE:
+	if randf() < Config.BOSS_SPELL_DROP_CHANCE * GameState.luck_multiplier():
 		var pickup: ModPickup = ModPickupScene.instantiate()
 		pickup.kind = ModPickup.Kind.BOSS_SPELL
 		pickup.position = pos

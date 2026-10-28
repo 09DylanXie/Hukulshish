@@ -16,6 +16,7 @@ var shield: int = 0
 var bounds: Rect2 = Rect2()
 
 var _iframes: float = 0.0
+var _regen_timer: float = 0.0
 var _dead: bool = false
 var _radius: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
 var _facing: Vector2 = Vector2.RIGHT
@@ -57,10 +58,20 @@ func _physics_process(delta: float) -> void:
 	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if input != Vector2.ZERO:
 		_facing = input.normalized()
-	velocity = input * Config.tiles(Config.PLAYER_SPEED_TILES)
+	velocity = input * Config.tiles(GameState.player_speed_tiles())
 	move_and_slide()
 	if bounds.has_area():
 		global_position = global_position.clamp(bounds.position + Vector2.ONE * _radius, bounds.end - Vector2.ONE * _radius)
+
+	# Personal Shop Health Regen: +1 HP / 10 secs per upgrade
+	var regen_hp: int = GameState.health_regen_per_10s()
+	if regen_hp > 0 and hp < max_hp:
+		_regen_timer += delta
+		if _regen_timer >= Config.HEALTH_REGEN_INTERVAL_SEC:
+			_regen_timer -= Config.HEALTH_REGEN_INTERVAL_SEC
+			heal_amount(regen_hp)
+	else:
+		_regen_timer = 0.0
 
 	if _iframes > 0.0:
 		_iframes -= delta

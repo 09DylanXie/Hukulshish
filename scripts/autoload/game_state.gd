@@ -32,6 +32,11 @@ var aug_scrolls: int = 0
 ## Augmentation id → level (0..3, see Config.AUGMENTATIONS).
 var aug_levels: Dictionary = {}
 
+## Enhancers dropped only by Goblins (1/3 chance), spent in the Personal Shop.
+var enhancers: int = 0
+## Personal Shop id → level (0..3, see Config.PERSONAL_SHOP).
+var personal_levels: Dictionary = {}
+
 ## Mana state
 var mana: float = Config.BASE_MAX_MANA
 
@@ -41,7 +46,9 @@ var boss_spells: Array[Dictionary] = []
 # --- Gold Shop unlocks & hotbar consumables ---
 var magnet_unlocked: bool = false
 var auto_shoot_unlocked: bool = false
+var auto_shoot_enabled: bool = false
 var homing_unlocked: bool = false
+var homing_enabled: bool = false
 var shield_items: int = 0
 var heal_potions: int = 0
 var damage_potions: int = 0
@@ -74,11 +81,17 @@ func start_run() -> void:
 	aug_levels.clear()
 	for id in Config.AUGMENTATIONS:
 		aug_levels[id] = 0
+	enhancers = 0
+	personal_levels.clear()
+	for id in Config.PERSONAL_SHOP:
+		personal_levels[id] = 0
 	mana = float(max_mana())
 	boss_spells.clear()
 	magnet_unlocked = false
 	auto_shoot_unlocked = false
+	auto_shoot_enabled = false
 	homing_unlocked = false
+	homing_enabled = false
 	shield_items = 0
 	heal_potions = 0
 	damage_potions = 0
@@ -325,6 +338,62 @@ func sniper_damage_mult() -> float:
 	return 0.0 if lvl <= 0 else Config.SNIPER_BASE_DAMAGE_MULT + Config.SNIPER_DAMAGE_STEP * (lvl - 1)
 
 
+# --- Personal Shop (Goblin Enhancers) ---
+
+func add_enhancers(amount: int) -> void:
+	enhancers += amount
+	changed.emit()
+
+
+func personal_level(id: String) -> int:
+	return int(personal_levels.get(id, 0))
+
+
+func is_personal_maxed(id: String) -> bool:
+	return personal_level(id) >= Config.PERSONAL_MAX_LEVEL
+
+
+func next_personal_cost(id: String) -> int:
+	return Config.personal_cost(personal_level(id))
+
+
+func try_buy_personal(id: String) -> bool:
+	if not Config.PERSONAL_SHOP.has(id) or is_personal_maxed(id):
+		return false
+	var cost: int = next_personal_cost(id)
+	if enhancers < cost:
+		return false
+	enhancers -= cost
+	personal_levels[id] = personal_level(id) + 1
+	changed.emit()
+	return true
+
+
+## Luck: +20% drop rate per upgrade (non-cumulative: 1.0, 1.2, 1.4, 1.6).
+func luck_multiplier() -> float:
+	return 1.0 + Config.LUCK_STEP * personal_level("luck")
+
+
+## Movement Speed: +5% player movement speed per upgrade (non-cumulative: 1.0, 1.05, 1.10, 1.15).
+func player_speed_tiles() -> float:
+	return Config.PLAYER_SPEED_TILES * (1.0 + Config.MOVE_SPEED_STEP * personal_level("move_speed"))
+
+
+## Health Regen: +1 HP / 10 secs per upgrade (0, 1, 2, 3 HP per 10s).
+func health_regen_per_10s() -> int:
+	return Config.HEALTH_REGEN_HP_PER_10S_STEP * personal_level("health_regen")
+
+
+## Capacity: +1/3 gold mine capacity per upgrade (non-cumulative: ×1, ×4/3, ×5/3, ×2).
+func gold_mine_cap() -> int:
+	return int(round(float(Config.GOLD_MINE_CAP) * (1.0 + Config.MINE_CAPACITY_STEP * personal_level("mine_capacity"))))
+
+
+## Rate: +15% gold mine generation rate per upgrade (non-cumulative: 1.0, 1.15, 1.30, 1.45).
+func gold_mine_rate() -> float:
+	return Config.GOLD_MINE_RATE * (1.0 + Config.MINE_RATE_STEP * personal_level("mine_rate"))
+
+
 # --- Gold Shop purchases ---
 
 func can_buy_gold_mod_part() -> bool:
@@ -389,6 +458,7 @@ func try_buy_auto_shoot() -> bool:
 		return false
 	gold -= Config.GOLD_SHOP_AUTO_SHOOT_COST
 	auto_shoot_unlocked = true
+	auto_shoot_enabled = true
 	changed.emit()
 	return true
 
@@ -398,6 +468,31 @@ func try_buy_homing() -> bool:
 		return false
 	gold -= Config.GOLD_SHOP_HOMING_COST
 	homing_unlocked = true
+	homing_enabled = true
+	changed.emit()
+	return true
+
+
+func is_auto_shoot_active() -> bool:
+	return auto_shoot_unlocked and auto_shoot_enabled
+
+
+func is_homing_active() -> bool:
+	return homing_unlocked and homing_enabled
+
+
+func toggle_auto_shoot() -> bool:
+	if not auto_shoot_unlocked:
+		return false
+	auto_shoot_enabled = not auto_shoot_enabled
+	changed.emit()
+	return true
+
+
+func toggle_homing() -> bool:
+	if not homing_unlocked:
+		return false
+	homing_enabled = not homing_enabled
 	changed.emit()
 	return true
 

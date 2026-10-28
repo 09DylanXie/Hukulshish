@@ -22,7 +22,9 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_stored = minf(float(Config.GOLD_MINE_CAP), _stored + Config.GOLD_MINE_RATE * delta)
+	var cap: float = float(GameState.gold_mine_cap())
+	var rate: float = GameState.gold_mine_rate()
+	_stored = minf(cap, _stored + rate * delta)
 	if _player_inside:
 		_collect()
 	queue_redraw()
@@ -55,7 +57,7 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, _radius, Color(0.38, 0.35, 0.32))
 	draw_circle(Vector2.ZERO, _radius * 0.78, Color(0.28, 0.25, 0.22))
 	# Gold nuggets / veins (brighter as storage fills)
-	var ratio: float = clampf(_stored / float(Config.GOLD_MINE_CAP), 0.0, 1.0)
+	var ratio: float = clampf(_stored / float(GameState.gold_mine_cap()), 0.0, 1.0)
 	var gold_col := Color(0.98, 0.82, 0.18).lerp(Color(1.0, 0.95, 0.5), ratio)
 	for offset in [Vector2(-0.35, -0.25), Vector2(0.3, -0.2), Vector2(0.0, 0.3), Vector2(-0.2, 0.15), Vector2(0.25, 0.25)]:
 		draw_circle(offset * _radius, _radius * (0.14 + 0.08 * ratio), gold_col)

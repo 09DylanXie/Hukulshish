@@ -9,6 +9,7 @@ extends Area2D
 enum Kind {
 	MOD_PART,
 	AUG_SCROLL,
+	ENHANCER,
 	BOSS_SPELL,
 }
 
@@ -55,6 +56,8 @@ func _collect() -> void:
 			GameState.acquire_boss_spell()
 		Kind.AUG_SCROLL:
 			GameState.add_aug_scrolls(1)
+		Kind.ENHANCER:
+			GameState.add_enhancers(1)
 		_:
 			GameState.add_mod_parts(1)
 	queue_free()
@@ -83,6 +86,23 @@ func _draw() -> void:
 			])
 			draw_colored_polygon(diamond, col)
 			draw_circle(Vector2.ZERO, r * 0.35, Color(1.0, 0.88, 0.3))
+		Kind.ENHANCER:
+			var col := Color(0.28, 0.95, 0.45)
+			var r: float = Config.tiles(0.36) * (1.0 + 0.13 * sin(_t * 4.8))
+			draw_circle(Vector2.ZERO, r * 1.55, Color(col, 0.28))
+			# Emerald enhancer crystal
+			var tri_up := PackedVector2Array([
+				Vector2(0, -r * 1.05),
+				Vector2(r * 0.9, r * 0.55),
+				Vector2(-r * 0.9, r * 0.55),
+			])
+			var tri_down := PackedVector2Array([
+				Vector2(0, r * 1.05),
+				Vector2(r * 0.9, -r * 0.55),
+				Vector2(-r * 0.9, -r * 0.55),
+			])
+			draw_colored_polygon(tri_down, col.darkened(0.2))
+			draw_colored_polygon(tri_up, col.lightened(0.15))
 		_:
 			var col := Color(0.35, 0.9, 1.0)
 			var r: float = Config.tiles(0.32) * (1.0 + 0.12 * sin(_t * 4.0))

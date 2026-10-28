@@ -68,7 +68,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _spent:
 		return
-	if from_player and (homing or proj_kind == ProjKind.SNIPER):
+	if from_player and ((homing and GameState.is_homing_active()) or proj_kind == ProjKind.SNIPER):
 		var target: Node2D = _find_homing_target()
 		if target != null:
 			var to_target: Vector2 = global_position.direction_to(target.global_position)
@@ -189,7 +189,7 @@ func _spawn_split_shots(container: Node, hit_target: Node2D, count: int) -> void
 			color.lightened(0.15),
 			radius * 0.85,
 			max_distance,
-			GameState.homing_unlocked,
+			GameState.is_homing_active(),
 			ProjKind.SPLIT,
 			hit_target
 		)

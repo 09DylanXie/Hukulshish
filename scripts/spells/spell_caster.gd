@@ -6,8 +6,10 @@ extends Node2D
 
 const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tscn")
 
-## One cooldown per spell in GameState.all_spells().
-var _cooldowns: Array[float] = []
+## One manual cooldown and one auto-fire cooldown per spell in GameState.all_spells().
+## Auto-shooting fires at 1/2 the spell's fire rate so players can still manually fire.
+var _manual_cooldowns: Array[float] = []
+var _auto_cooldowns: Array[float] = []
 
 
 func _physics_process(delta: float) -> void:
@@ -16,37 +18,44 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var spells: Array[Dictionary] = GameState.all_spells()
-	while _cooldowns.size() < spells.size():
-		_cooldowns.append(0.0)
+	while _manual_cooldowns.size() < spells.size():
+		_manual_cooldowns.append(0.0)
+	while _auto_cooldowns.size() < spells.size():
+		_auto_cooldowns.append(0.0)
 
 	var manual_click: bool = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and get_viewport().gui_get_hovered_control() == null
 	var mouse_world: Vector2 = get_global_mouse_position()
 
 	for i in spells.size():
-		_cooldowns[i] = maxf(0.0, _cooldowns[i] - delta)
-		if _cooldowns[i] > 0.0:
-			continue
+		_manual_cooldowns[i] = maxf(0.0, _manual_cooldowns[i] - delta)
+		_auto_cooldowns[i] = maxf(0.0, _auto_cooldowns[i] - delta)
 
 		var spell: Dictionary = spells[i]
 		var max_range: float = Config.tiles(float(spell["range_tiles"]))
 		var mana_cost: float = float(spell.get("mana_cost", Config.BASE_SPELL_MANA_COST))
+		var base_rate: float = maxf(0.05, float(spell["fire_rate"]))
 
 		if manual_click:
+			if _manual_cooldowns[i] > 0.0:
+				continue
 			if not GameState.try_spend_mana(mana_cost):
 				continue
 			var dir: Vector2 = global_position.direction_to(mouse_world)
 			if dir == Vector2.ZERO:
 				dir = Vector2.RIGHT
 			_fire_dir(spell, dir, max_range)
-			_cooldowns[i] = 1.0 / maxf(0.05, float(spell["fire_rate"]))
-		elif GameState.auto_shoot_unlocked:
+			_manual_cooldowns[i] = 1.0 / base_rate
+		elif GameState.is_auto_shoot_active():
+			if _auto_cooldowns[i] > 0.0:
+				continue
 			var target: Node2D = _find_target(max_range)
 			if target != null:
 				if not GameState.try_spend_mana(mana_cost):
 					continue
 				var dir: Vector2 = global_position.direction_to(target.global_position)
 				_fire_dir(spell, dir, max_range)
-				_cooldowns[i] = 1.0 / maxf(0.05, float(spell["fire_rate"]))
+				var auto_rate: float = maxf(0.05, base_rate * Config.AUTO_SHOOT_FIRE_RATE_MULT)
+				_auto_cooldowns[i] = 1.0 / auto_rate
 
 
 ## Nearest monster / boss / nest within `max_range` pixels.
@@ -75,7 +84,7 @@ func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 		spell["color"] as Color,
 		Config.tiles(float(spell["radius_tiles"])),
 		max_range,
-		GameState.homing_unlocked,
+		GameState.is_homing_active(),
 		Projectile.ProjKind.INITIAL,
 		null
 	)

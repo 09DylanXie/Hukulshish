@@ -3,7 +3,7 @@ extends CharacterBody2D
 ## Generic melee monster that chases the player through the maze. Configured by a MonsterStats resource (§6.5).
 ## Speed comes from its size (Config.monster_speed_tiles). Call setup() before adding it to the tree.
 
-signal died(gold: int, at: Vector2, is_demon: bool)
+signal died(gold: int, at: Vector2, is_demon: bool, is_goblin: bool)
 
 var stats: MonsterStats
 var max_hp: float = 1.0
@@ -89,7 +89,8 @@ func take_damage(amount: float) -> void:
 	if hp <= 0.0:
 		_dead = true
 		var is_demon: bool = stats != null and (stats.has_bubble_shield or stats.name == "Demon")
-		died.emit(stats.gold, global_position, is_demon)
+		var is_goblin: bool = stats != null and stats.name == "Goblin"
+		died.emit(stats.gold, global_position, is_demon, is_goblin)
 		queue_free()
 
 

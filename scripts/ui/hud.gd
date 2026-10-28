@@ -98,6 +98,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_use_slot(1)
 		elif k == KEY_3:
 			_use_slot(2)
+		elif k == KEY_E:
+			if GameState.toggle_auto_shoot():
+				get_viewport().set_input_as_handled()
+		elif k == KEY_F:
+			if GameState.toggle_homing():
+				get_viewport().set_input_as_handled()
 
 
 func _build_stats_panel() -> void:
@@ -326,16 +332,18 @@ func _on_mana_changed(mana: float, max_mana: int, regen: float) -> void:
 
 
 func _refresh() -> void:
-	_gold_label.text = "Gold  %d   Spell Scrolls  %d   Aug Scrolls  %d" % [
-		GameState.gold, GameState.mod_parts, GameState.aug_scrolls]
+	_gold_label.text = "Gold  %d   Spell Scrolls  %d   Aug Scrolls  %d   Enhancers  %d" % [
+		GameState.gold, GameState.mod_parts, GameState.aug_scrolls, GameState.enhancers]
 	var base: Dictionary = GameState.base_spell_stats()
 	var dmg: float = float(base["damage"]) * GameState.damage_boost_multiplier()
 	var extra: String = ""
 	if not GameState.boss_spells.is_empty():
 		extra = "  +%d boss spell(s)" % GameState.boss_spells.size()
-	var mode_tag: String = " [Auto]" if GameState.auto_shoot_unlocked else " [Click]"
+	var mode_tag: String = " [Click]"
+	if GameState.auto_shoot_unlocked:
+		mode_tag = " [Auto: ON (E)]" if GameState.auto_shoot_enabled else " [Auto: OFF (E)]"
 	if GameState.homing_unlocked:
-		mode_tag += " [Homing]"
+		mode_tag += " [Homing: ON (F)]" if GameState.homing_enabled else " [Homing: OFF (F)]"
 	if GameState.magnet_unlocked:
 		mode_tag += " [Magnet]"
 	_spell_label.text = "Spell Lv %d  (%.1f dmg, %d mana)%s%s" % [

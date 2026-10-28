@@ -1,14 +1,16 @@
 class_name CastleMenu
 extends CanvasLayer
 ## Castle upgrade & shop menu (§5, §6.2–6.3). Pauses the game while open.
-## Left side: Base Spell upgrade, Spell Mods (Spell Scrolls), and Augmentations (Augmentation Scrolls).
-## Right side: Gold Shop and Boss Spells.
+## Left column: Base Spell upgrade, Spell Mods (Spell Scrolls), and Augmentations (Augmentation Scrolls).
+## Middle column: Personal Shop (Enhancers dropped by Goblins at 1/3 rate).
+## Right column: Gold Shop and Boss Spells.
 
 var _root: Control
 var _resources_label: Label
 var _upgrade_button: Button
 var _mods_box: VBoxContainer
 var _augs_box: VBoxContainer
+var _personal_box: VBoxContainer
 var _spells_box: VBoxContainer
 var _gold_shop_box: VBoxContainer
 
@@ -55,7 +57,7 @@ func _build() -> void:
 	_root.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(1140, 0)
+	panel.custom_minimum_size = Vector2(1620, 0)
 	center.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
@@ -71,7 +73,7 @@ func _build() -> void:
 	outer.add_child(_resources_label)
 
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 28)
+	columns.add_theme_constant_override("separation", 22)
 	outer.add_child(columns)
 
 	# Left column: Base spell + Spell Mods + Augmentations
@@ -80,7 +82,7 @@ func _build() -> void:
 	left_col.add_theme_constant_override("separation", 8)
 	columns.add_child(left_col)
 
-	_upgrade_button = UIKit.make_button("", _on_upgrade_pressed, 17)
+	_upgrade_button = UIKit.make_button("", _on_upgrade_pressed, 16)
 	_upgrade_button.custom_minimum_size = Vector2(0, 42)
 	left_col.add_child(_upgrade_button)
 
@@ -93,6 +95,17 @@ func _build() -> void:
 	_augs_box = VBoxContainer.new()
 	_augs_box.add_theme_constant_override("separation", 6)
 	left_col.add_child(_augs_box)
+
+	# Middle column: Personal Shop (Goblin Enhancers)
+	var mid_col := VBoxContainer.new()
+	mid_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid_col.add_theme_constant_override("separation", 8)
+	columns.add_child(mid_col)
+
+	mid_col.add_child(UIKit.make_label("Personal Shop (Goblin Enhancers)", 22, Color(0.35, 0.95, 0.55)))
+	_personal_box = VBoxContainer.new()
+	_personal_box.add_theme_constant_override("separation", 6)
+	mid_col.add_child(_personal_box)
 
 	# Right column: Gold Shop + Boss Spells
 	var right_col := VBoxContainer.new()
@@ -116,8 +129,8 @@ func _build() -> void:
 func _refresh() -> void:
 	if _root == null:
 		return
-	_resources_label.text = "Gold: %d      Spell Scrolls: %d      Augmentation Scrolls: %d" % [
-		GameState.gold, GameState.mod_parts, GameState.aug_scrolls]
+	_resources_label.text = "Gold: %d      Spell Scrolls: %d      Augmentation Scrolls: %d      Enhancers: %d" % [
+		GameState.gold, GameState.mod_parts, GameState.aug_scrolls, GameState.enhancers]
 
 	var lvl: int = GameState.spell_level
 	if GameState.is_spell_maxed():
@@ -200,6 +213,53 @@ func _refresh() -> void:
 		btn.disabled = maxed or GameState.aug_scrolls < cost
 		_augs_box.add_child(btn)
 
+	# Populate Personal Shop (Goblin Enhancers: max 3, costs 3, 5, 9)
+	for c in _personal_box.get_children():
+		c.queue_free()
+	for id in ["luck", "move_speed", "health_regen", "mine_capacity", "mine_rate"]:
+		var p_lvl: int = GameState.personal_level(id)
+		var maxed: bool = GameState.is_personal_maxed(id)
+		var cost: int = GameState.next_personal_cost(id)
+		var text: String = ""
+		match id:
+			"luck":
+				var cur_pct: int = p_lvl * 20
+				var next_pct: int = (p_lvl + 1) * 20
+				if maxed:
+					text = "Luck  Lv 3 (+60% drop rate) — MAX"
+				else:
+					text = "Luck  Lv %d → %d (+%d%% → +%d%% drop rate)  —  %d enhancers" % [p_lvl, p_lvl + 1, cur_pct, next_pct, cost]
+			"move_speed":
+				var cur_pct: int = p_lvl * 5
+				var next_pct: int = (p_lvl + 1) * 5
+				if maxed:
+					text = "Movement Speed  Lv 3 (+15% move speed) — MAX"
+				else:
+					text = "Movement Speed  Lv %d → %d (+%d%% → +%d%% speed)  —  %d enhancers" % [p_lvl, p_lvl + 1, cur_pct, next_pct, cost]
+			"health_regen":
+				if maxed:
+					text = "Health Regen  Lv 3 (+3 HP / 10s) — MAX"
+				else:
+					text = "Health Regen  Lv %d → %d (+%d → +%d HP/10s)  —  %d enhancers" % [p_lvl, p_lvl + 1, p_lvl, p_lvl + 1, cost]
+			"mine_capacity":
+				var cur_cap: int = GameState.gold_mine_cap()
+				var next_cap: int = int(round(float(Config.GOLD_MINE_CAP) * (1.0 + Config.MINE_CAPACITY_STEP * (p_lvl + 1))))
+				if maxed:
+					text = "Capacity  Lv 3 (%d mine cap, +3/3) — MAX" % cur_cap
+				else:
+					text = "Capacity  Lv %d → %d (+%d/3 → +%d/3 mine cap)  —  %d enhancers" % [p_lvl, p_lvl + 1, p_lvl, p_lvl + 1, cost]
+			"mine_rate":
+				var cur_pct: int = p_lvl * 15
+				var next_pct: int = (p_lvl + 1) * 15
+				if maxed:
+					text = "Rate  Lv 3 (+45% mine gold/s) — MAX"
+				else:
+					text = "Rate  Lv %d → %d (+%d%% → +%d%% mine gold/s)  —  %d enhancers" % [p_lvl, p_lvl + 1, cur_pct, next_pct, cost]
+		var btn: Button = UIKit.make_button(text, _on_buy_personal.bind(id), 15)
+		btn.custom_minimum_size = Vector2(0, 40)
+		btn.disabled = maxed or GameState.enhancers < cost
+		_personal_box.add_child(btn)
+
 	# Populate Boss Spells
 	for c in _spells_box.get_children():
 		c.queue_free()
@@ -271,29 +331,29 @@ func _refresh() -> void:
 	dmg_btn.disabled = GameState.gold < Config.GOLD_SHOP_POTION_COST
 	_gold_shop_box.add_child(dmg_btn)
 
-	# 6. Auto-Shooting Unlock (1000 gold)
+	# 6. Auto-Shooting Unlock (1000 gold; toggle with E)
 	if GameState.auto_shoot_unlocked:
-		var auto_done: Button = UIKit.make_button("Auto-Shooting — UNLOCKED", func() -> void: pass, 16)
+		var auto_done: Button = UIKit.make_button("Auto-Shooting — UNLOCKED (Press E to toggle)", func() -> void: pass, 16)
 		auto_done.custom_minimum_size = Vector2(0, 38)
 		auto_done.disabled = true
 		_gold_shop_box.add_child(auto_done)
 	else:
 		var auto_btn: Button = UIKit.make_button(
-			"Unlock Auto-Shooting  —  %d gold" % Config.GOLD_SHOP_AUTO_SHOOT_COST,
+			"Unlock Auto-Shooting (toggle with E)  —  %d gold" % Config.GOLD_SHOP_AUTO_SHOOT_COST,
 			func() -> void: GameState.try_buy_auto_shoot(), 16)
 		auto_btn.custom_minimum_size = Vector2(0, 38)
 		auto_btn.disabled = GameState.gold < Config.GOLD_SHOP_AUTO_SHOOT_COST
 		_gold_shop_box.add_child(auto_btn)
 
-	# 7. Homing Unlock (1500 gold)
+	# 7. Homing Unlock (1500 gold; toggle with F)
 	if GameState.homing_unlocked:
-		var homing_done: Button = UIKit.make_button("Homing — UNLOCKED", func() -> void: pass, 16)
+		var homing_done: Button = UIKit.make_button("Homing — UNLOCKED (Press F to toggle)", func() -> void: pass, 16)
 		homing_done.custom_minimum_size = Vector2(0, 38)
 		homing_done.disabled = true
 		_gold_shop_box.add_child(homing_done)
 	else:
 		var homing_btn: Button = UIKit.make_button(
-			"Unlock Homing  —  %d gold" % Config.GOLD_SHOP_HOMING_COST,
+			"Unlock Homing (toggle with F)  —  %d gold" % Config.GOLD_SHOP_HOMING_COST,
 			func() -> void: GameState.try_buy_homing(), 16)
 		homing_btn.custom_minimum_size = Vector2(0, 38)
 		homing_btn.disabled = GameState.gold < Config.GOLD_SHOP_HOMING_COST
@@ -310,3 +370,7 @@ func _on_buy_mod(id: String) -> void:
 
 func _on_buy_aug(id: String) -> void:
 	GameState.try_buy_aug(id)
+
+
+func _on_buy_personal(id: String) -> void:
+	GameState.try_buy_personal(id)

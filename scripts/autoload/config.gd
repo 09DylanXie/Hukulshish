@@ -74,12 +74,31 @@ const GOLD_SHOP_POTION_COST: int = 100
 const GOLD_SHOP_MAGNET_COST: int = 100
 const GOLD_SHOP_AUTO_SHOOT_COST: int = 1000
 const GOLD_SHOP_HOMING_COST: int = 1500
+const AUTO_SHOOT_FIRE_RATE_MULT: float = 0.5
 const HOMING_TURN_SPEED: float = 16.0
 const MAGNET_PULL_SPEED_TILES: float = 14.0
 const POTION_DURATION_SEC: float = 30.0
 const HEAL_POTION_AMOUNT: int = 3
 const DAMAGE_POTION_MULT: float = 2.0
 const SHIELD_ITEM_AMOUNT: int = 1
+
+# --- Personal Shop (§6.3) — bought with Enhancers dropped by Goblins (1/3 chance) ---
+const ENHANCER_DROP_CHANCE: float = 1.0 / 3.0
+const PERSONAL_MAX_LEVEL: int = 3
+const PERSONAL_UPGRADE_COSTS: Array[int] = [3, 5, 9]
+const PERSONAL_SHOP: Dictionary = {
+	"luck": "Luck",
+	"move_speed": "Movement Speed",
+	"health_regen": "Health Regen",
+	"mine_capacity": "Capacity",
+	"mine_rate": "Rate",
+}
+const LUCK_STEP: float = 0.20
+const MOVE_SPEED_STEP: float = 0.05
+const HEALTH_REGEN_HP_PER_10S_STEP: int = 1
+const HEALTH_REGEN_INTERVAL_SEC: float = 10.0
+const MINE_CAPACITY_STEP: float = 1.0 / 3.0
+const MINE_RATE_STEP: float = 0.15
 
 # --- Boss spells (§6.3) ---
 ## Chance for a nest boss to drop a new spell.
@@ -227,6 +246,12 @@ func max_mana_for_level(pool_level: int) -> int:
 ## Augmentation Scroll cost for the next level of an augmentation currently at `level` (0..2): 1, 2, 3.
 func aug_cost(level: int) -> int:
 	return level + 1
+
+
+## Enhancer cost for the next level of a Personal Shop upgrade currently at `level` (0..2): 3, 5, 9.
+func personal_cost(level: int) -> int:
+	var idx: int = clampi(level, 0, PERSONAL_UPGRADE_COSTS.size() - 1)
+	return PERSONAL_UPGRADE_COSTS[idx]
 
 
 ## Gold cost for the next Spell Scroll in the Gold Shop (100, 200, ..., 1000).
