@@ -145,13 +145,18 @@ func _on_monster_spawned(monster: Monster) -> void:
 	monster.died.connect(_on_monster_died)
 
 
-func _on_monster_died(gold: int, pos: Vector2) -> void:
+func _on_monster_died(gold: int, pos: Vector2, is_demon: bool) -> void:
 	GameState.add_gold(gold)
 	if randf() < Config.MOD_PART_DROP_CHANCE:
 		var pickup: ModPickup = ModPickupScene.instantiate()
 		pickup.kind = ModPickup.Kind.MOD_PART
 		pickup.position = pos
 		_entities.call_deferred("add_child", pickup)
+	if is_demon and randf() < Config.AUG_SCROLL_DROP_CHANCE:
+		var aug_pickup: ModPickup = ModPickupScene.instantiate()
+		aug_pickup.kind = ModPickup.Kind.AUG_SCROLL
+		aug_pickup.position = pos + Vector2(12, 0)
+		_entities.call_deferred("add_child", aug_pickup)
 
 
 func _on_nest_destroyed(nest: Nest) -> void:

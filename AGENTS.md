@@ -79,13 +79,13 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 3. **Difficulty:** `Easy`, `Medium`, `Hard`, `Extreme`
 4. **Game:** the run starts. Show the Victory or Game Over screen at the end.
 
-### Difficulty (monster HP multiplier)
-| Difficulty | Monster HP |
-|---|---|
-| Easy | ×0.5 |
-| Medium | ×1 |
-| Hard | ×2 |
-| Extreme | ×5 |
+### Difficulty (monster HP multiplier & 3-minute time scaling)
+| Difficulty | Base Monster HP | After 3 Minutes (every 30s) |
+|---|---|---|
+| Easy | ×0.5 | No additional scaling |
+| Medium | ×1 | `+5 HP` linearly every 30s |
+| Hard | ×2 | `×1.2` exponentially every 30s |
+| Extreme | ×5 | `×1.5` exponentially every 30s |
 
 > Open: does the multiplier also apply to **nests and bosses**? Should HP be rounded up (e.g. Goblin 3 × 0.5 = 1.5 → 2)? See §9.
 
@@ -121,11 +121,13 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 |---|---|
 | Starting HP | 10 |
 | Max Shield | 5 (absorbs damage before HP) |
+| Starting Mana | 10 max (regenerates at 1.0/sec base) |
 | Move speed | 3.0 tiles/sec |
-| Starting spell | Base spell, level 1: left-click to shoot toward cursor (or auto-aim once unlocked for 1500 gold), 1 damage |
+| Starting spell | Base spell, level 1: left-click to shoot toward cursor (or auto-aim once unlocked for 1000 gold), 1 damage, costs 1 mana per cast |
 
-### 6.2 Spells
-- Every player spell moves at **2× player speed (6.0 tiles/sec)** unless modified.
+### 6.2 Spells & Mana
+- Every player spell moves at **2× player speed (6.0 tiles/sec)** unless modified (e.g., 5× speed Sniper shot).
+- **Mana Consumption:** casting the **Base Spell** costs **1 mana**; casting each **Boss Spell** costs **2 mana**.
 - **Base spell levels:** 1 (base) up to 9 (max). You upgrade it **at the castle** with gold.
 - **Damage per level:** +2 per level until level 7, then +5 per level after that.
 
@@ -137,23 +139,30 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 - **Upgrade cost:** grows exponentially with each level (`cost = base_cost * growth ^ (level - 1)`).
 
-### 6.3 Spell Mods, Gold Shop & Boss Spells
-- **Mod Parts:** killing any monster has a **1 in 7 chance** to drop a mod part pickup.
-- **Spell Mods (at the castle):** mod parts can be spent on 4 independent upgrades for the base spell, each adding **+0.1× (+10%)** per level:
-  - **Damage**
-  - **Fire Rate**
-  - **Spell Speed**
-  - **Range**
-- **Mod cost:** costs `+1` part per upgrade for the first 4 upgrades (`1, 2, 3, 4`), then grows exponentially (`8, 16, 32, …`).
+### 6.3 Spell Mods ("Spell Scrolls"), Augmentations, Gold Shop & Boss Spells
+- **Spell Scrolls (formerly Mod Parts):** killing any monster has a **1 in 7 chance** to drop a Spell Scroll pickup.
+- **Spell Mods (at the castle):** Spell Scrolls can be spent on 4 independent upgrades for the base spell:
+  - **Damage:** `+0.1×` (+10%) damage multiplier per level.
+  - **Mana Regen** (replaces Fire Rate): starts at `1.0/sec` and increases by **`+0.5/sec`** each upgrade.
+  - **Mana Pool** (replaces Spell Speed): increases max mana from `10` by **`+1` per level until `15`** (levels 1–5), then by **`+2` per level until `29`** (levels 6–12), maxing out at a mana bar of **29**.
+  - **Range:** `+0.1×` (+10%) range multiplier per level.
+- **Spell Mod cost:** costs `+1` Spell Scroll per upgrade for the first 4 upgrades (`1, 2, 3, 4`), then grows exponentially (`8, 16, 32, …`).
+- **Augmentations & Augmentation Scrolls (at the bottom of the Spell Mod menu):**
+  - **Augmentation Scrolls** drop **only from Demons** with a **1 in 5 chance**.
+  - Each of the 3 Augmentations can be upgraded a maximum of **3 times**, costing **1**, then **2**, then **3** Augmentation Scrolls:
+    1. **Split Spell:** splits the player's spell into **2** (Lv 1), **3** (Lv 2), or **4** (Lv 3) projectiles (+1 split per upgrade) upon contact with an enemy. Splits travel in straight lines separated by **30°** angles from the point of splitting (unless the player has Homing unlocked), and each split deals **1/2** the damage of the original spell.
+    2. **Bombspell:** creates a medium-sized fire explosion (`2.2` tiles radius) upon hitting a target that lasts **3 seconds** and deals **3 dmg/sec** (Lv 1), **5 dmg/sec** (Lv 2), or **7 dmg/sec** (Lv 3) (+2 dmg/sec per upgrade). Applies on final split spells (not initial split impact when Split Spell is active), and **1 tick of fire damage breaks a Demon's bubble shield**.
+    3. **Sniper:** upon initial player spell contact with an enemy, fires a super-accurate **5× speed** shot that directly homes to the nearest enemy and deals **2×** (Lv 1), **3×** (Lv 2), or **4×** (Lv 3) damage (+1× per upgrade). Does not apply other augmentations upon impact, does not repeat, and sniper shot count does not change with split upgrades (only initial first impact of player spell on an enemy).
 - **Gold Shop (at the castle):**
-  - **Mod Part:** `100` gold for the 1st, then `+100` gold for each additional part up to 10 (`100, 200, …, 1000`).
+  - **Spell Scroll:** `100` gold for the 1st, then `+100` gold for each additional scroll up to 10 (`100, 200, …, 1000`).
   - **Magic Shield (`200` gold):** adds 1 shield item to the bottom circular hotbar; using it adds `+1` shield point (up to the 5-shield cap).
   - **3 HP Healing Potion (`100` gold):** adds 1 healing potion to the bottom circular hotbar; using it heals `+3 HP` (30 s effect timer).
   - **2× Damage Boost Potion (`100` gold):** adds 1 damage potion to the bottom circular hotbar; using it grants `2×` spell damage for **30 seconds**.
+  - **Magnet (`100` gold):** automatically pulls dropped Spell Scrolls, Augmentation Scrolls, and Boss Spell pickups on the map toward the player.
   - **Auto-Shooting Unlock (`1000` gold):** unlocks automatic targeting and firing alongside manual click-to-shoot.
-  - **Homing Unlock (`1500` gold):** makes player spells home toward the closest enemy.
+  - **Homing Unlock (`1500` gold):** makes player spells (and Split Spell projectiles) home toward the closest enemy.
 - **Boss Spells:** defeating a nest boss has a **1 in 3 chance** to drop a new spell pickup (along with **1000 gold**):
-  - Cannot be upgraded once acquired (stats are frozen on pickup).
+  - Costs **2 mana** per cast and cannot be upgraded once acquired (stats are frozen on pickup).
   - **First boss spell:** copies the current base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`).
   - **Subsequent boss spells (when 2+ spells exist):** adds the damage of all existing player spells together without reducing fire rate by 1/3 again (existing spells are kept, not absorbed).
 
@@ -166,21 +175,21 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 - Once **all 4 nests are destroyed**, the **Mega Boss** spawns.
 
 ### 6.5 Monsters (all melee)
-| Class | HP | Damage | Radius (tiles) | Speed (from size) | Spawn interval | Gold drop |
-|---|---|---|---|---|---|---|
-| Goblin | 3 | 1 | 0.35 | ~2.57 tiles/s | every 5 s | 1 |
-| Undead | 4 | 2 | 0.40 | ~2.25 tiles/s | every 8 s | 3 |
-| Demon | 7 | 2 | 0.45 | ~2.00 tiles/s | every 16 s | 5 |
-| Ogre | 10 | 1 | 0.60 | ~1.50 tiles/s | every 7 s | 4 |
+| Class | HP | Damage | Radius (tiles) | Speed (from size) | Spawn interval | Gold drop | Special |
+|---|---|---|---|---|---|---|---|
+| Goblin | 3 | 1 | 0.35 | ~2.57 tiles/s | every 5 s | 1 | — |
+| Undead | 4 | 2 | 0.40 | ~2.25 tiles/s | every 8 s | 3 | — |
+| Demon | 7 | 2 | 0.45 | ~2.00 tiles/s | every 16 s | 5 | Bubble shield (breaks after 1 spell hit or 1 Bombspell fire tick); 1/5 chance to drop an Augmentation Scroll |
+| Ogre | 10 | 1 | 0.60 | ~1.50 tiles/s | every 7 s | 4 | — |
 
 - Monster speed varies inversely with theoretical size (`PLAYER_SPEED_TILES * min(0.9, 0.3 / radius_tiles)`), and is never faster than the player.
-- HP is multiplied by the difficulty multiplier (§3).
-- Monsters chase the player around maze walls and have a **1 in 7 chance** to drop a mod part on death.
+- HP is multiplied by the difficulty multiplier and scales over time after 3 minutes (§3).
+- Monsters chase the player around maze walls and have a **1 in 7 chance** to drop a Spell Scroll on death (Demons also roll a **1 in 5 chance** to drop an Augmentation Scroll).
 
 ### 6.6 Nest Bosses
 | Stat | Value |
 |---|---|
-| HP | 20 |
+| HP | 80 (increased 4× from 20) |
 | Melee damage | 5 |
 | Ranged attack | Fires a 1-damage projectile at 1 tile/sec in a straight line |
 | Spawn | Immediately after its nest is destroyed |
@@ -188,7 +197,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 ### 6.7 Mega Boss
 - Spawns once all 4 nests are destroyed.
-- **HP:** 1000 (same melee/ranged damage and speed stats as a Nest Boss).
+- **HP:** 2000 (increased 2× from 1000; same melee/ranged damage and speed stats as a Nest Boss).
 - Spawns a **Nest Boss every 50 seconds** and spawns **normal monsters at their normal rate**.
 - **Defeating the Mega Boss ends the game in Victory.**
 

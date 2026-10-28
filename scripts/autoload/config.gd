@@ -16,6 +16,15 @@ const PLAYER_IFRAMES_SEC: float = 0.5
 ## Entering the castle heals the player up to this fraction of max HP, never above it (§5).
 const CASTLE_HEAL_FRACTION: float = 0.7
 
+# --- Mana (§6.1–6.3) ---
+const BASE_MAX_MANA: int = 10
+const BASE_MANA_REGEN: float = 1.0
+const MANA_REGEN_STEP: float = 0.5
+const MANA_POOL_MAX: int = 29
+const MANA_POOL_MAX_LEVEL: int = 12
+const BASE_SPELL_MANA_COST: float = 1.0
+const BOSS_SPELL_MANA_COST: float = 2.0
+
 # --- Base spell (§6.2) ---
 const SPELL_MAX_LEVEL: int = 9
 const SPELL_DAMAGE_BY_LEVEL: Array = [1, 3, 5, 7, 9, 11, 13, 18, 23]
@@ -23,29 +32,50 @@ const SPELL_DAMAGE_BY_LEVEL: Array = [1, 3, 5, 7, 9, 11, 13, 18, 23]
 const SPELL_UPGRADE_BASE_COST: int = 5
 const SPELL_UPGRADE_GROWTH: float = 2.0
 
-# --- Spell mods (§6.3) — bought at the castle with mod parts, only affect the base spell ---
-## Each mod level adds +0.1× to its stat.
+# --- Spell mods (§6.3) — bought at the castle with Spell Scrolls ---
+## Each level of damage/range adds +0.1× to its stat.
 const MOD_STEP: float = 0.1
 ## Mod ids → display names. Each one has its own level and cost.
 const MODS: Dictionary = {
 	"damage": "Damage",
-	"fire_rate": "Fire Rate",
-	"speed": "Spell Speed",
+	"mana_regen": "Mana Regen",
+	"mana_pool": "Mana Pool",
 	"range": "Range",
 }
-## Cost is +1 part per upgrade for the first N upgrades (1, 2, 3, 4), then doubles (8, 16, 32 …).
+## Cost is +1 scroll per upgrade for the first N upgrades (1, 2, 3, 4), then doubles (8, 16, 32 …).
 const MOD_LINEAR_UPGRADES: int = 4
-## Chance for a killed monster to drop a mod part.
+## Chance for a killed monster to drop a Spell Scroll.
 const MOD_PART_DROP_CHANCE: float = 1.0 / 7.0
+
+# --- Augmentations (§6.3) — bought with Augmentation Scrolls dropped by Demons (1/5 chance) ---
+const AUG_SCROLL_DROP_CHANCE: float = 1.0 / 5.0
+const AUG_MAX_LEVEL: int = 3
+const AUGMENTATIONS: Dictionary = {
+	"split": "Split Spell",
+	"bomb": "Bombspell",
+	"sniper": "Sniper",
+}
+const SPLIT_ANGLE_DEG: float = 30.0
+const SPLIT_DAMAGE_MULT: float = 0.5
+const BOMB_BASE_DPS: float = 3.0
+const BOMB_DPS_STEP: float = 2.0
+const BOMB_DURATION_SEC: float = 3.0
+const BOMB_RADIUS_TILES: float = 2.2
+const BOMB_TICK_SEC: float = 0.25
+const SNIPER_SPEED_MULT: float = 5.0
+const SNIPER_BASE_DAMAGE_MULT: float = 2.0
+const SNIPER_DAMAGE_STEP: float = 1.0
 
 # --- Gold Shop (§6.3) ---
 const GOLD_SHOP_MOD_PART_BASE_COST: int = 100
 const GOLD_SHOP_MOD_PART_MAX: int = 10
 const GOLD_SHOP_SHIELD_COST: int = 200
 const GOLD_SHOP_POTION_COST: int = 100
+const GOLD_SHOP_MAGNET_COST: int = 100
 const GOLD_SHOP_AUTO_SHOOT_COST: int = 1000
 const GOLD_SHOP_HOMING_COST: int = 1500
 const HOMING_TURN_SPEED: float = 16.0
+const MAGNET_PULL_SPEED_TILES: float = 14.0
 const POTION_DURATION_SEC: float = 30.0
 const HEAL_POTION_AMOUNT: int = 3
 const DAMAGE_POTION_MULT: float = 2.0
@@ -65,16 +95,22 @@ const NEST_RADIUS_TILES: float = 1.0
 # TODO(design): per-nest alive cap, only here to keep the web build fast.
 const NEST_MAX_ALIVE: int = 25
 
-# --- Monsters (§6.5) ---
+# --- Monsters & Time Scaling (§3, §6.5) ---
 # TODO(design): melee attack cooldown is undefined (§9 Q7).
 const MONSTER_ATTACK_COOLDOWN_SEC: float = 1.0
 ## Monster speed depends on size: speed = player speed × min(MAX_RATIO, SIZE_K / radius_tiles).
 ## Smaller monsters are faster, but never as fast as the player.
 const MONSTER_SIZE_SPEED_K: float = 0.3
 const MONSTER_MAX_SPEED_RATIO: float = 0.9
+## After 3 minutes (180 s), enemy HP scales every 30 s on Medium (+5), Hard (×1.2), and Extreme (×1.5).
+const TIME_SCALE_START_SEC: float = 180.0
+const TIME_SCALE_INTERVAL_SEC: float = 30.0
+const TIME_SCALE_MEDIUM_ADD: float = 5.0
+const TIME_SCALE_HARD_MULT: float = 1.2
+const TIME_SCALE_EXTREME_MULT: float = 1.5
 
-# --- Nest boss (§6.6) ---
-const BOSS_HP: int = 20
+# --- Nest boss (§6.6) — 4× previous HP (20 → 80) ---
+const BOSS_HP: int = 80
 const BOSS_MELEE_DAMAGE: int = 5
 const BOSS_BOLT_DAMAGE: int = 1
 const BOSS_BOLT_SPEED_TILES: float = 1.0
@@ -85,8 +121,8 @@ const BOSS_SPEED_MULT: float = 0.5
 const BOSS_FIRE_INTERVAL_SEC: float = 2.0
 const BOSS_FIRE_RANGE_TILES: float = 12.0
 
-# --- Mega boss (§6.7) — appears once all nests are destroyed; killing it wins the game ---
-const MEGA_BOSS_HP: int = 1000
+# --- Mega boss (§6.7) — 2× previous HP (1000 → 2000) ---
+const MEGA_BOSS_HP: int = 2000
 const MEGA_BOSS_RADIUS_TILES: float = 1.5
 const MEGA_BOSS_SPAWN_BOSS_SEC: float = 50.0
 # TODO(design): cap on monsters the mega boss keeps alive (performance).
@@ -164,7 +200,7 @@ func upgrade_cost(level: int) -> int:
 	return int(round(SPELL_UPGRADE_BASE_COST * pow(SPELL_UPGRADE_GROWTH, level - 1)))
 
 
-## Mod parts needed to buy the next level of a mod that is currently at `level` (0-based).
+## Spell Scrolls needed to buy the next level of a mod that is currently at `level` (0-based).
 ## 1, 2, 3, 4, then 8, 16, 32 …
 func mod_cost(level: int) -> int:
 	var n: int = level + 1
@@ -173,7 +209,21 @@ func mod_cost(level: int) -> int:
 	return MOD_LINEAR_UPGRADES * int(pow(2, n - MOD_LINEAR_UPGRADES))
 
 
-## Gold cost for the next Mod Part in the Gold Shop (100, 200, ..., 1000).
+## Max mana for a given `mana_pool` upgrade level (0..12):
+## +1 per level from 10 up to 15 (levels 1..5), then +2 per level from 15 up to 29 (levels 6..12).
+func max_mana_for_level(pool_level: int) -> int:
+	var lvl: int = clampi(pool_level, 0, MANA_POOL_MAX_LEVEL)
+	if lvl <= 5:
+		return BASE_MAX_MANA + lvl
+	return 15 + (lvl - 5) * 2
+
+
+## Augmentation Scroll cost for the next level of an augmentation currently at `level` (0..2): 1, 2, 3.
+func aug_cost(level: int) -> int:
+	return level + 1
+
+
+## Gold cost for the next Spell Scroll in the Gold Shop (100, 200, ..., 1000).
 func gold_mod_part_cost(bought_so_far: int) -> int:
 	return (bought_so_far + 1) * GOLD_SHOP_MOD_PART_BASE_COST
 

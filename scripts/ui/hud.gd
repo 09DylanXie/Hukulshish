@@ -1,13 +1,15 @@
 class_name HUD
 extends CanvasLayer
-## In-game HUD: HP bar, Fortnite-style Shield bar (max 5), gold/mod parts, objectives,
-## top-right Pause button + Pause overlay, and the bottom circular item hotbar.
+## In-game HUD: HP bar, Fortnite-style Shield bar (max 5), Mana bar (with regen),
+## gold / spell scrolls / aug scrolls, objectives, top-right Pause button + overlay, and bottom circular hotbar.
 
 var _player: Player
 var _hp_bar: ProgressBar
 var _hp_label: Label
 var _shield_bar: ProgressBar
 var _shield_label: Label
+var _mana_bar: ProgressBar
+var _mana_label: Label
 var _gold_label: Label
 var _spell_label: Label
 var _objective_label: Label
@@ -36,6 +38,8 @@ func _ready() -> void:
 	_build_hotbar()
 
 	GameState.changed.connect(_refresh)
+	GameState.mana_changed.connect(_on_mana_changed)
+	_on_mana_changed(GameState.mana, GameState.max_mana(), GameState.mana_regen())
 	_refresh()
 
 
@@ -92,12 +96,12 @@ func _build_stats_panel() -> void:
 		margin.add_theme_constant_override("margin_" + side, 10)
 	panel.add_child(margin)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 5)
+	box.add_theme_constant_override("separation", 4)
 	margin.add_child(box)
 
 	_hp_label = _label(box, "HP")
 	_hp_bar = ProgressBar.new()
-	_hp_bar.custom_minimum_size = Vector2(260, 14)
+	_hp_bar.custom_minimum_size = Vector2(280, 14)
 	_hp_bar.show_percentage = false
 	var hp_fill := StyleBoxFlat.new()
 	hp_fill.bg_color = Color(0.85, 0.2, 0.25)
@@ -106,12 +110,21 @@ func _build_stats_panel() -> void:
 
 	_shield_label = _label(box, "Shield")
 	_shield_bar = ProgressBar.new()
-	_shield_bar.custom_minimum_size = Vector2(260, 12)
+	_shield_bar.custom_minimum_size = Vector2(280, 12)
 	_shield_bar.show_percentage = false
 	var shield_fill := StyleBoxFlat.new()
 	shield_fill.bg_color = Color(0.2, 0.68, 1.0)
 	_shield_bar.add_theme_stylebox_override("fill", shield_fill)
 	box.add_child(_shield_bar)
+
+	_mana_label = _label(box, "Mana")
+	_mana_bar = ProgressBar.new()
+	_mana_bar.custom_minimum_size = Vector2(280, 12)
+	_mana_bar.show_percentage = false
+	var mana_fill := StyleBoxFlat.new()
+	mana_fill.bg_color = Color(0.58, 0.32, 0.98)
+	_mana_bar.add_theme_stylebox_override("fill", mana_fill)
+	box.add_child(_mana_bar)
 
 	_gold_label = _label(box, "")
 	_spell_label = _label(box, "")
@@ -293,8 +306,15 @@ func _on_shield_changed(shield: int, max_shield: int) -> void:
 	_shield_label.text = "Shield  %d / %d" % [shield, max_shield]
 
 
+func _on_mana_changed(mana: float, max_mana: int, regen: float) -> void:
+	_mana_bar.max_value = max_mana
+	_mana_bar.value = mana
+	_mana_label.text = "Mana  %.1f / %d  (+%.1f/s)" % [mana, max_mana, regen]
+
+
 func _refresh() -> void:
-	_gold_label.text = "Gold  %d    Mod Parts  %d" % [GameState.gold, GameState.mod_parts]
+	_gold_label.text = "Gold  %d   Spell Scrolls  %d   Aug Scrolls  %d" % [
+		GameState.gold, GameState.mod_parts, GameState.aug_scrolls]
 	var base: Dictionary = GameState.base_spell_stats()
 	var dmg: float = float(base["damage"]) * GameState.damage_boost_multiplier()
 	var extra: String = ""
@@ -303,8 +323,10 @@ func _refresh() -> void:
 	var mode_tag: String = " [Auto]" if GameState.auto_shoot_unlocked else " [Click]"
 	if GameState.homing_unlocked:
 		mode_tag += " [Homing]"
-	_spell_label.text = "Spell Lv %d  (%.1f dmg, %.1f/s)%s%s" % [
-		GameState.spell_level, dmg, float(base["fire_rate"]), extra, mode_tag]
+	if GameState.magnet_unlocked:
+		mode_tag += " [Magnet]"
+	_spell_label.text = "Spell Lv %d  (%.1f dmg, 1 mana)%s%s" % [
+		GameState.spell_level, dmg, extra, mode_tag]
 	if GameState.mega_boss_spawned:
 		_objective_label.text = "Nests  4/4    Mega Boss  ACTIVE"
 	else:
@@ -316,6 +338,6 @@ func _refresh() -> void:
 func _label(parent: Node, text: String) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", 18)
+	l.add_theme_font_size_override("font_size", 17)
 	parent.add_child(l)
 	return l

@@ -10,6 +10,8 @@ extends Resource
 @export var gold: int = 1
 ## Size in tiles. Bigger = slower.
 @export var radius_tiles: float = 0.4
+## True for Demons (possess a bubble shield that breaks after 1 hit).
+@export var has_bubble_shield: bool = false
 ## Prototype visuals (placeholder until real art exists).
 @export var color: Color = Color.WHITE
 ## Optional custom scene. Leave empty to use the generic Monster scene.

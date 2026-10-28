@@ -3,7 +3,7 @@ extends CharacterBody2D
 ## Generic melee monster that chases the player through the maze. Configured by a MonsterStats resource (§6.5).
 ## Speed comes from its size (Config.monster_speed_tiles). Call setup() before adding it to the tree.
 
-signal died(gold: int, at: Vector2)
+signal died(gold: int, at: Vector2, is_demon: bool)
 
 var stats: MonsterStats
 var max_hp: float = 1.0
@@ -11,18 +11,20 @@ var hp: float = 1.0
 
 var _radius: float = 12.0
 var _speed: float = 32.0
+var _has_bubble_shield: bool = false
 var _attack_cooldown: float = 0.0
 var _flash: float = 0.0
 var _dead: bool = false
 var _world: World
 
 
-func setup(monster_stats: MonsterStats, hp_mult: float) -> void:
+func setup(monster_stats: MonsterStats, _hp_mult: float) -> void:
 	stats = monster_stats
-	max_hp = Config.scale_hp(stats.hp, hp_mult)
+	max_hp = GameState.scaled_monster_hp(stats.hp)
 	hp = max_hp
 	_radius = Config.tiles(stats.radius_tiles)
 	_speed = Config.tiles(Config.monster_speed_tiles(stats.radius_tiles))
+	_has_bubble_shield = stats.has_bubble_shield or stats.name == "Demon"
 
 
 func _ready() -> void:
@@ -69,15 +71,25 @@ func get_hit_radius() -> float:
 	return _radius
 
 
+func has_bubble_shield() -> bool:
+	return _has_bubble_shield
+
+
 func take_damage(amount: float) -> void:
-	if _dead:
+	if _dead or amount <= 0.0:
+		return
+	if _has_bubble_shield:
+		_has_bubble_shield = false
+		_flash = 0.15
+		queue_redraw()
 		return
 	hp -= amount
 	_flash = 0.1
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true
-		died.emit(stats.gold, global_position)
+		var is_demon: bool = stats != null and (stats.has_bubble_shield or stats.name == "Demon")
+		died.emit(stats.gold, global_position, is_demon)
 		queue_free()
 
 
@@ -90,6 +102,11 @@ func _draw() -> void:
 	# Eyes
 	draw_circle(Vector2(-_radius * 0.35, -_radius * 0.2), _radius * 0.15, Color.BLACK)
 	draw_circle(Vector2(_radius * 0.35, -_radius * 0.2), _radius * 0.15, Color.BLACK)
+	# Demon bubble shield
+	if _has_bubble_shield:
+		var sr: float = _radius * 1.38
+		draw_circle(Vector2.ZERO, sr, Color(0.25, 0.85, 1.0, 0.26))
+		draw_arc(Vector2.ZERO, sr, 0.0, TAU, 28, Color(0.45, 0.95, 1.0, 0.92), 2.0)
 	# HP bar (only once damaged)
 	if hp < max_hp:
 		var w: float = _radius * 2.0

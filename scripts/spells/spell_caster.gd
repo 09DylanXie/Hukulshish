@@ -1,6 +1,6 @@
 extends Node2D
-## Fires the player's base spell and any acquired boss spells (child of Player).
-## By default, the player clicks to shoot toward the cursor (respecting each spell's fire rate cooldown).
+## Fires the player's base spell (1 mana) and any acquired boss spells (2 mana each).
+## By default, the player clicks to shoot toward the cursor (respecting each spell's fire rate cooldown and mana).
 ## Once Auto-Shooting is unlocked in the Gold Shop (1000 gold), spells also auto-aim at the nearest target.
 ## Once Homing is unlocked in the Gold Shop (1500 gold), fired projectiles home toward the closest enemy.
 
@@ -29,8 +29,11 @@ func _physics_process(delta: float) -> void:
 
 		var spell: Dictionary = spells[i]
 		var max_range: float = Config.tiles(float(spell["range_tiles"]))
+		var mana_cost: float = float(spell.get("mana_cost", Config.BASE_SPELL_MANA_COST))
 
 		if manual_click:
+			if not GameState.try_spend_mana(mana_cost):
+				continue
 			var dir: Vector2 = global_position.direction_to(mouse_world)
 			if dir == Vector2.ZERO:
 				dir = Vector2.RIGHT
@@ -39,6 +42,8 @@ func _physics_process(delta: float) -> void:
 		elif GameState.auto_shoot_unlocked:
 			var target: Node2D = _find_target(max_range)
 			if target != null:
+				if not GameState.try_spend_mana(mana_cost):
+					continue
 				var dir: Vector2 = global_position.direction_to(target.global_position)
 				_fire_dir(spell, dir, max_range)
 				_cooldowns[i] = 1.0 / maxf(0.05, float(spell["fire_rate"]))
@@ -70,7 +75,9 @@ func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 		spell["color"] as Color,
 		Config.tiles(float(spell["radius_tiles"])),
 		max_range,
-		GameState.homing_unlocked
+		GameState.homing_unlocked,
+		Projectile.ProjKind.INITIAL,
+		null
 	)
 	p.global_position = global_position
 	var container: Node = get_tree().get_first_node_in_group("projectile_container")
