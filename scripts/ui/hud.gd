@@ -323,7 +323,8 @@ func _draw_slot(idx: int, slot: Control) -> void:
 		slot.draw_rect(Rect2(center + Vector2(-6, -15), Vector2(12, 3)), Color(0.85, 0.75, 0.55, icon_alpha))
 
 	var font: Font = ThemeDB.fallback_font
-	slot.draw_string(font, center + Vector2(10, 18), "×%d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
+	var badge_str: String = "∞" if GameState.sandbox_mode else ("×%d" % count)
+	slot.draw_string(font, center + Vector2(10, 18), badge_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
 	if active_timer > 0.0:
 		slot.draw_string(font, center + Vector2(-14, 5), "%ds" % ceili(active_timer), HORIZONTAL_ALIGNMENT_CENTER, 28, 13, Color(1, 1, 0.4))
 	slot.draw_string(font, Vector2(0, 78), title, HORIZONTAL_ALIGNMENT_CENTER, slot.size.x, 13, Color(0.88, 0.9, 0.95))
@@ -357,12 +358,18 @@ func _on_shield_changed(shield: int, max_shield: int) -> void:
 func _on_mana_changed(mana: float, max_mana: int, regen: float) -> void:
 	_mana_bar.max_value = max_mana
 	_mana_bar.value = mana
-	_mana_label.text = "Mana  %.1f / %d  (+%.1f/s)" % [mana, max_mana, regen]
+	if GameState.sandbox_mode:
+		_mana_label.text = "Mana  ∞  (SANDBOX)"
+	else:
+		_mana_label.text = "Mana  %.1f / %d  (+%.1f/s)" % [mana, max_mana, regen]
 
 
 func _refresh() -> void:
-	_gold_label.text = "Gold  %d   Spell Scrolls  %d   Aug Scrolls  %d   Enhancers  %d" % [
-		GameState.gold, GameState.mod_parts, GameState.aug_scrolls, GameState.enhancers]
+	if GameState.sandbox_mode:
+		_gold_label.text = "Gold  ∞   Spell Scrolls  ∞   Aug Scrolls  ∞   Enhancers  ∞"
+	else:
+		_gold_label.text = "Gold  %d   Spell Scrolls  %d   Aug Scrolls  %d   Enhancers  %d" % [
+			GameState.gold, GameState.mod_parts, GameState.aug_scrolls, GameState.enhancers]
 	var base: Dictionary = GameState.base_spell_stats()
 	var dmg: float = float(base["damage"]) * GameState.damage_boost_multiplier()
 	var extra: String = ""
@@ -379,6 +386,8 @@ func _refresh() -> void:
 		mode_tag += " [Auto-Mine]"
 	if GameState.doppelganger_alive:
 		mode_tag += " [Twin]"
+	if GameState.sandbox_mode:
+		mode_tag += " [SANDBOX]"
 	_spell_label.text = "Spell Lv %d  (%.1f dmg, %d mana)%s%s" % [
 		GameState.spell_level, dmg, int(Config.BASE_SPELL_MANA_COST), extra, mode_tag]
 	var wave_tag: String = ""

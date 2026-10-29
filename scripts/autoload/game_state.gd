@@ -15,6 +15,7 @@ const TOTAL_NESTS: int = 4
 var map_size: MapSizeData
 var difficulty: DifficultyData
 var endless_mode: bool = false
+var sandbox_mode: bool = false
 var endless_wave: int = 0
 var endless_hp_mult: float = 1.0
 
@@ -113,8 +114,23 @@ func start_run() -> void:
 	endless_wave = 0
 	endless_hp_mult = 1.0
 	run_over = false
+	if sandbox_mode:
+		_refill_sandbox_resources()
 	changed.emit()
 	mana_changed.emit(mana, max_mana(), mana_regen())
+
+
+func _refill_sandbox_resources() -> void:
+	if not sandbox_mode:
+		return
+	gold = 999999
+	mod_parts = 9999
+	aug_scrolls = 999
+	enhancers = 999
+	mana = float(max_mana())
+	shield_items = maxi(shield_items, 99)
+	heal_potions = maxi(heal_potions, 99)
+	damage_potions = maxi(damage_potions, 99)
 
 
 func _process(delta: float) -> void:
@@ -124,7 +140,11 @@ func _process(delta: float) -> void:
 
 	# Mana regeneration
 	var cap: float = float(max_mana())
-	if mana < cap:
+	if sandbox_mode:
+		if mana < cap:
+			mana = cap
+			mana_changed.emit(mana, max_mana(), mana_regen())
+	elif mana < cap:
 		mana = minf(cap, mana + mana_regen() * delta)
 		mana_changed.emit(mana, max_mana(), mana_regen())
 
@@ -197,6 +217,10 @@ func mana_regen() -> float:
 
 
 func try_spend_mana(cost: float) -> bool:
+	if sandbox_mode:
+		mana = float(max_mana())
+		mana_changed.emit(mana, max_mana(), mana_regen())
+		return true
 	if mana + 1e-4 < cost:
 		return false
 	mana = maxf(0.0, mana - cost)
@@ -285,10 +309,12 @@ func try_upgrade_spell() -> bool:
 	if is_spell_maxed():
 		return false
 	var cost: int = next_upgrade_cost()
-	if gold < cost:
+	if not sandbox_mode and gold < cost:
 		return false
-	gold -= cost
+	if not sandbox_mode:
+		gold -= cost
 	spell_level += 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
@@ -312,14 +338,16 @@ func try_buy_mod(id: String) -> bool:
 	if not Config.MODS.has(id) or is_mod_maxed(id):
 		return false
 	var cost: int = next_mod_cost(id)
-	if mod_parts < cost:
+	if not sandbox_mode and mod_parts < cost:
 		return false
 	var old_max: int = max_mana()
-	mod_parts -= cost
+	if not sandbox_mode:
+		mod_parts -= cost
 	mod_levels[id] = int(mod_levels.get(id, 0)) + 1
 	if id == "mana_pool":
 		var gained: int = max_mana() - old_max
 		mana = minf(float(max_mana()), mana + float(gained))
+	_refill_sandbox_resources()
 	mana_changed.emit(mana, max_mana(), mana_regen())
 	changed.emit()
 	return true
@@ -348,10 +376,12 @@ func try_buy_aug(id: String) -> bool:
 	if not Config.AUGMENTATIONS.has(id) or is_aug_maxed(id):
 		return false
 	var cost: int = next_aug_cost(id)
-	if aug_scrolls < cost:
+	if not sandbox_mode and aug_scrolls < cost:
 		return false
-	aug_scrolls -= cost
+	if not sandbox_mode:
+		aug_scrolls -= cost
 	aug_levels[id] = aug_level(id) + 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
@@ -401,10 +431,12 @@ func try_buy_personal(id: String) -> bool:
 	if not Config.PERSONAL_SHOP.has(id) or is_personal_maxed(id):
 		return false
 	var cost: int = next_personal_cost(id)
-	if enhancers < cost:
+	if not sandbox_mode and enhancers < cost:
 		return false
-	enhancers -= cost
+	if not sandbox_mode:
+		enhancers -= cost
 	personal_levels[id] = personal_level(id) + 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
@@ -457,10 +489,12 @@ func try_buy_max_hp_gold() -> bool:
 	if is_max_hp_maxed():
 		return false
 	var cost: int = next_gold_max_hp_cost()
-	if gold < cost:
+	if not sandbox_mode and gold < cost:
 		return false
-	gold -= cost
+	if not sandbox_mode:
+		gold -= cost
 	max_hp_level += 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
@@ -468,7 +502,7 @@ func try_buy_max_hp_gold() -> bool:
 # --- Gold Shop purchases ---
 
 func can_buy_gold_mod_part() -> bool:
-	return mod_parts_bought_with_gold < Config.GOLD_SHOP_MOD_PART_MAX
+	return sandbox_mode or mod_parts_bought_with_gold < Config.GOLD_SHOP_MOD_PART_MAX
 
 
 func next_gold_mod_part_cost() -> int:
@@ -479,58 +513,70 @@ func try_buy_gold_mod_part() -> bool:
 	if not can_buy_gold_mod_part():
 		return false
 	var cost: int = next_gold_mod_part_cost()
-	if gold < cost:
+	if not sandbox_mode and gold < cost:
 		return false
-	gold -= cost
+	if not sandbox_mode:
+		gold -= cost
 	mod_parts_bought_with_gold += 1
 	mod_parts += 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_buy_shield_item() -> bool:
-	if gold < Config.GOLD_SHOP_SHIELD_COST:
+	if not sandbox_mode and gold < Config.GOLD_SHOP_SHIELD_COST:
 		return false
-	gold -= Config.GOLD_SHOP_SHIELD_COST
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_SHIELD_COST
 	shield_items += 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_buy_heal_potion() -> bool:
-	if gold < Config.GOLD_SHOP_POTION_COST:
+	if not sandbox_mode and gold < Config.GOLD_SHOP_POTION_COST:
 		return false
-	gold -= Config.GOLD_SHOP_POTION_COST
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_POTION_COST
 	heal_potions += 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_buy_damage_potion() -> bool:
-	if gold < Config.GOLD_SHOP_POTION_COST:
+	if not sandbox_mode and gold < Config.GOLD_SHOP_POTION_COST:
 		return false
-	gold -= Config.GOLD_SHOP_POTION_COST
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_POTION_COST
 	damage_potions += 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_buy_magnet() -> bool:
-	if magnet_unlocked or gold < Config.GOLD_SHOP_MAGNET_COST:
+	if magnet_unlocked or (not sandbox_mode and gold < Config.GOLD_SHOP_MAGNET_COST):
 		return false
-	gold -= Config.GOLD_SHOP_MAGNET_COST
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_MAGNET_COST
 	magnet_unlocked = true
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_buy_auto_collector() -> bool:
-	if auto_collector_unlocked or gold < Config.GOLD_SHOP_AUTO_COLLECTOR_COST:
+	if auto_collector_unlocked or (not sandbox_mode and gold < Config.GOLD_SHOP_AUTO_COLLECTOR_COST):
 		return false
-	gold -= Config.GOLD_SHOP_AUTO_COLLECTOR_COST
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_AUTO_COLLECTOR_COST
 	auto_collector_unlocked = true
 	auto_collector_timer = Config.AUTO_COLLECTOR_INTERVAL_SEC
 	collect_all_gold_mines()
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
@@ -542,29 +588,34 @@ func collect_all_gold_mines() -> void:
 
 
 func try_buy_auto_shoot() -> bool:
-	if auto_shoot_unlocked or gold < Config.GOLD_SHOP_AUTO_SHOOT_COST:
+	if auto_shoot_unlocked or (not sandbox_mode and gold < Config.GOLD_SHOP_AUTO_SHOOT_COST):
 		return false
-	gold -= Config.GOLD_SHOP_AUTO_SHOOT_COST
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_AUTO_SHOOT_COST
 	auto_shoot_unlocked = true
 	auto_shoot_enabled = true
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_buy_homing() -> bool:
-	if homing_unlocked or gold < Config.GOLD_SHOP_HOMING_COST:
+	if homing_unlocked or (not sandbox_mode and gold < Config.GOLD_SHOP_HOMING_COST):
 		return false
-	gold -= Config.GOLD_SHOP_HOMING_COST
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_HOMING_COST
 	homing_unlocked = true
 	homing_enabled = true
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_buy_doppelganger() -> bool:
-	if doppelganger_alive or gold < Config.GOLD_SHOP_DOPPELGANGER_COST:
+	if doppelganger_alive or (not sandbox_mode and gold < Config.GOLD_SHOP_DOPPELGANGER_COST):
 		return false
-	gold -= Config.GOLD_SHOP_DOPPELGANGER_COST
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_DOPPELGANGER_COST
 	doppelganger_alive = true
 	var snapshot: Dictionary = {
 		"spells": all_spells().duplicate(true),
@@ -574,6 +625,7 @@ func try_buy_doppelganger() -> bool:
 		"health_regen": health_regen_per_10s(),
 	}
 	doppelganger_spawn_requested.emit(snapshot)
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
@@ -610,31 +662,37 @@ func toggle_homing() -> bool:
 # --- Using hotbar items ---
 
 func try_use_shield_item(player: Node) -> bool:
-	if shield_items <= 0 or player == null or not player.has_method("add_shield"):
+	if (not sandbox_mode and shield_items <= 0) or player == null or not player.has_method("add_shield"):
 		return false
 	if not player.add_shield(Config.SHIELD_ITEM_AMOUNT):
 		return false
-	shield_items -= 1
+	if not sandbox_mode:
+		shield_items -= 1
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_use_heal_potion(player: Node) -> bool:
-	if heal_potions <= 0 or player == null or not player.has_method("heal_amount"):
+	if (not sandbox_mode and heal_potions <= 0) or player == null or not player.has_method("heal_amount"):
 		return false
 	if not player.heal_amount(Config.HEAL_POTION_AMOUNT):
 		return false
-	heal_potions -= 1
+	if not sandbox_mode:
+		heal_potions -= 1
 	heal_potion_timer = Config.POTION_DURATION_SEC
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 
 
 func try_use_damage_potion() -> bool:
-	if damage_potions <= 0:
+	if not sandbox_mode and damage_potions <= 0:
 		return false
-	damage_potions -= 1
+	if not sandbox_mode:
+		damage_potions -= 1
 	damage_boost_timer = Config.POTION_DURATION_SEC
+	_refill_sandbox_resources()
 	changed.emit()
 	return true
 

@@ -9,8 +9,17 @@ var _tab_buttons: Array[Button] = []
 
 func _ready() -> void:
 	var box: VBoxContainer = UIKit.make_centered_menu(self, "Hukulshish", "Defend the kingdom. Destroy the four nests.")
-	var start: Button = UIKit.make_button("Start", func() -> void: SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT))
+	var start: Button = UIKit.make_button("Start", func() -> void:
+		GameState.sandbox_mode = false
+		SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT)
+	)
 	box.add_child(start)
+
+	var sandbox_btn: Button = UIKit.make_button("Sandbox Mode (Infinite Resources)", func() -> void:
+		GameState.sandbox_mode = true
+		SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT)
+	)
+	box.add_child(sandbox_btn)
 
 	var rules_btn: Button = UIKit.make_button("Rules & Guide", _open_rules)
 	box.add_child(rules_btn)

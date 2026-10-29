@@ -129,8 +129,11 @@ func _build() -> void:
 func _refresh() -> void:
 	if _root == null:
 		return
-	_resources_label.text = "Gold: %d      Spell Scrolls: %d      Augmentation Scrolls: %d      Enhancers: %d" % [
-		GameState.gold, GameState.mod_parts, GameState.aug_scrolls, GameState.enhancers]
+	if GameState.sandbox_mode:
+		_resources_label.text = "SANDBOX MODE — Gold: ∞      Spell Scrolls: ∞      Augmentation Scrolls: ∞      Enhancers: ∞"
+	else:
+		_resources_label.text = "Gold: %d      Spell Scrolls: %d      Augmentation Scrolls: %d      Enhancers: %d" % [
+			GameState.gold, GameState.mod_parts, GameState.aug_scrolls, GameState.enhancers]
 
 	var lvl: int = GameState.spell_level
 	if GameState.is_spell_maxed():
