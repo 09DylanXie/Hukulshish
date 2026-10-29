@@ -1,0 +1,110 @@
+name: Build & Publish Playtest Release
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.7.2"
+  GODOT_RELEASE_TAG: "4.7.2-stable"
+  GODOT_TEMPLATE_DIR: "4.7.2.stable"
+
+jobs:
+  export-and-release:
+    name: Export Windows & macOS Builds
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Godot Editor & Export Templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/godot-bin
+            ~/.local/share/godot/export_templates/${{ env.GODOT_TEMPLATE_DIR }}
+          key: godot-${{ env.GODOT_RELEASE_TAG }}-linux-x86_64
+
+      - name: Download & Install Godot ${{ env.GODOT_RELEASE_TAG }}
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/godot-bin
+          mkdir -p ~/.local/share/godot/export_templates/${{ env.GODOT_TEMPLATE_DIR }}
+
+          echo "Downloading Godot editor binary..."
+          curl -sSL "https://github.com/godotengine/godot-builds/releases/download/${GODOT_RELEASE_TAG}/Godot_v${GODOT_RELEASE_TAG}_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d ~/.cache/godot-bin
+          mv ~/.cache/godot-bin/Godot_v${GODOT_RELEASE_TAG}_linux.x86_64 ~/.cache/godot-bin/godot
+          chmod +x ~/.cache/godot-bin/godot
+
+          echo "Downloading Godot export templates..."
+          curl -sSL "https://github.com/godotengine/godot-builds/releases/download/${GODOT_RELEASE_TAG}/Godot_v${GODOT_RELEASE_TAG}_export_templates.tpz" -o /tmp/templates.tpz
+          unzip -q /tmp/templates.tpz -d /tmp/templates
+          mv /tmp/templates/templates/* ~/.local/share/godot/export_templates/${GODOT_TEMPLATE_DIR}/
+          rm -rf /tmp/godot.zip /tmp/templates.tpz /tmp/templates
+
+      - name: Add Godot to PATH
+        run: |
+          chmod +x ~/.cache/godot-bin/godot
+          echo "$HOME/.cache/godot-bin" >> $GITHUB_PATH
+          ~/.cache/godot-bin/godot --version
+
+      - name: Import project assets
+        run: |
+          godot --headless --import
+
+      - name: Export Windows Desktop build
+        run: |
+          mkdir -p build/windows dist
+          godot --headless --export-release "Windows Desktop" "build/windows/Hukulshish.exe"
+          cp build/windows/Hukulshish.exe dist/Hukulshish.exe
+          cd build/windows
+          zip -r ../../dist/Hukulshish-Windows.zip .
+
+      - name: Export macOS build
+        run: |
+          mkdir -p dist
+          godot --headless --export-release "macOS" "dist/Hukulshish-macOS.zip"
+
+      - name: Verify exported artifacts
+        run: |
+          ls -lh dist/
+          test -s dist/Hukulshish.exe
+          test -s dist/Hukulshish-Windows.zip
+          test -s dist/Hukulshish-macOS.zip
+
+      - name: Upload build artifacts to workflow run
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hukulshish-Builds-${{ github.run_number }}
+          path: dist/*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: playtest-${{ github.run_number }}
+          name: "Hukulshish Playtest #${{ github.run_number }} (${{ github.ref_name }})"
+          make_latest: true
+          generate_release_notes: true
+          body: |
+            ### 🎮 How to Playtest Hukulshish
+            Built automatically from branch `${{ github.ref_name }}` (commit `${{ github.sha }}`).
+
+            #### 🪟 Windows
+            - Download **`Hukulshish.exe`** (standalone executable) or **`Hukulshish-Windows.zip`** (extract and run `Hukulshish.exe`).
+            - *If Windows SmartScreen shows "Windows protected your PC", click **More info** → **Run anyway**.*
+
+            #### 🍎 macOS
+            - Download **`Hukulshish-macOS.zip`** and double-click to extract **`Hukulshish.app`** (or `game.app`).
+            - *If macOS says the app cannot be opened because it is from an unidentified developer, **Right-Click (Ctrl+Click)** the app → **Open**, or go to **System Settings → Privacy & Security → Open Anyway**.*
+          files: |
+            dist/Hukulshish.exe
+            dist/Hukulshish-Windows.zip
+            dist/Hukulshish-macOS.zip
