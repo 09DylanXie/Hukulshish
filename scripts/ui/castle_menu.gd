@@ -68,7 +68,7 @@ func _build() -> void:
 	margin.add_child(outer)
 
 	outer.add_child(UIKit.make_label("Kingdom Castle", 34, Color(0.95, 0.8, 0.3)))
-	outer.add_child(UIKit.make_label("Restored HP up to 70% max", 15, Color(0.55, 0.9, 0.65)))
+	outer.add_child(UIKit.make_label("Restored HP up to %d HP" % Config.CASTLE_HEAL_MAX_HP, 15, Color(0.55, 0.9, 0.65)))
 	_resources_label = UIKit.make_label("", 20)
 	outer.add_child(_resources_label)
 
@@ -96,13 +96,13 @@ func _build() -> void:
 	_augs_box.add_theme_constant_override("separation", 6)
 	left_col.add_child(_augs_box)
 
-	# Middle column: Personal Shop (Goblin Enhancers)
+	# Middle column: Personal Shop (Goblin & Undead Enhancers)
 	var mid_col := VBoxContainer.new()
 	mid_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mid_col.add_theme_constant_override("separation", 8)
 	columns.add_child(mid_col)
 
-	mid_col.add_child(UIKit.make_label("Personal Shop (Goblin Enhancers)", 22, Color(0.35, 0.95, 0.55)))
+	mid_col.add_child(UIKit.make_label("Personal Shop (Goblin & Undead Enhancers)", 22, Color(0.35, 0.95, 0.55)))
 	_personal_box = VBoxContainer.new()
 	_personal_box.add_theme_constant_override("separation", 6)
 	mid_col.add_child(_personal_box)
@@ -185,26 +185,32 @@ func _refresh() -> void:
 		match id:
 			"split":
 				if maxed:
-					text = "Split Spell  Lv 3 (4 splits, 30°, ½ dmg) — MAX"
+					text = "Split Spell  Lv 3 (4 splits @ 45°, Chain Lightning) — MAX"
 				elif aug_lvl == 0:
-					text = "Split Spell  Lv 0 → 1 (2 splits, 30°, ½ dmg)  —  %d %s" % [cost, scroll_word]
+					text = "Split Spell  Lv 0 → 1 (2 splits @ 45°, ½ dmg)  —  %d %s" % [cost, scroll_word]
+				elif aug_lvl == 2:
+					text = "Split Spell  Lv 2 → 3 (4 splits + Chain Lightning)  —  %d %s" % [cost, scroll_word]
 				else:
-					text = "Split Spell  Lv %d → %d (%d → %d splits)  —  %d %s" % [aug_lvl, aug_lvl + 1, aug_lvl + 1, aug_lvl + 2, cost, scroll_word]
+					text = "Split Spell  Lv %d → %d (%d → %d splits @ 45°)  —  %d %s" % [aug_lvl, aug_lvl + 1, aug_lvl + 1, aug_lvl + 2, cost, scroll_word]
 			"bomb":
 				var next_dps: int = int(Config.BOMB_BASE_DPS + Config.BOMB_DPS_STEP * aug_lvl)
 				if maxed:
-					text = "Bombspell  Lv 3 (7 dmg/s fire, 3s) — MAX"
+					text = "Bombspell  Lv 3 (7 dmg/s, all hits + range end) — MAX"
 				elif aug_lvl == 0:
 					text = "Bombspell  Lv 0 → 1 (3 dmg/s fire, 3s)  —  %d %s" % [cost, scroll_word]
+				elif aug_lvl == 2:
+					text = "Bombspell  Lv 2 → 3 (7 dmg/s + all hits & max range)  —  %d %s" % [cost, scroll_word]
 				else:
 					var cur_dps: int = int(GameState.bomb_dps())
 					text = "Bombspell  Lv %d → %d (%d → %d dmg/s fire)  —  %d %s" % [aug_lvl, aug_lvl + 1, cur_dps, next_dps, cost, scroll_word]
 			"sniper":
 				var next_mult: int = int(Config.SNIPER_BASE_DAMAGE_MULT + Config.SNIPER_DAMAGE_STEP * aug_lvl)
 				if maxed:
-					text = "Sniper  Lv 3 (5× spd homing, 4× dmg) — MAX"
+					text = "Sniper  Lv 3 (5× spd, 4× dmg + Bomb Explosion) — MAX"
 				elif aug_lvl == 0:
-					text = "Sniper  Lv 0 → 1 (5× spd homing, 2× dmg)  —  %d %s" % [cost, scroll_word]
+					text = "Sniper  Lv 0 → 1 (5× spd vs enemies, 2× dmg)  —  %d %s" % [cost, scroll_word]
+				elif aug_lvl == 2:
+					text = "Sniper  Lv 2 → 3 (4× dmg + Bomb Explosion on hit)  —  %d %s" % [cost, scroll_word]
 				else:
 					var cur_mult: int = int(GameState.sniper_damage_mult())
 					text = "Sniper  Lv %d → %d (%d× → %d× dmg)  —  %d %s" % [aug_lvl, aug_lvl + 1, cur_mult, next_mult, cost, scroll_word]
@@ -276,6 +282,23 @@ func _refresh() -> void:
 	# Populate Gold Shop
 	for c in _gold_shop_box.get_children():
 		c.queue_free()
+
+	# 0. Max HP Upgrade (5 → 6 → 7 → 10; +1, +1, +3 on final upgrade; does not instantly heal)
+	if GameState.is_max_hp_maxed():
+		var mhp_done: Button = UIKit.make_button("Max HP (%d) — MAX" % GameState.player_max_hp(), func() -> void: pass, 16)
+		mhp_done.custom_minimum_size = Vector2(0, 38)
+		mhp_done.disabled = true
+		_gold_shop_box.add_child(mhp_done)
+	else:
+		var cur_mhp: int = GameState.player_max_hp()
+		var next_mhp: int = Config.player_max_hp_for_level(GameState.max_hp_level + 1)
+		var mhp_cost: int = GameState.next_gold_max_hp_cost()
+		var mhp_btn: Button = UIKit.make_button(
+			"Max HP +%d (%d → %d Max HP)  —  %d gold" % [next_mhp - cur_mhp, cur_mhp, next_mhp, mhp_cost],
+			func() -> void: GameState.try_buy_max_hp_gold(), 16)
+		mhp_btn.custom_minimum_size = Vector2(0, 38)
+		mhp_btn.disabled = GameState.gold < mhp_cost
+		_gold_shop_box.add_child(mhp_btn)
 
 	# 1. Spell Scroll (100 gold first, +100 each up to 10)
 	var bought: int = GameState.mod_parts_bought_with_gold

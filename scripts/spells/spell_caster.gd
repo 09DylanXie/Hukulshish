@@ -76,6 +76,8 @@ func _find_target(max_range: float) -> Node2D:
 func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 	var p: Projectile = ProjectileScene.instantiate()
 	var dmg: float = float(spell["damage"]) * GameState.damage_boost_multiplier()
+	var can_use_aug: bool = bool(spell.get("uses_augments", true))
+	var aug_snap: Dictionary = spell.get("aug_levels", {}) as Dictionary
 	p.setup(
 		dir,
 		Config.tiles(float(spell["speed_tiles"])),
@@ -86,9 +88,12 @@ func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 		max_range,
 		GameState.is_homing_active(),
 		Projectile.ProjKind.INITIAL,
-		null
+		null,
+		can_use_aug,
+		aug_snap
 	)
-	p.global_position = global_position
+	var owner_player := get_parent() as Player
+	p.global_position = owner_player.get_wand_tip_global(dir) if owner_player != null else global_position
 	var container: Node = get_tree().get_first_node_in_group("projectile_container")
 	if container == null:
 		container = get_tree().current_scene

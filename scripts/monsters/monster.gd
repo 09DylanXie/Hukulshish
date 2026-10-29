@@ -2,8 +2,11 @@ class_name Monster
 extends CharacterBody2D
 ## Generic melee monster that chases the player through the maze. Configured by a MonsterStats resource (§6.5).
 ## Speed comes from its size (Config.monster_speed_tiles). Call setup() before adding it to the tree.
+## Undead also cast a 0-damage slow spell moving at half normal spell speed (3.0 tiles/sec).
 
-signal died(gold: int, at: Vector2, is_demon: bool, is_goblin: bool)
+signal died(gold: int, at: Vector2, is_demon: bool, drops_enhancer: bool)
+
+const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tscn")
 
 var stats: MonsterStats
 var max_hp: float = 1.0
@@ -12,7 +15,9 @@ var hp: float = 1.0
 var _radius: float = 12.0
 var _speed: float = 32.0
 var _has_bubble_shield: bool = false
+var _is_undead: bool = false
 var _attack_cooldown: float = 0.0
+var _slow_fire_cooldown: float = Config.UNDEAD_SLOW_FIRE_INTERVAL_SEC
 var _flash: float = 0.0
 var _dead: bool = false
 var _world: World
@@ -25,6 +30,8 @@ func setup(monster_stats: MonsterStats, _hp_mult: float) -> void:
 	_radius = Config.tiles(stats.radius_tiles)
 	_speed = Config.tiles(Config.monster_speed_tiles(stats.radius_tiles))
 	_has_bubble_shield = stats.has_bubble_shield or stats.name == "Demon"
+	_is_undead = stats.name == "Undead"
+	_slow_fire_cooldown = randf_range(1.2, Config.UNDEAD_SLOW_FIRE_INTERVAL_SEC)
 
 
 func _ready() -> void:
@@ -45,6 +52,8 @@ func _physics_process(delta: float) -> void:
 	if stats == null:
 		return
 	_attack_cooldown -= delta
+	if _is_undead:
+		_slow_fire_cooldown -= delta
 	if _flash > 0.0:
 		_flash -= delta
 		queue_redraw()
@@ -65,6 +74,35 @@ func _physics_process(delta: float) -> void:
 		var dir: Vector2 = _world.flow_direction(global_position, player.global_position) if _world != null else to_player.normalized()
 		velocity = dir * _speed
 	move_and_slide()
+
+	if _is_undead and _slow_fire_cooldown <= 0.0 and to_player.length() <= Config.tiles(Config.UNDEAD_SLOW_RANGE_TILES):
+		_slow_fire_cooldown = Config.UNDEAD_SLOW_FIRE_INTERVAL_SEC
+		_fire_slow_spell(player.global_position)
+
+
+func _fire_slow_spell(target_pos: Vector2) -> void:
+	var p: Projectile = ProjectileScene.instantiate()
+	var speed_px: float = Config.tiles(Config.UNDEAD_SLOW_BOLT_SPEED_TILES)
+	p.setup(
+		global_position.direction_to(target_pos),
+		speed_px,
+		0.0,
+		false,
+		Color(0.35, 0.92, 1.0),
+		Config.tiles(0.18),
+		Config.tiles(Config.UNDEAD_SLOW_RANGE_TILES * 1.4),
+		false,
+		Projectile.ProjKind.INITIAL,
+		null,
+		false,
+		{},
+		Config.UNDEAD_SLOW_DURATION_SEC
+	)
+	p.global_position = global_position
+	var container: Node = get_tree().get_first_node_in_group("projectile_container")
+	if container == null:
+		container = get_parent()
+	container.add_child(p)
 
 
 func get_hit_radius() -> float:
@@ -89,8 +127,8 @@ func take_damage(amount: float) -> void:
 	if hp <= 0.0:
 		_dead = true
 		var is_demon: bool = stats != null and (stats.has_bubble_shield or stats.name == "Demon")
-		var is_goblin: bool = stats != null and stats.name == "Goblin"
-		died.emit(stats.gold, global_position, is_demon, is_goblin)
+		var drops_enhancer: bool = stats != null and (stats.name == "Goblin" or stats.name == "Undead")
+		died.emit(stats.gold, global_position, is_demon, drops_enhancer)
 		queue_free()
 
 

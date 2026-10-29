@@ -44,6 +44,7 @@ var mana: float = Config.BASE_MAX_MANA
 var boss_spells: Array[Dictionary] = []
 
 # --- Gold Shop unlocks & hotbar consumables ---
+var max_hp_level: int = 0
 var magnet_unlocked: bool = false
 var auto_shoot_unlocked: bool = false
 var auto_shoot_enabled: bool = false
@@ -87,6 +88,7 @@ func start_run() -> void:
 		personal_levels[id] = 0
 	mana = float(max_mana())
 	boss_spells.clear()
+	max_hp_level = 0
 	magnet_unlocked = false
 	auto_shoot_unlocked = false
 	auto_shoot_enabled = false
@@ -190,8 +192,17 @@ func try_spend_mana(cost: float) -> bool:
 
 # --- Spell stats ---
 
-## Builds a spell stat Dictionary: { name, damage, fire_rate, speed_tiles, range_tiles, color, radius_tiles, mana_cost }.
-static func make_spell_stats(data: SpellData, damage: float, fire_rate: float, speed_tiles: float, range_tiles: float, mana_cost: float) -> Dictionary:
+## Builds a spell stat Dictionary: { name, damage, fire_rate, speed_tiles, range_tiles, color, radius_tiles, mana_cost, uses_augments, aug_levels }.
+static func make_spell_stats(
+	data: SpellData,
+	damage: float,
+	fire_rate: float,
+	speed_tiles: float,
+	range_tiles: float,
+	mana_cost: float,
+	uses_augments: bool = false,
+	aug_snapshot: Dictionary = {}
+) -> Dictionary:
 	return {
 		"name": data.name,
 		"damage": damage,
@@ -201,6 +212,8 @@ static func make_spell_stats(data: SpellData, damage: float, fire_rate: float, s
 		"color": data.color,
 		"radius_tiles": data.radius_tiles,
 		"mana_cost": mana_cost,
+		"uses_augments": uses_augments,
+		"aug_levels": aug_snapshot,
 	}
 
 
@@ -212,7 +225,7 @@ func damage_boost_multiplier() -> float:
 	return Config.DAMAGE_POTION_MULT if damage_boost_timer > 0.0 else 1.0
 
 
-## Current base spell stats: level damage × damage mod, range × range mod, costs 1 mana.
+## Current base spell stats: level damage × damage mod, range × range mod, costs 2 mana, uses augments.
 func base_spell_stats() -> Dictionary:
 	var b: SpellData = Config.BASE_SPELL
 	return make_spell_stats(b,
@@ -220,7 +233,8 @@ func base_spell_stats() -> Dictionary:
 		b.fire_rate,
 		b.speed_tiles,
 		b.range_tiles * mod_multiplier("range"),
-		Config.BASE_SPELL_MANA_COST)
+		Config.BASE_SPELL_MANA_COST,
+		true)
 
 
 ## Every spell the player fires: the base spell first, then boss spells.
@@ -394,6 +408,32 @@ func gold_mine_rate() -> float:
 	return Config.GOLD_MINE_RATE * (1.0 + Config.MINE_RATE_STEP * personal_level("mine_rate"))
 
 
+# --- Player Max HP Upgrades (5 → 6 → 7 → 10; does not instantly heal the player) ---
+
+func player_max_hp() -> int:
+	return Config.player_max_hp_for_level(max_hp_level)
+
+
+func is_max_hp_maxed() -> bool:
+	return max_hp_level >= Config.PLAYER_MAX_HP_MAX_LEVEL
+
+
+func next_gold_max_hp_cost() -> int:
+	return Config.gold_max_hp_cost(max_hp_level)
+
+
+func try_buy_max_hp_gold() -> bool:
+	if is_max_hp_maxed():
+		return false
+	var cost: int = next_gold_max_hp_cost()
+	if gold < cost:
+		return false
+	gold -= cost
+	max_hp_level += 1
+	changed.emit()
+	return true
+
+
 # --- Gold Shop purchases ---
 
 func can_buy_gold_mod_part() -> bool:
@@ -529,13 +569,13 @@ func try_use_damage_potion() -> bool:
 	return true
 
 
-# --- Boss spells ---
+# --- Boss & Mega Boss spells ---
 
 ## A boss spell copies the player's spells at pickup time and is frozen after that (can't be upgraded).
 ## - First boss spell: 2× the base spell's damage.
 ## - Later boss spells: the sum of every spell the player already has.
 ## Fire rate is always the base spell's rate × 2/3 (the 1/3 reduction is applied once, not stacked).
-## Costs 2 mana per cast.
+## Costs 3 mana per cast.
 func acquire_boss_spell() -> Dictionary:
 	var base: Dictionary = base_spell_stats()
 	var damage: float
@@ -551,9 +591,36 @@ func acquire_boss_spell() -> Dictionary:
 		base["fire_rate"] * Config.BOSS_SPELL_FIRE_RATE_MULT,
 		base["speed_tiles"],
 		base["range_tiles"],
-		Config.BOSS_SPELL_MANA_COST
+		Config.BOSS_SPELL_MANA_COST,
+		false
 	)
 	spell["name"] = "%s %d" % [Config.BOSS_SPELL.name, boss_spells.size() + 1]
+	boss_spells.append(spell)
+	changed.emit()
+	return spell
+
+
+## Guaranteed (1/1) drop from the Mega Boss in Endless Mode:
+## Combines all current spells together and multiplies damage by 1.5×, and copies the base spell's augments and uses them.
+func acquire_mega_boss_spell() -> Dictionary:
+	var base: Dictionary = base_spell_stats()
+	var total_damage: float = 0.0
+	for s in all_spells():
+		total_damage += float(s["damage"])
+	var damage: float = total_damage * Config.MEGA_BOSS_SPELL_DAMAGE_MULT
+	var spell: Dictionary = make_spell_stats(
+		Config.BOSS_SPELL,
+		damage,
+		base["fire_rate"] * Config.BOSS_SPELL_FIRE_RATE_MULT,
+		base["speed_tiles"],
+		base["range_tiles"],
+		Config.BOSS_SPELL_MANA_COST,
+		true,
+		aug_levels.duplicate()
+	)
+	spell["color"] = Color(0.88, 0.28, 1.0)
+	spell["radius_tiles"] = 0.34
+	spell["name"] = "Mega Spell %d" % (boss_spells.size() + 1)
 	boss_spells.append(spell)
 	changed.emit()
 	return spell

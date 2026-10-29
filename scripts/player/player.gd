@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody2D
 ## The mage Hukulshish. WASD movement; click to shoot (or auto-aim once unlocked in the Gold Shop).
+## Starts with 5 max HP (upgradable in the shop to 6 → 7 → 10 without instant heal); castle heals up to 3 HP.
 
 signal hp_changed(hp: int, max_hp: int)
 signal shield_changed(shield: int, max_shield: int)
@@ -17,9 +18,11 @@ var bounds: Rect2 = Rect2()
 
 var _iframes: float = 0.0
 var _regen_timer: float = 0.0
+var _slow_timer: float = 0.0
 var _dead: bool = false
 var _radius: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
 var _facing: Vector2 = Vector2.RIGHT
+var _aim_dir: Vector2 = Vector2.RIGHT
 
 
 func _ready() -> void:
@@ -48,17 +51,38 @@ func _ready() -> void:
 	caster.name = "SpellCaster"
 	add_child(caster)
 
+	max_hp = GameState.player_max_hp()
+	hp = max_hp
+	GameState.changed.connect(_on_game_state_changed)
 	hp_changed.emit(hp, max_hp)
 	shield_changed.emit(shield, max_shield)
+
+
+func _on_game_state_changed() -> void:
+	var new_max: int = GameState.player_max_hp()
+	if new_max != max_hp:
+		# Buying Max HP increases the cap (5 → 6 → 7 → 10) without instantly healing current HP.
+		max_hp = new_max
+		hp = mini(hp, max_hp)
+		hp_changed.emit(hp, max_hp)
 
 
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return
+	var to_mouse: Vector2 = get_global_mouse_position() - global_position
+	if to_mouse.length_squared() > 1.0:
+		_aim_dir = to_mouse.normalized()
+
 	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if input != Vector2.ZERO:
 		_facing = input.normalized()
-	velocity = input * Config.tiles(GameState.player_speed_tiles())
+
+	if _slow_timer > 0.0:
+		_slow_timer = maxf(0.0, _slow_timer - delta)
+	var slow_mult: float = Config.UNDEAD_SLOW_SPEED_MULT if _slow_timer > 0.0 else 1.0
+
+	velocity = input * Config.tiles(GameState.player_speed_tiles() * slow_mult)
 	move_and_slide()
 	if bounds.has_area():
 		global_position = global_position.clamp(bounds.position + Vector2.ONE * _radius, bounds.end - Vector2.ONE * _radius)
@@ -81,8 +105,21 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 
+## Applies the Undead 0-damage slow spell effect to the player.
+func apply_slow(duration: float) -> void:
+	if _dead:
+		return
+	_slow_timer = maxf(_slow_timer, duration)
+	queue_redraw()
+
+
+func get_wand_tip_global(dir_override: Vector2 = Vector2.ZERO) -> Vector2:
+	var d: Vector2 = dir_override.normalized() if dir_override != Vector2.ZERO else _aim_dir
+	return global_position + d * (_radius * 2.15)
+
+
 func take_damage(amount: float) -> void:
-	if _dead or _iframes > 0.0:
+	if _dead or _iframes > 0.0 or amount <= 0.0:
 		return
 	var dmg: int = maxi(1, int(round(amount)))
 	if shield > 0:
@@ -111,7 +148,7 @@ func add_shield(amount: int) -> bool:
 	return true
 
 
-## Heals the player by `amount` up to `max_hp` (used by 3 HP healing potions).
+## Heals the player by `amount` up to `max_hp` (used by 3 HP healing potions and Health Regen).
 func heal_amount(amount: int) -> bool:
 	if _dead or hp >= max_hp:
 		return false
@@ -120,12 +157,12 @@ func heal_amount(amount: int) -> bool:
 	return true
 
 
-## Heals the player up to 7/10 of max HP when entering the castle shop (§5).
-## Never reduces HP if the player is already above 7/10.
+## Heals the player up to 3 HP when entering the castle shop (§5).
+## Never reduces HP if the player is already above 3 HP.
 func heal_at_castle() -> void:
 	if _dead:
 		return
-	var cap: int = int(floor(max_hp * Config.CASTLE_HEAL_FRACTION))
+	var cap: int = mini(max_hp, Config.CASTLE_HEAL_MAX_HP)
 	if hp < cap:
 		hp = cap
 		hp_changed.emit(hp, max_hp)
@@ -136,10 +173,26 @@ func is_dead() -> bool:
 
 
 func _draw() -> void:
+	# Frost aura when slowed by Undead slow spell
+	if _slow_timer > 0.0:
+		draw_circle(Vector2.ZERO, _radius * 1.45, Color(0.35, 0.9, 1.0, 0.25))
+		draw_arc(Vector2.ZERO, _radius * 1.45, 0.0, TAU, 28, Color(0.55, 0.95, 1.0, 0.9), 2.0)
 	# Magic shield aura when shield > 0
 	if shield > 0:
 		draw_circle(Vector2.ZERO, _radius * 1.35, Color(0.2, 0.7, 1.0, 0.22))
 		draw_arc(Vector2.ZERO, _radius * 1.35, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
+
+	# Wand / Staff extending out from the mage's body toward cursor aim direction
+	var staff_dir: Vector2 = _aim_dir if _aim_dir != Vector2.ZERO else _facing
+	var perp: Vector2 = Vector2(-staff_dir.y, staff_dir.x)
+	var hand_offset: Vector2 = perp * (_radius * 0.35)
+	var staff_base: Vector2 = hand_offset + staff_dir * (_radius * 0.35)
+	var staff_tip: Vector2 = hand_offset + staff_dir * (_radius * 2.05)
+	draw_line(staff_base, staff_tip, Color(0.48, 0.30, 0.14), 4.0)
+	draw_line(staff_tip - staff_dir * 4.5, staff_tip, Color(0.95, 0.82, 0.28), 5.0)
+	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.32, Color(0.35, 0.85, 1.0, 0.38))
+	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.20, Color(0.65, 0.95, 1.0))
+
 	# Robe
 	draw_circle(Vector2.ZERO, _radius, Color(0.25, 0.3, 0.85))
 	# Hat
@@ -150,4 +203,4 @@ func _draw() -> void:
 	])
 	draw_colored_polygon(hat, Color(0.45, 0.2, 0.75))
 	# Facing indicator
-	draw_circle(_facing * _radius * 0.6, _radius * 0.25, Color(1, 0.95, 0.6))
+	draw_circle(staff_dir * _radius * 0.55, _radius * 0.22, Color(1, 0.95, 0.6))

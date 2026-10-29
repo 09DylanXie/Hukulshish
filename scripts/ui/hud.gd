@@ -20,6 +20,7 @@ var _slots: Array[Control] = []
 var _slot_hovered: Array[bool] = [false, false, false]
 var _elapsed: float = 0.0
 var _endless_banner_timer: float = 0.0
+var _crosshair_tex: ImageTexture
 
 const _SLOT_TITLES: Array[String] = ["Shield [1]", "Heal +3 [2]", "2× Dmg [3]"]
 const _SLOT_COLORS: Array[Color] = [
@@ -33,6 +34,7 @@ func _ready() -> void:
 	layer = 10
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
+	_apply_crosshair_cursor()
 	_build_stats_panel()
 	_build_hint_label()
 	_build_pause_ui()
@@ -43,6 +45,33 @@ func _ready() -> void:
 	GameState.endless_wave_started.connect(_on_endless_wave_started)
 	_on_mana_changed(GameState.mana, GameState.max_mana(), GameState.mana_regen())
 	_refresh()
+
+
+func _exit_tree() -> void:
+	Input.set_custom_mouse_cursor(null, Input.CURSOR_ARROW)
+
+
+func _apply_crosshair_cursor() -> void:
+	var size: int = 32
+	var c: int = 16
+	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var outline := Color(0.05, 0.05, 0.08, 0.92)
+	var fg := Color(0.95, 0.98, 1.0, 0.98)
+	# Outer arms with dark outline for visibility on all backgrounds
+	for offset in range(4, 11):
+		for d in [-1, 0, 1]:
+			var col: Color = fg if d == 0 else outline
+			img.set_pixel(c + offset, c + d, col)
+			img.set_pixel(c - offset, c + d, col)
+			img.set_pixel(c + d, c + offset, col)
+			img.set_pixel(c + d, c - offset, col)
+	# Center dot
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			img.set_pixel(c + dx, c + dy, fg if (dx == 0 and dy == 0) else outline)
+	_crosshair_tex = ImageTexture.create_from_image(img)
+	Input.set_custom_mouse_cursor(_crosshair_tex, Input.CURSOR_ARROW, Vector2(c, c))
 
 
 func bind_player(player: Player) -> void:

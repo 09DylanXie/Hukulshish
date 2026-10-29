@@ -7,14 +7,17 @@ extends Node
 const TILE_SIZE: int = 32
 
 # --- Player (§6.1) ---
-const PLAYER_MAX_HP: int = 10
+const PLAYER_MAX_HP: int = 5
+const PLAYER_MAX_HP_BY_LEVEL: Array[int] = [5, 6, 7, 10]
+const PLAYER_MAX_HP_MAX_LEVEL: int = 3
 const PLAYER_MAX_SHIELD: int = 5
 const PLAYER_SPEED_TILES: float = 3.0
 const PLAYER_RADIUS_TILES: float = 0.4
 # TODO(design): invulnerability frames after a hit are undefined (§9 Q7).
 const PLAYER_IFRAMES_SEC: float = 0.5
-## Entering the castle heals the player up to this fraction of max HP, never above it (§5).
-const CASTLE_HEAL_FRACTION: float = 0.7
+## Entering the castle heals the player up to 3 HP, never above it (§5).
+const CASTLE_HEAL_MAX_HP: int = 3
+const CASTLE_HEAL_FRACTION: float = 0.6
 
 # --- Mana (§6.1–6.3) ---
 const BASE_MAX_MANA: int = 10
@@ -55,12 +58,14 @@ const AUGMENTATIONS: Dictionary = {
 	"bomb": "Bombspell",
 	"sniper": "Sniper",
 }
-const SPLIT_ANGLE_DEG: float = 30.0
+const SPLIT_ANGLE_DEG: float = 45.0
 const SPLIT_DAMAGE_MULT: float = 0.5
+const CHAIN_LIGHTNING_RANGE_TILES: float = 10.0
 const BOMB_BASE_DPS: float = 3.0
 const BOMB_DPS_STEP: float = 2.0
 const BOMB_DURATION_SEC: float = 3.0
-const BOMB_RADIUS_TILES: float = 2.2
+## 5% smaller than previous 2.2 tiles (2.2 × 0.95 = 2.09).
+const BOMB_RADIUS_TILES: float = 2.09
 const BOMB_TICK_SEC: float = 0.25
 const SNIPER_SPEED_MULT: float = 5.0
 const SNIPER_BASE_DAMAGE_MULT: float = 2.0
@@ -69,6 +74,7 @@ const SNIPER_DAMAGE_STEP: float = 1.0
 # --- Gold Shop (§6.3) ---
 const GOLD_SHOP_MOD_PART_BASE_COST: int = 100
 const GOLD_SHOP_MOD_PART_MAX: int = 10
+const GOLD_SHOP_MAX_HP_COSTS: Array[int] = [200, 400, 800]
 const GOLD_SHOP_SHIELD_COST: int = 200
 const GOLD_SHOP_POTION_COST: int = 100
 const GOLD_SHOP_MAGNET_COST: int = 100
@@ -82,8 +88,8 @@ const HEAL_POTION_AMOUNT: int = 3
 const DAMAGE_POTION_MULT: float = 2.0
 const SHIELD_ITEM_AMOUNT: int = 1
 
-# --- Personal Shop (§6.3) — bought with Enhancers dropped by Goblins (1/3 chance) ---
-const ENHANCER_DROP_CHANCE: float = 1.0 / 3.0
+# --- Personal Shop (§6.3) — bought with Enhancers dropped by Goblins & Undead (1/4 chance) ---
+const ENHANCER_DROP_CHANCE: float = 1.0 / 4.0
 const PERSONAL_MAX_LEVEL: int = 3
 const PERSONAL_UPGRADE_COSTS: Array[int] = [3, 5, 9]
 const PERSONAL_SHOP: Dictionary = {
@@ -100,11 +106,13 @@ const HEALTH_REGEN_INTERVAL_SEC: float = 10.0
 const MINE_CAPACITY_STEP: float = 1.0 / 3.0
 const MINE_RATE_STEP: float = 0.15
 
-# --- Boss spells (§6.3) ---
+# --- Boss & Mega Boss spells (§6.3) ---
 ## Chance for a nest boss to drop a new spell.
 const BOSS_SPELL_DROP_CHANCE: float = 1.0 / 3.0
 ## Boss spells fire at this fraction of the base spell's rate (reduced by 1/3).
 const BOSS_SPELL_FIRE_RATE_MULT: float = 2.0 / 3.0
+## Mega Boss in Endless Mode drops a guaranteed (1/1) spell combining all current spells × 1.5 damage + base augments.
+const MEGA_BOSS_SPELL_DAMAGE_MULT: float = 1.5
 
 # --- Nests (§6.4) ---
 const NEST_HP: int = 70
@@ -127,6 +135,12 @@ const TIME_SCALE_INTERVAL_SEC: float = 30.0
 const TIME_SCALE_MEDIUM_ADD: float = 5.0
 const TIME_SCALE_HARD_MULT: float = 1.2
 const TIME_SCALE_EXTREME_MULT: float = 1.5
+## Undead slow spell: 0 damage, moves at half the speed of a normal spell (3.0 tiles/sec), slows player on hit.
+const UNDEAD_SLOW_BOLT_SPEED_TILES: float = 3.0
+const UNDEAD_SLOW_FIRE_INTERVAL_SEC: float = 3.5
+const UNDEAD_SLOW_RANGE_TILES: float = 9.0
+const UNDEAD_SLOW_SPEED_MULT: float = 0.5
+const UNDEAD_SLOW_DURATION_SEC: float = 2.5
 
 # --- Nest boss (§6.6) — 4× previous HP (20 → 80) ---
 const BOSS_HP: int = 80
@@ -252,6 +266,18 @@ func aug_cost(level: int) -> int:
 func personal_cost(level: int) -> int:
 	var idx: int = clampi(level, 0, PERSONAL_UPGRADE_COSTS.size() - 1)
 	return PERSONAL_UPGRADE_COSTS[idx]
+
+
+## Player max HP for a given `max_hp_level` (0..3): 5 → 6 → 7 → 10 (+1, +1, +3).
+func player_max_hp_for_level(level: int) -> int:
+	var idx: int = clampi(level, 0, PLAYER_MAX_HP_MAX_LEVEL)
+	return PLAYER_MAX_HP_BY_LEVEL[idx]
+
+
+## Gold cost for the next Max HP upgrade in the Gold Shop (200, 400, 800).
+func gold_max_hp_cost(level: int) -> int:
+	var idx: int = clampi(level, 0, GOLD_SHOP_MAX_HP_COSTS.size() - 1)
+	return GOLD_SHOP_MAX_HP_COSTS[idx]
 
 
 ## Gold cost for the next Spell Scroll in the Gold Shop (100, 200, ..., 1000).

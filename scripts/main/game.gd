@@ -212,7 +212,13 @@ func _on_boss_died(gold: int, pos: Vector2) -> void:
 		_entities.call_deferred("add_child", pickup)
 
 
-func _on_mega_boss_died(_gold: int, _pos: Vector2) -> void:
+func _on_mega_boss_died(_gold: int, pos: Vector2) -> void:
+	if GameState.endless_mode:
+		# Guaranteed 1/1 Mega Boss Spell drop every time the Mega Boss is defeated in Endless Mode.
+		var pickup: ModPickup = ModPickupScene.instantiate()
+		pickup.kind = ModPickup.Kind.MEGA_BOSS_SPELL
+		pickup.position = pos
+		_entities.call_deferred("add_child", pickup)
 	GameState.on_mega_boss_defeated()
 
 
