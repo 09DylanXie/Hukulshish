@@ -42,10 +42,16 @@ func _on_body_exited(body: Node) -> void:
 
 
 func _collect() -> void:
+	collect()
+
+
+func collect() -> int:
 	var whole: int = int(floor(_stored))
 	if whole > 0:
 		_stored -= whole
 		GameState.add_gold(whole)
+		queue_redraw()
+	return whole
 
 
 func stored_gold() -> int:

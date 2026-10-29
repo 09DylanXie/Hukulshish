@@ -16,12 +16,12 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
     1. **Magic Shield (`[1]`):** adds `+1` shield point (up to 5).
     2. **Healing Potion (`[2]`):** restores `+3 HP` (30 s timer).
     3. **2× Damage Boost Potion (`[3]`):** doubles spell damage for **30 seconds**.
-- **Gold Mines:** 2 gold mines spawn in random regions of the map, each generating **7.5 gold/sec** up to **333 gold**. Walk over a mine to collect its stored gold.
+- **Gold Mines:** 3 gold mines spawn in random regions of the map, each generating **7.5 gold/sec** up to **333 gold**. Walk over a mine to collect its stored gold (or buy the **Auto Gold Collector** for `500` gold to collect all mines every 30s).
 - **Castle Shop & Heal:** walk out of and back into the castle to heal up to **3 HP** (never above 3 HP) and open the upgrade & shop menu (pauses the game):
   - **Base Spell Upgrade:** spend Gold to level up the Base Spell (Lv 1–9).
   - **Spell Mods:** spend **Spell Scrolls** (1/7 drop from monsters, or bought in the Gold Shop) to upgrade **Damage** (`+0.1×`/lv), **Mana Regen** (`+0.5/s`/lv), **Mana Pool** (`+1` max mana until 15, then `+2` until 29), or **Range** (`+0.1×`/lv). Costs `1, 2, 3, 4`, then `8, 16, 32, …` Spell Scrolls.
   - **Augmentations (Demon Drops):** Demons have a **1/5 chance** to drop an **Augmentation Scroll** (and possess a 1-hit bubble shield). Each augmentation can be upgraded up to **3 times** (costing `1`, `2`, `3` Augmentation Scrolls):
-	- **Split Spell:** splits player spell on enemy contact into `2 / 3 / 4` shots at `45°` angles (Homing does not apply to Split Shots), each dealing `1/2` damage. **Lv 3 Unique:** chains lightning across hits, connecting the hit enemy with another enemy and zapping both for the split shot's damage.
+	- **Split Spell:** splits player spell on enemy contact into `2` shots at `45°` angles (Homing does not apply to Split Shots), each dealing `1/2` damage; upgrading lets split shots re-split into `2` again on hit up to `1 / 2 / 3` sequential splits. **Lv 3 Unique:** chains lightning across hits, connecting the hit enemy with another enemy and zapping both for the split shot's damage.
 	- **Bombspell:** creates a medium fire zone (`5%` smaller) on target impact for `3s` dealing `3 / 5 / 7` dmg/s (1 fire tick breaks a Demon's bubble shield). **Lv 3 Unique:** explodes on every hit whether split or not, and also explodes when the spell runs out of range.
 	- **Sniper:** on initial player spell impact with an enemy, fires a `5×` speed homing shot at the nearest **monster or boss (never nests)** for `2× / 3× / 4×` damage. **Lv 3 Unique:** sniper shell explodes with the Bombspell explosion on hit.
   - **Personal Shop (Goblin & Undead Enhancers):** Goblins and Undead have a **1/4 chance** to drop an **Enhancer** (Undead also cast a white 0-damage slow spell at half normal spell speed). All 6 upgrades max at **Level 3** and cost `3`, `5`, `9` Enhancers:
@@ -38,6 +38,7 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
 	- **3 HP Healing Potion (30s):** `100` gold.
 	- **2× Damage Boost Potion (30s):** `100` gold.
 	- **Magnet:** `300` gold (pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups toward the player).
+	- **Auto Gold Collector:** `500` gold (auto-collects stored gold from all 3 Gold Mines every 30 seconds).
 	- **Unlock Auto-Shooting:** `1000` gold (auto-fires at `1/2` fire rate so you can still manually fire; press **`E`** to toggle on/off).
 	- **Unlock Homing:** `1500` gold (curves spells toward the closest enemy; press **`F`** to toggle on/off).
 	- **Doppelganger:** `5000` gold (copies current abilities, follows you until it dies, has `5` max HP and cannot have a shield).

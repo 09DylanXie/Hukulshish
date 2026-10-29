@@ -59,6 +59,7 @@ const AUGMENTATIONS: Dictionary = {
 	"sniper": "Sniper",
 }
 const SPLIT_ANGLE_DEG: float = 45.0
+const SPLIT_PROJECTILES_PER_HIT: int = 2
 const SPLIT_DAMAGE_MULT: float = 0.5
 const CHAIN_LIGHTNING_RANGE_TILES: float = 10.0
 const BOMB_BASE_DPS: float = 3.0
@@ -78,6 +79,8 @@ const GOLD_SHOP_MAX_HP_COSTS: Array[int] = [200, 400, 800]
 const GOLD_SHOP_SHIELD_COST: int = 200
 const GOLD_SHOP_POTION_COST: int = 100
 const GOLD_SHOP_MAGNET_COST: int = 300
+const GOLD_SHOP_AUTO_COLLECTOR_COST: int = 500
+const AUTO_COLLECTOR_INTERVAL_SEC: float = 30.0
 const GOLD_SHOP_AUTO_SHOOT_COST: int = 1000
 const GOLD_SHOP_HOMING_COST: int = 1500
 const GOLD_SHOP_DOPPELGANGER_COST: int = 5000
@@ -178,7 +181,7 @@ const DIFFICULTY_SCALES_NESTS_AND_BOSSES: bool = false
 const CASTLE_SIZE_TILES: float = 4.0
 
 # --- Gold mines (§6.8) ---
-const GOLD_MINE_COUNT: int = 2
+const GOLD_MINE_COUNT: int = 3
 ## Reduced by 1/4 from 10.0 → 7.5 gold/sec.
 const GOLD_MINE_RATE: float = 7.5
 ## Reduced by 1/3 from 500 → 333 gold.

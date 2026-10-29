@@ -185,13 +185,13 @@ func _refresh() -> void:
 		match id:
 			"split":
 				if maxed:
-					text = "Split Spell  Lv 3 (4 splits @ 45°, Chain Lightning) — MAX"
+					text = "Split Spell  Lv 3 (re-splits 3× @ 45°, Chain Lightning) — MAX"
 				elif aug_lvl == 0:
-					text = "Split Spell  Lv 0 → 1 (2 splits @ 45°, ½ dmg)  —  %d %s" % [cost, scroll_word]
-				elif aug_lvl == 2:
-					text = "Split Spell  Lv 2 → 3 (4 splits + Chain Lightning)  —  %d %s" % [cost, scroll_word]
+					text = "Split Spell  Lv 0 → 1 (splits into 2 @ 45°, ½ dmg)  —  %d %s" % [cost, scroll_word]
+				elif aug_lvl == 1:
+					text = "Split Spell  Lv 1 → 2 (splits re-split again, 2× chain)  —  %d %s" % [cost, scroll_word]
 				else:
-					text = "Split Spell  Lv %d → %d (%d → %d splits @ 45°)  —  %d %s" % [aug_lvl, aug_lvl + 1, aug_lvl + 1, aug_lvl + 2, cost, scroll_word]
+					text = "Split Spell  Lv 2 → 3 (re-splits 3× + Chain Lightning)  —  %d %s" % [cost, scroll_word]
 			"bomb":
 				var next_dps: int = int(Config.BOMB_BASE_DPS + Config.BOMB_DPS_STEP * aug_lvl)
 				if maxed:
@@ -323,19 +323,33 @@ func _refresh() -> void:
 		mp_done.disabled = true
 		_gold_shop_box.add_child(mp_done)
 
-	# 2. Magnet (100 gold)
+	# 2. Magnet (300 gold)
 	if GameState.magnet_unlocked:
 		var mag_done: Button = UIKit.make_button("Magnet — UNLOCKED", func() -> void: pass, 16)
-		mag_done.custom_minimum_size = Vector2(0, 38)
+		mag_done.custom_minimum_size = Vector2(0, 35)
 		mag_done.disabled = true
 		_gold_shop_box.add_child(mag_done)
 	else:
 		var mag_btn: Button = UIKit.make_button(
 			"Magnet (pulls dropped scrolls)  —  %d gold" % Config.GOLD_SHOP_MAGNET_COST,
 			func() -> void: GameState.try_buy_magnet(), 16)
-		mag_btn.custom_minimum_size = Vector2(0, 38)
+		mag_btn.custom_minimum_size = Vector2(0, 35)
 		mag_btn.disabled = GameState.gold < Config.GOLD_SHOP_MAGNET_COST
 		_gold_shop_box.add_child(mag_btn)
+
+	# 2b. Auto Gold Collector (500 gold; collects all gold mines every 30s)
+	if GameState.auto_collector_unlocked:
+		var col_done: Button = UIKit.make_button("Auto Gold Collector (every 30s) — UNLOCKED", func() -> void: pass, 16)
+		col_done.custom_minimum_size = Vector2(0, 35)
+		col_done.disabled = true
+		_gold_shop_box.add_child(col_done)
+	else:
+		var col_btn: Button = UIKit.make_button(
+			"Auto Gold Collector (mines every 30s)  —  %d gold" % Config.GOLD_SHOP_AUTO_COLLECTOR_COST,
+			func() -> void: GameState.try_buy_auto_collector(), 16)
+		col_btn.custom_minimum_size = Vector2(0, 35)
+		col_btn.disabled = GameState.gold < Config.GOLD_SHOP_AUTO_COLLECTOR_COST
+		_gold_shop_box.add_child(col_btn)
 
 	# 3. Temporary Magic Shield (+1 Shield, 200 gold)
 	var sh_btn: Button = UIKit.make_button(

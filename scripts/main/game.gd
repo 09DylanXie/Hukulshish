@@ -123,8 +123,8 @@ func _pick_gold_mine_positions(bounds: Rect2, nest_positions: Array[Vector2]) ->
 				pos = cand
 				break
 		if pos == Vector2.ZERO:
-			var side: float = 1.0 if i % 2 == 0 else -1.0
-			pos = Vector2(side * half * 0.5, 0.0)
+			var fallback_angle: float = float(i) * TAU / float(maxi(1, Config.GOLD_MINE_COUNT))
+			pos = Vector2.from_angle(fallback_angle) * (half * 0.5)
 		chosen.append(pos)
 	return chosen
 

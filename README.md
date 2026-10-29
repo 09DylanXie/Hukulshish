@@ -46,7 +46,7 @@ Open Godot → **Import** → select `project.godot`.
    - **Range:** `+0.1×` spell travel range per level.
    - *Costs:* `1, 2, 3, 4`, then exponential (`8, 16, 32, …`) Spell Scrolls.
 2. **Augmentations (Crimson Augmentation Scrolls — `1/5` drop from Demons only; max Level 3, costing `1, 2, 3` Scrolls):**
-   - **Split Spell:** Splits the player's spell on enemy contact into `2 / 3 / 4` shots at **`45°` angles** dealing `½` damage (Homing does not apply to Split Shots). **Level 3 Unique — Chain Lightning:** Split hits arc lightning to a second nearby enemy, zapping both enemies alongside each other for the split shot's damage.
+   - **Split Spell:** Splits the player's spell into **2 projectiles at a `45°` angle** on enemy contact, each dealing `½` damage (Homing does not apply to Split Shots). Upgrading allows split projectiles to **re-split into 2 again** on hit: up to `1` split (Lv 1), `2` sequential splits (Lv 2), or `3` sequential splits (Lv 3). **Level 3 Unique — Chain Lightning:** Split hits arc lightning to a second nearby enemy, zapping both enemies alongside each other for the split shot's damage.
    - **Bombspell:** Creates a burning fire zone (`5%` smaller radius) on target impact for `3s` dealing `3 / 5 / 7` fire dmg/sec (`1` tick breaks a Demon's bubble shield). **Level 3 Unique — Total Detonation:** Explodes on **every hit** (even initial hits before splitting) **and** explodes when the spell runs out of range.
    - **Sniper:** On initial hit against an enemy, fires a `5×` speed homing shot at the nearest **Monster or Boss (never Nests)** for `2× / 3× / 4×` damage. **Level 3 Unique — Explosive Shell:** The Sniper shell detonates with a Bombspell fire explosion on impact.
 3. **Personal Shop (Emerald Enhancers — `1/4` drop from Goblins & Undead; max Level 3, costing `3, 5, 9` Enhancers):**
@@ -60,6 +60,7 @@ Open Godot → **Import** → select `project.godot`.
    - **Max HP Upgrade (`200 / 400 / 800` gold):** Upgrades Max HP `5 → 6 → 7 → 10` (`+1`, `+1`, `+3` on the final upgrade; no instant heal).
    - **Spell Scroll (`100..1000` gold, max 10)**
    - **Magnet (`300` gold):** Pulls all dropped Scrolls, Enhancers, and Boss Spells toward the player.
+   - **Auto Gold Collector (`500` gold):** Automatically collects stored gold from all **3 Gold Mines** on the map every `30` seconds.
    - **Magic Shield (`200` gold)**, **3 HP Healing Potion (`100` gold)**, **2× Damage Boost Potion (`100` gold)**
    - **Auto-Shooting (`1000` gold, toggle with `E`)** & **Homing (`1500` gold, toggle with `F`)**
    - **Doppelganger (`5000` gold):** Summons a `5 HP` twin (cannot have a shield) that copies your current abilities and fights alongside you until it dies.

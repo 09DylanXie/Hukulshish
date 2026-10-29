@@ -145,7 +145,7 @@ func _build_tab_basics() -> Control:
 		"  2. Personal Shop (Emerald Enhancers, 1/4 Goblin & Undead drop; costs 3, 5, 9 for Lv 1–3):\n" +
 		"     • Luck (+20%/lv drop rate) • Movement Speed (+5%/lv) • Health Regen (+1 HP/10s per lv)\n" +
 		"     • Capacity (+1/3 mine cap/lv) • Rate (+15% mine gold/s per lv) • Income Multiplier (+50%/lv enemy & boss gold).\n" +
-		"  3. Gold Shop: Upgrade Max HP (5 → 6 → 7 → 10 without instant heal), buy Spell Scrolls (up to 10), Magnet (300g), Shield/Potions, Auto-Shoot (1000g), Homing (1500g), or a Doppelganger (5000g — 5 HP twin with no shield that copies your abilities and fights with you until death)."
+		"  3. Gold Shop: Upgrade Max HP (5 → 6 → 7 → 10 without instant heal), buy Spell Scrolls (up to 10), Magnet (300g), Auto Gold Collector (500g — collects all 3 mines every 30s), Shield/Potions, Auto-Shoot (1000g), Homing (1500g), or a Doppelganger (5000g — 5 HP twin with no shield that copies your abilities and fights with you until death)."
 	))
 	return hbox
 
@@ -165,11 +165,11 @@ func _build_tab_augmentations() -> Control:
 	vbox.add_child(cards)
 
 	cards.add_child(_make_aug_card(
-		"Split Spell (45° + Chain Lightning)",
+		"Split Spell (45° Chain Splits + Lightning)",
 		Color(0.45, 0.88, 1.0),
 		_draw_split_diagram,
-		"• Splits your spell on enemy hit into 2 (Lv 1), 3 (Lv 2), or 4 (Lv 3) shots at 45° angles.\n" +
-		"• Each split deals ½ damage. Homing does NOT apply to split shots.\n" +
+		"• Splits your spell into 2 projectiles at a 45° angle on enemy hit (½ damage each, no Homing).\n" +
+		"• Upgrading lets each split projectile RE-SPLIT into 2 again on hit: up to 1 split (Lv 1), 2 sequential splits (Lv 2), or 3 sequential splits (Lv 3)!\n" +
 		"• LV 3 UNIQUE — CHAIN LIGHTNING: Every split hit arcs lightning to another nearby enemy, zapping BOTH enemies for the split shot's full damage!"
 	))
 
@@ -309,9 +309,9 @@ func _draw_basics_diagram(c: Control) -> void:
 	c.draw_circle(mine_pos, 24.0, Color(0.28, 0.25, 0.22))
 	for off in [Vector2(-10, -8), Vector2(9, -6), Vector2(0, 9), Vector2(8, 8)]:
 		c.draw_circle(mine_pos + off, 5.5, Color(1.0, 0.88, 0.22))
-	c.draw_string(font, Vector2(200, 415), "Gold Mines (×2 on Map)", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.88, 0.25))
+	c.draw_string(font, Vector2(200, 415), "Gold Mines (×3 on Map)", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.88, 0.25))
 	c.draw_string(font, Vector2(200, 438), "• 7.5 gold/s (333 cap base)", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.88, 0.95))
-	c.draw_string(font, Vector2(200, 458), "• Walk over to collect stored gold", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.88, 0.95))
+	c.draw_string(font, Vector2(200, 458), "• Walk over or buy 500g Auto-Collector (30s)", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.88, 0.95))
 
 
 func _draw_split_diagram(c: Control) -> void:
@@ -320,34 +320,42 @@ func _draw_split_diagram(c: Control) -> void:
 	c.draw_rect(rect, Color(0.25, 0.55, 0.75), false, 1.5)
 	var font: Font = ThemeDB.fallback_font
 
-	var start := Vector2(45, rect.size.y * 0.55)
-	var hit1 := Vector2(165, rect.size.y * 0.55)
+	var start := Vector2(30, rect.size.y * 0.55)
+	var hit1 := Vector2(115, rect.size.y * 0.55)
 	# Initial shot
 	c.draw_line(start, hit1, Color(0.4, 0.75, 1.0), 4.0)
-	c.draw_circle(hit1, 16.0, Color(0.85, 0.25, 0.3))
+	c.draw_circle(hit1, 14.0, Color(0.85, 0.25, 0.3))
 
-	# 45-degree splits
-	var split_top := hit1 + Vector2.from_angle(deg_to_rad(-22.5)) * 115.0
-	var split_bot := hit1 + Vector2.from_angle(deg_to_rad(22.5)) * 115.0
-	c.draw_line(hit1, split_top, Color(0.55, 0.88, 1.0), 3.0)
-	c.draw_line(hit1, split_bot, Color(0.55, 0.88, 1.0), 3.0)
-	c.draw_string(font, hit1 + Vector2(18, 5), "45°", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.8, 0.95, 1.0))
+	# 1st Split (into 2 at 45°)
+	var split1_top := hit1 + Vector2.from_angle(deg_to_rad(-22.5)) * 90.0
+	var split1_bot := hit1 + Vector2.from_angle(deg_to_rad(22.5)) * 90.0
+	c.draw_line(hit1, split1_top, Color(0.55, 0.88, 1.0), 3.0)
+	c.draw_line(hit1, split1_bot, Color(0.55, 0.88, 1.0), 3.0)
+	c.draw_circle(split1_top, 12.0, Color(0.85, 0.25, 0.3))
+	c.draw_circle(split1_bot, 12.0, Color(0.85, 0.25, 0.3))
 
-	# Enemy hit by top split + Chain Lightning to another enemy
-	var enemy_a := split_top
-	var enemy_b := split_top + Vector2(95, 55)
-	c.draw_circle(enemy_a, 14.0, Color(0.85, 0.25, 0.3))
-	c.draw_circle(enemy_b, 14.0, Color(0.85, 0.25, 0.3))
+	# 2nd Split (each re-splits into 2 again!)
+	var split2_a := split1_top + Vector2.from_angle(deg_to_rad(-45.0)) * 75.0
+	var split2_b := split1_top + Vector2.from_angle(deg_to_rad(0.0)) * 75.0
+	var split2_c := split1_bot + Vector2.from_angle(deg_to_rad(0.0)) * 75.0
+	var split2_d := split1_bot + Vector2.from_angle(deg_to_rad(45.0)) * 75.0
+	c.draw_line(split1_top, split2_a, Color(0.7, 0.94, 1.0), 2.4)
+	c.draw_line(split1_top, split2_b, Color(0.7, 0.94, 1.0), 2.4)
+	c.draw_line(split1_bot, split2_c, Color(0.7, 0.94, 1.0), 2.4)
+	c.draw_line(split1_bot, split2_d, Color(0.7, 0.94, 1.0), 2.4)
+	c.draw_circle(split2_b, 11.0, Color(0.85, 0.25, 0.3))
+	c.draw_circle(split2_c, 11.0, Color(0.85, 0.25, 0.3))
 
+	# Chain Lightning arc between hit enemies
 	var lightning := PackedVector2Array([
-		enemy_a,
-		enemy_a.lerp(enemy_b, 0.33) + Vector2(6, -10),
-		enemy_a.lerp(enemy_b, 0.66) + Vector2(-8, 10),
-		enemy_b,
+		split2_b,
+		split2_b.lerp(split2_c, 0.33) + Vector2(6, -6),
+		split2_b.lerp(split2_c, 0.66) + Vector2(-6, 6),
+		split2_c,
 	])
-	c.draw_polyline(lightning, Color(0.35, 0.9, 1.0, 0.6), 6.0)
+	c.draw_polyline(lightning, Color(0.35, 0.9, 1.0, 0.6), 5.5)
 	c.draw_polyline(lightning, Color(1.0, 1.0, 0.45), 2.5)
-	c.draw_string(font, Vector2(20, 26), "Lv 3: Split hits arc Chain Lightning to a 2nd enemy!", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.95, 0.45))
+	c.draw_string(font, Vector2(18, 26), "1→2→4→8 Re-Splits (Lv 1–3) + Lv 3 Chain Lightning!", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.95, 0.45))
 
 
 func _draw_bomb_diagram(c: Control) -> void:

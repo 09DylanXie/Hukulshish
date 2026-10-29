@@ -29,6 +29,8 @@ var uses_augments: bool = true
 var aug_override: Dictionary = {}
 ## Slow duration in seconds (used by Undead 0-damage slow spell).
 var slow_duration: float = 0.0
+## How many times this projectile has already split (0 = initial cast, 1..3 = split generations).
+var split_depth: int = 0
 
 var _traveled: float = 0.0
 var _spent: bool = false
@@ -47,7 +49,8 @@ func setup(
 	ignored: Node2D = null,
 	can_use_augments: bool = true,
 	copied_augs: Dictionary = {},
-	slow_sec: float = 0.0
+	slow_sec: float = 0.0,
+	split_gen: int = 0
 ) -> void:
 	direction = dir.normalized() if dir != Vector2.ZERO else Vector2.RIGHT
 	speed = speed_px
@@ -63,6 +66,7 @@ func setup(
 	uses_augments = can_use_augments
 	aug_override = copied_augs
 	slow_duration = slow_sec
+	split_depth = split_gen
 
 
 func _aug_lvl(id: String) -> int:
@@ -87,9 +91,8 @@ func _sniper_mult_for_proj() -> float:
 	return Config.SNIPER_BASE_DAMAGE_MULT + Config.SNIPER_DAMAGE_STEP * (lvl - 1)
 
 
-func _split_count_for_proj() -> int:
-	var lvl: int = _aug_lvl("split")
-	return 0 if lvl <= 0 else lvl + 1
+func _max_split_depth_for_proj() -> int:
+	return _aug_lvl("split")
 
 
 func _ready() -> void:
@@ -243,30 +246,28 @@ func _apply_augmentations(hit_target: Node2D) -> void:
 		return
 
 	var bomb_lvl: int = _aug_lvl("bomb")
+	var split_lvl: int = _max_split_depth_for_proj()
 
-	if proj_kind == ProjKind.INITIAL:
-		# 1. Sniper: only on initial first impact of player spell on enemy (targets monsters & bosses only, not nests).
-		if _aug_lvl("sniper") > 0:
-			_spawn_sniper_shot(container, hit_target)
+	# 1. Sniper: only on initial first impact of player spell on enemy (targets monsters & bosses only, not nests).
+	if proj_kind == ProjKind.INITIAL and _aug_lvl("sniper") > 0:
+		_spawn_sniper_shot(container, hit_target)
 
-		# 2. Split Spell: splits into 2/3/4 projectiles at 45° spacing, each doing 1/2 damage (no homing).
-		var splits: int = _split_count_for_proj()
-		if splits > 0:
-			_spawn_split_shots(container, hit_target, splits)
-			# Bombspell Lv 3 unique ability: explodes on each hit no matter if they split or not.
-			if bomb_lvl >= 3:
-				_spawn_bomb_zone(container)
-		elif bomb_lvl > 0:
-			# If Split is not unlocked, Bombspell triggers on the spell's impact.
+	# 2. Split Spell Lv 3 unique ability: chain lightning across split hits, connecting hit_target with another enemy
+	# and zapping both alongside each other for the same damage as the split shot.
+	if proj_kind == ProjKind.SPLIT and split_lvl >= 3:
+		_trigger_chain_lightning(container, hit_target)
+
+	# 3. Recursive Split Spell: each hit splits into 2 projectiles at 45° (½ damage, no homing),
+	# and each of those can re-split on hit up to `split_lvl` times (1 split at Lv 1, 2 at Lv 2, 3 at Lv 3).
+	var can_split: bool = split_depth < split_lvl
+	if can_split:
+		_spawn_split_shots(container, hit_target)
+		# Bombspell Lv 3 unique ability: explodes on each hit no matter if they split or not.
+		if bomb_lvl >= 3:
 			_spawn_bomb_zone(container)
-	elif proj_kind == ProjKind.SPLIT:
-		# Split Spell Lv 3 unique ability: chain lightning across its hits, connecting hit_target with another enemy
-		# and zapping both alongside each other for the same damage as the split shot.
-		if _aug_lvl("split") >= 3:
-			_trigger_chain_lightning(container, hit_target)
-		# Bombspell applies on final split spells (and on all hits at Lv 3).
-		if bomb_lvl > 0:
-			_spawn_bomb_zone(container)
+	elif bomb_lvl > 0:
+		# Final split projectiles (or unsplit spells when Split is Lv 0) trigger Bombspell on impact.
+		_spawn_bomb_zone(container)
 
 
 func _trigger_chain_lightning(container: Node, hit_target: Node2D) -> void:
@@ -296,7 +297,8 @@ func _trigger_chain_lightning(container: Node, hit_target: Node2D) -> void:
 	container.call_deferred("add_child", arc)
 
 
-func _spawn_split_shots(container: Node, hit_target: Node2D, count: int) -> void:
+func _spawn_split_shots(container: Node, hit_target: Node2D) -> void:
+	var count: int = Config.SPLIT_PROJECTILES_PER_HIT
 	var step_rad: float = deg_to_rad(Config.SPLIT_ANGLE_DEG)
 	var base_angle: float = direction.angle()
 	var this_scene: PackedScene = load("res://scenes/spells/Projectile.tscn")
@@ -309,14 +311,16 @@ func _spawn_split_shots(container: Node, hit_target: Node2D, count: int) -> void
 			speed,
 			damage * Config.SPLIT_DAMAGE_MULT,
 			true,
-			color.lightened(0.15),
-			radius * 0.85,
+			color.lightened(0.12),
+			maxf(3.0, radius * 0.85),
 			max_distance,
 			false,
 			ProjKind.SPLIT,
 			hit_target,
 			uses_augments,
-			aug_override
+			aug_override,
+			0.0,
+			split_depth + 1
 		)
 		p.global_position = global_position
 		container.call_deferred("add_child", p)

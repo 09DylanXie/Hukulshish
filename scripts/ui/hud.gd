@@ -375,6 +375,8 @@ func _refresh() -> void:
 		mode_tag += " [Homing: ON (F)]" if GameState.homing_enabled else " [Homing: OFF (F)]"
 	if GameState.magnet_unlocked:
 		mode_tag += " [Magnet]"
+	if GameState.auto_collector_unlocked:
+		mode_tag += " [Auto-Mine]"
 	if GameState.doppelganger_alive:
 		mode_tag += " [Twin]"
 	_spell_label.text = "Spell Lv %d  (%.1f dmg, %d mana)%s%s" % [

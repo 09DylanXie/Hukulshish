@@ -151,7 +151,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 - **Augmentations & Augmentation Scrolls (at the bottom of the Spell Mod menu):**
   - **Augmentation Scrolls** drop **only from Demons** with a **1 in 5 chance** (scaled by Luck).
   - Each of the 3 Augmentations can be upgraded a maximum of **3 times**, costing **1**, then **2**, then **3** Augmentation Scrolls:
-    1. **Split Spell:** splits the player's spell into **2** (Lv 1), **3** (Lv 2), or **4** (Lv 3) projectiles (+1 split per upgrade) upon contact with an enemy. Splits travel in straight lines separated by **45°** angles from the point of splitting (**Homing does not work on Split Shots**), and each split deals **1/2** the damage of the original spell. **Lv 3 Unique Ability:** chains lightning across its hits so the enemy hit is connected with another enemy and both get zapped alongside each other for the same damage as the split shot.
+    1. **Split Spell:** splits the player's spell into **2** projectiles upon contact with an enemy, separated by a **45°** angle from the point of splitting (**Homing does not work on Split Shots**), with each split dealing **1/2** the damage of the parent projectile. Upgrading allows each split projectile to **re-split into 2 again** when it hits another enemy: up to **1** split (Lv 1), **2** sequential splits (Lv 2), or **3** sequential splits (Lv 3). **Lv 3 Unique Ability:** chains lightning across its hits so the enemy hit is connected with another enemy and both get zapped alongside each other for the same damage as the split shot.
     2. **Bombspell:** creates a medium-sized fire explosion (`2.09` tiles radius, 5% smaller) upon hitting a target that lasts **3 seconds** and deals **3 dmg/sec** (Lv 1), **5 dmg/sec** (Lv 2), or **7 dmg/sec** (Lv 3) (+2 dmg/sec per upgrade). Normally applies on final split spells (not initial split impact when Split Spell is active), and **1 tick of fire damage breaks a Demon's bubble shield**. **Lv 3 Unique Ability:** explodes on **every hit** regardless of whether the spell splits or not, **and** explodes when the spell runs out of range.
     3. **Sniper:** upon initial player spell contact with an enemy, fires a super-accurate **5× speed** shot that directly homes to the nearest **monster or boss (never targets nests)** and deals **2×** (Lv 1), **3×** (Lv 2), or **4×** (Lv 3) damage (+1× per upgrade). Does not repeat, and sniper shot count does not change with split upgrades (only initial first impact of player spell on an enemy). **Lv 3 Unique Ability:** the sniper shell explodes with the Bombspell explosion augmentation upon impact.
 - **Personal Shop & Enhancers (Goblin & Undead Drops):**
@@ -170,6 +170,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
   - **3 HP Healing Potion (`100` gold):** adds 1 healing potion to the bottom circular hotbar; using it heals `+3 HP` (30 s effect timer).
   - **2× Damage Boost Potion (`100` gold):** adds 1 damage potion to the bottom circular hotbar; using it grants `2×` spell damage for **30 seconds**.
   - **Magnet (`300` gold):** automatically pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups on the map toward the player.
+  - **Auto Gold Collector (`500` gold):** automatically collects stored gold from all 3 Gold Mines every **30 seconds**.
   - **Auto-Shooting Unlock (`1000` gold):** unlocks automatic targeting and firing at **1/2 of the spell's fire rate** so players can still manually fire; press **`E`** to toggle auto-fire on/off once unlocked.
   - **Homing Unlock (`1500` gold):** makes player spells (excluding Split Shots) home toward the closest enemy; press **`F`** to toggle homing on/off once unlocked.
   - **Doppelganger (`5000` gold):** spawns a companion that copies the player's current abilities at purchase time, follows the player around until it dies, has a max HP of **5**, and can never have a shield.
@@ -215,9 +216,9 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 - **Defeating the Mega Boss** ends the game in Victory in Normal mode, or in **Endless Mode** spawns **4 new spawners** and increases **everything's HP by 2×**.
 
 ### 6.8 Gold Mines
-- **2 gold mines** spawn in random regions of the map each run.
+- **3 gold mines** spawn in random regions of the map each run.
 - Each mine produces **7.5 gold/sec** (reduced by 1/4 from 10), capped at **333 gold** (reduced by 1/3 from 500).
-- Walk over a gold mine to collect its stored gold.
+- Walk over a gold mine to collect its stored gold (or unlock the **Auto Gold Collector** in the Gold Shop for 500 gold to auto-collect all mines every 30 seconds).
 
 ### 6.9 Random Maze Walls
 - Every new run generates a **spacious random maze** of walls across the outer map, starting **2/3 of the way in from the edge toward the castle** (leaving the inner 1/3 around the castle open).

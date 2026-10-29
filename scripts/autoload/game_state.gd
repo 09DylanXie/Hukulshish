@@ -48,6 +48,8 @@ var boss_spells: Array[Dictionary] = []
 var max_hp_level: int = 0
 var doppelganger_alive: bool = false
 var magnet_unlocked: bool = false
+var auto_collector_unlocked: bool = false
+var auto_collector_timer: float = 0.0
 var auto_shoot_unlocked: bool = false
 var auto_shoot_enabled: bool = false
 var homing_unlocked: bool = false
@@ -93,6 +95,8 @@ func start_run() -> void:
 	max_hp_level = 0
 	doppelganger_alive = false
 	magnet_unlocked = false
+	auto_collector_unlocked = false
+	auto_collector_timer = 0.0
 	auto_shoot_unlocked = false
 	auto_shoot_enabled = false
 	homing_unlocked = false
@@ -123,6 +127,13 @@ func _process(delta: float) -> void:
 	if mana < cap:
 		mana = minf(cap, mana + mana_regen() * delta)
 		mana_changed.emit(mana, max_mana(), mana_regen())
+
+	# Auto Gold Collector: collects stored gold from all mines every 30 seconds
+	if auto_collector_unlocked:
+		auto_collector_timer -= delta
+		if auto_collector_timer <= 0.0:
+			auto_collector_timer += Config.AUTO_COLLECTOR_INTERVAL_SEC
+			collect_all_gold_mines()
 
 	var prev_dmg_active: bool = damage_boost_timer > 0.0
 	var prev_heal_active: bool = heal_potion_timer > 0.0
@@ -345,10 +356,14 @@ func try_buy_aug(id: String) -> bool:
 	return true
 
 
-## Number of split projectiles when Split Spell triggers (Lv 1 → 2, Lv 2 → 3, Lv 3 → 4).
+## Maximum number of sequential chain-splits when Split Spell triggers (Lv 1 → 1, Lv 2 → 2, Lv 3 → 3).
+func max_split_depth() -> int:
+	return aug_level("split")
+
+
+## Each split always produces 2 projectiles when Split Spell is unlocked.
 func split_count() -> int:
-	var lvl: int = aug_level("split")
-	return 0 if lvl <= 0 else lvl + 1
+	return Config.SPLIT_PROJECTILES_PER_HIT if aug_level("split") > 0 else 0
 
 
 ## Bombspell fire damage per second (Lv 1 → 3, Lv 2 → 5, Lv 3 → 7).
@@ -507,6 +522,23 @@ func try_buy_magnet() -> bool:
 	magnet_unlocked = true
 	changed.emit()
 	return true
+
+
+func try_buy_auto_collector() -> bool:
+	if auto_collector_unlocked or gold < Config.GOLD_SHOP_AUTO_COLLECTOR_COST:
+		return false
+	gold -= Config.GOLD_SHOP_AUTO_COLLECTOR_COST
+	auto_collector_unlocked = true
+	auto_collector_timer = Config.AUTO_COLLECTOR_INTERVAL_SEC
+	collect_all_gold_mines()
+	changed.emit()
+	return true
+
+
+func collect_all_gold_mines() -> void:
+	for node in get_tree().get_nodes_in_group("gold_mines"):
+		if node != null and not node.is_queued_for_deletion() and node.has_method("collect"):
+			node.call("collect")
 
 
 func try_buy_auto_shoot() -> bool:
