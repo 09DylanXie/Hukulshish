@@ -182,7 +182,7 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, _radius * 1.35, Color(0.2, 0.7, 1.0, 0.22))
 		draw_arc(Vector2.ZERO, _radius * 1.35, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
 
-	# Wand / Staff extending out from the mage's body toward cursor aim direction
+	# Wand / Staff extending out from the mage's main hand toward cursor aim direction
 	var staff_dir: Vector2 = _aim_dir if _aim_dir != Vector2.ZERO else _facing
 	var perp: Vector2 = Vector2(-staff_dir.y, staff_dir.x)
 	var hand_offset: Vector2 = perp * (_radius * 0.35)
@@ -192,6 +192,19 @@ func _draw() -> void:
 	draw_line(staff_tip - staff_dir * 4.5, staff_tip, Color(0.95, 0.82, 0.28), 5.0)
 	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.32, Color(0.35, 0.85, 1.0, 0.38))
 	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.20, Color(0.65, 0.95, 1.0))
+
+	# Offhand Magic Catalyst (arcane focus crystal + orbiting rune ring on the opposite hand)
+	var offhand_pos: Vector2 = -perp * (_radius * 0.95) + staff_dir * (_radius * 0.65)
+	draw_circle(offhand_pos, _radius * 0.44, Color(0.68, 0.28, 1.0, 0.28))
+	draw_arc(offhand_pos, _radius * 0.42, 0.0, TAU, 20, Color(0.95, 0.8, 0.32, 0.9), 1.6)
+	var cat_pts := PackedVector2Array([
+		offhand_pos + staff_dir * (_radius * 0.34),
+		offhand_pos + perp * (_radius * 0.24),
+		offhand_pos - staff_dir * (_radius * 0.34),
+		offhand_pos - perp * (_radius * 0.24),
+	])
+	draw_colored_polygon(cat_pts, Color(0.75, 0.38, 1.0))
+	draw_circle(offhand_pos, _radius * 0.13, Color(1.0, 0.95, 0.75))
 
 	# Robe
 	draw_circle(Vector2.ZERO, _radius, Color(0.25, 0.3, 0.85))

@@ -74,7 +74,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
           └─► [Quit Game] (on web, hide this or show a "thanks for playing" screen; get_tree().quit() does nothing in a browser)
 ```
 
-1. **Main Menu:** `Start`, `Quit Game`
+1. **Main Menu:** `Start`, `Rules & Guide` (interactive tabbed guide with visual diagrams for new players), `Quit Game`
 2. **Map Size:** `Small`, `Medium`, `Large`
 3. **Difficulty:** `Easy`, `Medium`, `Hard`, `Extreme`, plus **Endless Mode** (either chosen directly or toggled on for any difficulty; when the Mega Boss dies, 4 new spawners appear and everything's HP goes up by `2×`).
 4. **Game:** the run starts. Show the Victory or Game Over screen at the end.
@@ -123,7 +123,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 | Max Shield | 5 (absorbs damage before HP) |
 | Starting Mana | 10 max (regenerates at 1.0/sec base) |
 | Move speed | 3.0 tiles/sec |
-| Weapon / Cursor | Holds an arcane wand/staff extending from the body toward the cursor; cursor is a crosshair while in game |
+| Weapon / Cursor | Holds an arcane wand/staff in the main hand and a floating magic catalyst in the offhand; cursor is a crosshair while in game |
 | Starting spell | Base spell, level 1: left-click to shoot toward cursor (or auto-aim once unlocked for 1000 gold), 1 damage, fires at 2.0 shots/sec, costs 2 mana per cast |
 
 ### 6.2 Spells & Mana
@@ -175,7 +175,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
   - **Doppelganger (`5000` gold):** spawns a companion that copies the player's current abilities at purchase time, follows the player around until it dies, has a max HP of **5**, and can never have a shield.
 - **Boss & Mega Boss Spells:**
   - **Nest Boss Spells (1/3 drop):** costs **3 mana** per cast and cannot be upgraded once acquired (stats are frozen on pickup). First boss spell copies the base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`); subsequent boss spells add the damage of all existing player spells together without reducing fire rate by 1/3 again.
-  - **Mega Boss Spell (guaranteed 1/1 drop in Endless Mode):** every time the Mega Boss is defeated in Endless Mode, it drops a guaranteed Mega Boss Spell that **combines all current spells together and multiplies damage by 1.5×**, and **copies the base spell's augments and uses them**.
+  - **Mega Boss Spell (guaranteed 1/1 drop in Endless Mode):** every time the Mega Boss is defeated in Endless Mode, it drops a guaranteed bright-red Mega Boss Spell (`Color(1.0, 0.15, 0.15)`) that **combines all current spells together and multiplies damage by 1.5×**, and **copies the base spell's augments and uses them**.
 
 ### 6.4 Nests
 - There are **4 nests**, one hidden in each **corner** of the map.
@@ -189,7 +189,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 | Class | HP | Damage | Radius (tiles) | Speed (from size) | Spawn interval | Gold drop | Special |
 |---|---|---|---|---|---|---|---|
 | Goblin | 3 | 1 | 0.35 | ~2.57 tiles/s | every 5 s | 1 | 1/4 chance to drop an Enhancer |
-| Undead | 4 | 2 | 0.40 | ~2.25 tiles/s | every 8 s | 3 | Fires a 0-damage slow spell at half normal spell speed (3.0 tiles/s); 1/4 chance to drop an Enhancer |
+| Undead | 4 | 2 | 0.40 | ~2.25 tiles/s | every 8 s | 3 | Fires a white 0-damage slow spell at half normal spell speed (3.0 tiles/s); 1/4 chance to drop an Enhancer |
 | Demon | 7 | 2 | 0.45 | ~2.00 tiles/s | every 16 s | 5 | Bubble shield (breaks after 1 spell hit or 1 Bombspell fire tick); 1/5 chance to drop an Augmentation Scroll |
 | Ogre | 10 | 1 | 0.60 | ~1.50 tiles/s | every 7 s | 4 | — |
 

@@ -69,7 +69,7 @@ func _collect() -> void:
 func _draw() -> void:
 	match kind:
 		Kind.MEGA_BOSS_SPELL:
-			var col := Color(0.88, 0.28, 1.0)
+			var col := Color(1.0, 0.15, 0.15)
 			var r: float = Config.tiles(0.55) * (1.0 + 0.16 * sin(_t * 5.5))
 			draw_circle(Vector2.ZERO, r * 1.85, Color(col, 0.34))
 			var pts1 := PackedVector2Array([Vector2(0, -r * 1.15), Vector2(r * 0.8, 0), Vector2(0, r * 1.15), Vector2(-r * 0.8, 0)])

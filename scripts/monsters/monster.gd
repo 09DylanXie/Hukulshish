@@ -88,7 +88,7 @@ func _fire_slow_spell(target_pos: Vector2) -> void:
 		speed_px,
 		0.0,
 		false,
-		Color(0.35, 0.92, 1.0),
+		Color.WHITE,
 		Config.tiles(0.18),
 		Config.tiles(Config.UNDEAD_SLOW_RANGE_TILES * 1.4),
 		false,

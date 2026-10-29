@@ -219,6 +219,17 @@ func _draw() -> void:
 	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.28, Color(0.75, 0.4, 1.0, alpha * 0.5))
 	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.18, Color(0.9, 0.7, 1.0, alpha))
 
+	# Offhand Magic Catalyst on the doppelganger
+	var offhand_pos: Vector2 = -perp * (_radius * 0.95) + staff_dir * (_radius * 0.65)
+	draw_circle(offhand_pos, _radius * 0.40, Color(0.6, 0.3, 1.0, alpha * 0.3))
+	var cat_pts := PackedVector2Array([
+		offhand_pos + staff_dir * (_radius * 0.30),
+		offhand_pos + perp * (_radius * 0.22),
+		offhand_pos - staff_dir * (_radius * 0.30),
+		offhand_pos - perp * (_radius * 0.22),
+	])
+	draw_colored_polygon(cat_pts, Color(0.75, 0.45, 1.0, alpha))
+
 	# Spectral twin robe & hat (never has a shield aura)
 	draw_circle(Vector2.ZERO, _radius * 1.15, Color(0.55, 0.25, 0.95, alpha * 0.28))
 	draw_circle(Vector2.ZERO, _radius, Color(0.45, 0.22, 0.82, alpha))
@@ -235,3 +246,4 @@ func _draw() -> void:
 	var top: Vector2 = Vector2(-w * 0.5, -_radius - 10.0)
 	draw_rect(Rect2(top, Vector2(w, 4)), Color(0, 0, 0, 0.65))
 	draw_rect(Rect2(top, Vector2(w * float(hp) / float(max_hp), 4)), Color(0.75, 0.38, 1.0))
+

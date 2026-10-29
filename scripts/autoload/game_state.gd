@@ -656,7 +656,7 @@ func acquire_mega_boss_spell() -> Dictionary:
 		true,
 		aug_levels.duplicate()
 	)
-	spell["color"] = Color(0.88, 0.28, 1.0)
+	spell["color"] = Color(1.0, 0.15, 0.15)
 	spell["radius_tiles"] = 0.34
 	spell["name"] = "Mega Spell %d" % (boss_spells.size() + 1)
 	boss_spells.append(spell)

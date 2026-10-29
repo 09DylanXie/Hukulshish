@@ -5,8 +5,8 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
 
 ## How to play
 
-- **Start → Map Size → Difficulty (with optional Endless Mode)**, then the run begins on a freshly generated spacious maze map.
-- **WASD / arrow keys** to move (`3.0` tiles/sec).
+- **Start → Map Size → Difficulty (with optional Endless Mode)**, or open **Rules & Guide** on the Main Menu for a tabbed visual guide with illustrated diagrams.
+- **WASD / arrow keys** to move (`3.0` tiles/sec). Your mage wields an arcane wand/staff in the main hand and a floating magic catalyst in the offhand.
 - **Left-click** in the world to shoot toward your cursor (respecting each spell's cooldown — `2.0/sec` base, 2× faster — and mana cost: **2 mana** for Base Spell, **3 mana** per Boss Spell). Spells move at **2× player speed (`6.0` tiles/sec)**.
 - **Pause:** click the **⏸ Pause** button in the top-right corner (or press `Esc` / `P`).
 - **HP, Shield & Mana Bars + Bottom Hotbar:**
@@ -21,10 +21,10 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
   - **Base Spell Upgrade:** spend Gold to level up the Base Spell (Lv 1–9).
   - **Spell Mods:** spend **Spell Scrolls** (1/7 drop from monsters, or bought in the Gold Shop) to upgrade **Damage** (`+0.1×`/lv), **Mana Regen** (`+0.5/s`/lv), **Mana Pool** (`+1` max mana until 15, then `+2` until 29), or **Range** (`+0.1×`/lv). Costs `1, 2, 3, 4`, then `8, 16, 32, …` Spell Scrolls.
   - **Augmentations (Demon Drops):** Demons have a **1/5 chance** to drop an **Augmentation Scroll** (and possess a 1-hit bubble shield). Each augmentation can be upgraded up to **3 times** (costing `1`, `2`, `3` Augmentation Scrolls):
-    - **Split Spell:** splits player spell on enemy contact into `2 / 3 / 4` shots at `45°` angles (Homing does not apply to Split Shots), each dealing `1/2` damage. **Lv 3 Unique:** chains lightning across hits, connecting the hit enemy with another enemy and zapping both for the split shot's damage.
+	- **Split Spell:** splits player spell on enemy contact into `2 / 3 / 4` shots at `45°` angles (Homing does not apply to Split Shots), each dealing `1/2` damage. **Lv 3 Unique:** chains lightning across hits, connecting the hit enemy with another enemy and zapping both for the split shot's damage.
 	- **Bombspell:** creates a medium fire zone (`5%` smaller) on target impact for `3s` dealing `3 / 5 / 7` dmg/s (1 fire tick breaks a Demon's bubble shield). **Lv 3 Unique:** explodes on every hit whether split or not, and also explodes when the spell runs out of range.
 	- **Sniper:** on initial player spell impact with an enemy, fires a `5×` speed homing shot at the nearest **monster or boss (never nests)** for `2× / 3× / 4×` damage. **Lv 3 Unique:** sniper shell explodes with the Bombspell explosion on hit.
-  - **Personal Shop (Goblin & Undead Enhancers):** Goblins and Undead have a **1/4 chance** to drop an **Enhancer** (Undead also cast a 0-damage slow spell at half normal spell speed). All 6 upgrades max at **Level 3** and cost `3`, `5`, `9` Enhancers:
+  - **Personal Shop (Goblin & Undead Enhancers):** Goblins and Undead have a **1/4 chance** to drop an **Enhancer** (Undead also cast a white 0-damage slow spell at half normal spell speed). All 6 upgrades max at **Level 3** and cost `3`, `5`, `9` Enhancers:
 	- **Luck:** `+20%` drop rate per upgrade (non-cumulative).
 	- **Movement Speed:** `+5%` player movement speed per upgrade (non-cumulative).
 	- **Health Regen:** `+1 HP / 10 secs` per upgrade.
@@ -46,4 +46,4 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
   - All 4 corner nests have **70 HP**, spawn monsters directly from their center hole, and take damage from player spells via swept-segment hit detection.
   - Each destroyed nest immediately spawns a **Nest Boss** (**80 HP**, **1000 gold** + **1/3 chance** to drop a **Boss Spell**).
   - Destroying all 4 nests awakens the **Mega Boss** (**2000 HP**, **100 HP shield** that regenerates at each 1/4 of HP lost, fires spells at **player base spell speed (`6.0` tiles/sec)**, and spawns bosses every 25 s and normal monsters at **2× their regular rate**).
-  - Defeating the Mega Boss wins the run in Normal mode, or in **Endless Mode** drops a **guaranteed 1/1 Mega Boss Spell** (combines all current spells + `1.5×` damage and copies the base spell's augments), spawns **4 new spawners**, and multiplies **everything's HP by 2×**.
+  - Defeating the Mega Boss wins the run in Normal mode, or in **Endless Mode** drops a **guaranteed 1/1 red Mega Boss Spell** (combines all current spells + `1.5×` damage and copies the base spell's augments), spawns **4 new spawners**, and multiplies **everything's HP by 2×**.
