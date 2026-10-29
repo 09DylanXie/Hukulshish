@@ -24,21 +24,23 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
     - **Split Spell:** splits player spell on enemy contact into `2 / 3 / 4` shots at `45°` angles (Homing does not apply to Split Shots), each dealing `1/2` damage. **Lv 3 Unique:** chains lightning across hits, connecting the hit enemy with another enemy and zapping both for the split shot's damage.
 	- **Bombspell:** creates a medium fire zone (`5%` smaller) on target impact for `3s` dealing `3 / 5 / 7` dmg/s (1 fire tick breaks a Demon's bubble shield). **Lv 3 Unique:** explodes on every hit whether split or not, and also explodes when the spell runs out of range.
 	- **Sniper:** on initial player spell impact with an enemy, fires a `5×` speed homing shot at the nearest **monster or boss (never nests)** for `2× / 3× / 4×` damage. **Lv 3 Unique:** sniper shell explodes with the Bombspell explosion on hit.
-  - **Personal Shop (Goblin & Undead Enhancers):** Goblins and Undead have a **1/4 chance** to drop an **Enhancer** (Undead also cast a 0-damage slow spell at half normal spell speed). All 5 upgrades max at **Level 3** and cost `3`, `5`, `9` Enhancers:
+  - **Personal Shop (Goblin & Undead Enhancers):** Goblins and Undead have a **1/4 chance** to drop an **Enhancer** (Undead also cast a 0-damage slow spell at half normal spell speed). All 6 upgrades max at **Level 3** and cost `3`, `5`, `9` Enhancers:
 	- **Luck:** `+20%` drop rate per upgrade (non-cumulative).
 	- **Movement Speed:** `+5%` player movement speed per upgrade (non-cumulative).
 	- **Health Regen:** `+1 HP / 10 secs` per upgrade.
 	- **Capacity:** `+1/3` gold mine capacity per upgrade (non-cumulative).
 	- **Rate:** `+15%` gold mine gold generation per upgrade (non-cumulative).
+	- **Income Multiplier:** `+50%` gold per upgrade from monsters and bosses only.
   - **Gold Shop:**
 	- **Max HP Upgrade:** upgrades Max HP from `5 → 6 → 7 → 10` (`+1`, `+1`, `+3` on the final upgrade; does not instantly heal).
 	- **Spell Scroll:** `100` gold for the 1st, then `+100` per scroll up to 10 (`100..1000`).
 	- **Magic Shield (+1 Shield):** `200` gold.
 	- **3 HP Healing Potion (30s):** `100` gold.
 	- **2× Damage Boost Potion (30s):** `100` gold.
-	- **Magnet:** `100` gold (pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups toward the player).
+	- **Magnet:** `300` gold (pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups toward the player).
 	- **Unlock Auto-Shooting:** `1000` gold (auto-fires at `1/2` fire rate so you can still manually fire; press **`E`** to toggle on/off).
 	- **Unlock Homing:** `1500` gold (curves spells toward the closest enemy; press **`F`** to toggle on/off).
+	- **Doppelganger:** `5000` gold (copies current abilities, follows you until it dies, has `5` max HP and cannot have a shield).
 - **Enemy Scaling, Nests & Bosses:**
   - After **3 minutes**, enemy HP scales every **30 seconds**: unchanged on **Easy**, `+5 HP` linearly on **Medium**, `×1.2` exponentially on **Hard**, and `×1.5` exponentially on **Extreme**.
   - All 4 corner nests have **70 HP**, spawn monsters directly from their center hole, and take damage from player spells via swept-segment hit detection.

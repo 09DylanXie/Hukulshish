@@ -77,9 +77,11 @@ const GOLD_SHOP_MOD_PART_MAX: int = 10
 const GOLD_SHOP_MAX_HP_COSTS: Array[int] = [200, 400, 800]
 const GOLD_SHOP_SHIELD_COST: int = 200
 const GOLD_SHOP_POTION_COST: int = 100
-const GOLD_SHOP_MAGNET_COST: int = 100
+const GOLD_SHOP_MAGNET_COST: int = 300
 const GOLD_SHOP_AUTO_SHOOT_COST: int = 1000
 const GOLD_SHOP_HOMING_COST: int = 1500
+const GOLD_SHOP_DOPPELGANGER_COST: int = 5000
+const DOPPELGANGER_MAX_HP: int = 5
 const AUTO_SHOOT_FIRE_RATE_MULT: float = 0.5
 const HOMING_TURN_SPEED: float = 16.0
 const MAGNET_PULL_SPEED_TILES: float = 14.0
@@ -98,6 +100,7 @@ const PERSONAL_SHOP: Dictionary = {
 	"health_regen": "Health Regen",
 	"mine_capacity": "Capacity",
 	"mine_rate": "Rate",
+	"income": "Income Multiplier",
 }
 const LUCK_STEP: float = 0.20
 const MOVE_SPEED_STEP: float = 0.05
@@ -105,6 +108,7 @@ const HEALTH_REGEN_HP_PER_10S_STEP: int = 1
 const HEALTH_REGEN_INTERVAL_SEC: float = 10.0
 const MINE_CAPACITY_STEP: float = 1.0 / 3.0
 const MINE_RATE_STEP: float = 0.15
+const INCOME_STEP: float = 0.50
 
 # --- Boss & Mega Boss spells (§6.3) ---
 ## Chance for a nest boss to drop a new spell.

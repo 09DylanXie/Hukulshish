@@ -6,6 +6,7 @@ extends Node
 signal changed
 signal mana_changed(mana: float, max_mana: int, regen: float)
 signal endless_wave_started(wave: int)
+signal doppelganger_spawn_requested(snapshot: Dictionary)
 signal victory
 signal defeat
 
@@ -45,6 +46,7 @@ var boss_spells: Array[Dictionary] = []
 
 # --- Gold Shop unlocks & hotbar consumables ---
 var max_hp_level: int = 0
+var doppelganger_alive: bool = false
 var magnet_unlocked: bool = false
 var auto_shoot_unlocked: bool = false
 var auto_shoot_enabled: bool = false
@@ -89,6 +91,7 @@ func start_run() -> void:
 	mana = float(max_mana())
 	boss_spells.clear()
 	max_hp_level = 0
+	doppelganger_alive = false
 	magnet_unlocked = false
 	auto_shoot_unlocked = false
 	auto_shoot_enabled = false
@@ -251,6 +254,14 @@ func add_gold(amount: int) -> void:
 	changed.emit()
 
 
+## Adds gold dropped by monsters and bosses, scaled by the Personal Shop Income Multiplier (+50% per level).
+func add_combat_gold(base_gold: int) -> void:
+	if base_gold <= 0:
+		return
+	var scaled: int = maxi(1, int(round(float(base_gold) * income_multiplier())))
+	add_gold(scaled)
+
+
 func is_spell_maxed() -> bool:
 	return spell_level >= Config.SPELL_MAX_LEVEL
 
@@ -408,6 +419,11 @@ func gold_mine_rate() -> float:
 	return Config.GOLD_MINE_RATE * (1.0 + Config.MINE_RATE_STEP * personal_level("mine_rate"))
 
 
+## Income Multiplier: +50% gold from monsters and bosses per upgrade (1.0, 1.5, 2.0, 2.5).
+func income_multiplier() -> float:
+	return 1.0 + Config.INCOME_STEP * personal_level("income")
+
+
 # --- Player Max HP Upgrades (5 → 6 → 7 → 10; does not instantly heal the player) ---
 
 func player_max_hp() -> int:
@@ -511,6 +527,28 @@ func try_buy_homing() -> bool:
 	homing_enabled = true
 	changed.emit()
 	return true
+
+
+func try_buy_doppelganger() -> bool:
+	if doppelganger_alive or gold < Config.GOLD_SHOP_DOPPELGANGER_COST:
+		return false
+	gold -= Config.GOLD_SHOP_DOPPELGANGER_COST
+	doppelganger_alive = true
+	var snapshot: Dictionary = {
+		"spells": all_spells().duplicate(true),
+		"aug_levels": aug_levels.duplicate(),
+		"homing": homing_unlocked,
+		"speed_tiles": player_speed_tiles(),
+		"health_regen": health_regen_per_10s(),
+	}
+	doppelganger_spawn_requested.emit(snapshot)
+	changed.emit()
+	return true
+
+
+func on_doppelganger_died() -> void:
+	doppelganger_alive = false
+	changed.emit()
 
 
 func is_auto_shoot_active() -> bool:

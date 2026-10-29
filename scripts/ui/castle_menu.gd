@@ -219,10 +219,10 @@ func _refresh() -> void:
 		btn.disabled = maxed or GameState.aug_scrolls < cost
 		_augs_box.add_child(btn)
 
-	# Populate Personal Shop (Goblin Enhancers: max 3, costs 3, 5, 9)
+	# Populate Personal Shop (Goblin & Undead Enhancers: max 3, costs 3, 5, 9)
 	for c in _personal_box.get_children():
 		c.queue_free()
-	for id in ["luck", "move_speed", "health_regen", "mine_capacity", "mine_rate"]:
+	for id in ["luck", "move_speed", "health_regen", "mine_capacity", "mine_rate", "income"]:
 		var p_lvl: int = GameState.personal_level(id)
 		var maxed: bool = GameState.is_personal_maxed(id)
 		var cost: int = GameState.next_personal_cost(id)
@@ -261,6 +261,13 @@ func _refresh() -> void:
 					text = "Rate  Lv 3 (+45% mine gold/s) — MAX"
 				else:
 					text = "Rate  Lv %d → %d (+%d%% → +%d%% mine gold/s)  —  %d enhancers" % [p_lvl, p_lvl + 1, cur_pct, next_pct, cost]
+			"income":
+				var cur_pct: int = p_lvl * 50
+				var next_pct: int = (p_lvl + 1) * 50
+				if maxed:
+					text = "Income Multiplier  Lv 3 (+150% enemy gold) — MAX"
+				else:
+					text = "Income Multiplier  Lv %d → %d (+%d%% → +%d%% enemy gold)  —  %d enhancers" % [p_lvl, p_lvl + 1, cur_pct, next_pct, cost]
 		var btn: Button = UIKit.make_button(text, _on_buy_personal.bind(id), 15)
 		btn.custom_minimum_size = Vector2(0, 40)
 		btn.disabled = maxed or GameState.enhancers < cost
@@ -381,6 +388,20 @@ func _refresh() -> void:
 		homing_btn.custom_minimum_size = Vector2(0, 38)
 		homing_btn.disabled = GameState.gold < Config.GOLD_SHOP_HOMING_COST
 		_gold_shop_box.add_child(homing_btn)
+
+	# 8. Doppelganger (5000 gold; 5 HP, no shield, copies current abilities and follows player until death)
+	if GameState.doppelganger_alive:
+		var dop_done: Button = UIKit.make_button("Doppelganger (5 HP) — ACTIVE", func() -> void: pass, 16)
+		dop_done.custom_minimum_size = Vector2(0, 38)
+		dop_done.disabled = true
+		_gold_shop_box.add_child(dop_done)
+	else:
+		var dop_btn: Button = UIKit.make_button(
+			"Doppelganger (5 HP, copies abilities)  —  %d gold" % Config.GOLD_SHOP_DOPPELGANGER_COST,
+			func() -> void: GameState.try_buy_doppelganger(), 16)
+		dop_btn.custom_minimum_size = Vector2(0, 38)
+		dop_btn.disabled = GameState.gold < Config.GOLD_SHOP_DOPPELGANGER_COST
+		_gold_shop_box.add_child(dop_btn)
 
 
 func _on_upgrade_pressed() -> void:

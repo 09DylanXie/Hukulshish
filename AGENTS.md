@@ -156,21 +156,23 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
     3. **Sniper:** upon initial player spell contact with an enemy, fires a super-accurate **5× speed** shot that directly homes to the nearest **monster or boss (never targets nests)** and deals **2×** (Lv 1), **3×** (Lv 2), or **4×** (Lv 3) damage (+1× per upgrade). Does not repeat, and sniper shot count does not change with split upgrades (only initial first impact of player spell on an enemy). **Lv 3 Unique Ability:** the sniper shell explodes with the Bombspell explosion augmentation upon impact.
 - **Personal Shop & Enhancers (Goblin & Undead Drops):**
   - **Enhancers** drop from **Goblins and Undead** with a **1 in 4 chance** (scaled by Luck).
-  - All 5 Personal Shop upgrades max out at **Level 3** and cost **3** Enhancers for the 1st upgrade, **5** for the 2nd, and **9** for the 3rd:
+  - All 6 Personal Shop upgrades max out at **Level 3** and cost **3** Enhancers for the 1st upgrade, **5** for the 2nd, and **9** for the 3rd:
     1. **Luck:** increases drop rate by **+20% per upgrade** (non-cumulative: `+20%`, `+40%`, `+60%`).
     2. **Movement Speed:** increases player movement speed by **+5% per upgrade** (non-cumulative: `+5%`, `+10%`, `+15%`).
     3. **Health Regen:** regenerates **+1 HP / 10 secs per upgrade** (`+1`, `+2`, `+3` HP every 10 seconds).
     4. **Capacity:** increases Gold Mine capacity by **+1/3 per upgrade** (non-cumulative: `+1/3`, `+2/3`, `+3/3`).
     5. **Rate:** increases Gold Mine gold generation rate by **+15% per upgrade** (non-cumulative: `+15%`, `+30%`, `+45%`).
+    6. **Income Multiplier:** increases gold received from **monsters and bosses only** by **+50% per upgrade** (non-cumulative: `+50%`, `+100%`, `+150%`).
 - **Gold Shop (at the castle):**
   - **Max HP Upgrade:** increases Max HP from `5 → 6 → 7 → 10` (`+1` for 1st and 2nd, `+3` on the final 3rd upgrade; does not instantly heal the player).
   - **Spell Scroll:** `100` gold for the 1st, then `+100` gold for each additional scroll up to 10 (`100, 200, …, 1000`).
   - **Magic Shield (`200` gold):** adds 1 shield item to the bottom circular hotbar; using it adds `+1` shield point (up to the 5-shield cap).
   - **3 HP Healing Potion (`100` gold):** adds 1 healing potion to the bottom circular hotbar; using it heals `+3 HP` (30 s effect timer).
   - **2× Damage Boost Potion (`100` gold):** adds 1 damage potion to the bottom circular hotbar; using it grants `2×` spell damage for **30 seconds**.
-  - **Magnet (`100` gold):** automatically pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups on the map toward the player.
+  - **Magnet (`300` gold):** automatically pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups on the map toward the player.
   - **Auto-Shooting Unlock (`1000` gold):** unlocks automatic targeting and firing at **1/2 of the spell's fire rate** so players can still manually fire; press **`E`** to toggle auto-fire on/off once unlocked.
   - **Homing Unlock (`1500` gold):** makes player spells (excluding Split Shots) home toward the closest enemy; press **`F`** to toggle homing on/off once unlocked.
+  - **Doppelganger (`5000` gold):** spawns a companion that copies the player's current abilities at purchase time, follows the player around until it dies, has a max HP of **5**, and can never have a shield.
 - **Boss & Mega Boss Spells:**
   - **Nest Boss Spells (1/3 drop):** costs **3 mana** per cast and cannot be upgraded once acquired (stats are frozen on pickup). First boss spell copies the base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`); subsequent boss spells add the damage of all existing player spells together without reducing fire rate by 1/3 again.
   - **Mega Boss Spell (guaranteed 1/1 drop in Endless Mode):** every time the Mega Boss is defeated in Endless Mode, it drops a guaranteed Mega Boss Spell that **combines all current spells together and multiplies damage by 1.5×**, and **copies the base spell's augments and uses them**.

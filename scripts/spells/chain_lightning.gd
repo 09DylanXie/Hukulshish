@@ -45,3 +45,4 @@ func _draw() -> void:
 	draw_polyline(_points, Color(0.95, 1.0, 0.55, alpha), 2.5)
 	draw_circle(from_pos, 6.0, Color(0.6, 0.95, 1.0, alpha * 0.8))
 	draw_circle(to_pos, 6.0, Color(0.6, 0.95, 1.0, alpha * 0.8))
+

@@ -12,6 +12,7 @@ const ModPickupScene: PackedScene = preload("res://scenes/spells/ModPickup.tscn"
 const GoldMineScene: PackedScene = preload("res://scenes/world/GoldMine.tscn")
 const HUDScene: PackedScene = preload("res://scenes/ui/HUD.tscn")
 const CastleMenuScene: PackedScene = preload("res://scenes/ui/CastleMenu.tscn")
+const DoppelgangerScript: GDScript = preload("res://scripts/player/doppelganger.gd")
 
 ## How far nests sit from the map corners, in tiles.
 const NEST_CORNER_INSET_TILES: float = 4.0
@@ -19,6 +20,7 @@ const NEST_CORNER_INSET_TILES: float = 4.0
 var _entities: Node2D
 var _player: Player
 var _castle_menu: CastleMenu
+var _bounds: Rect2 = Rect2()
 var _nest_positions: Array[Vector2] = []
 
 
@@ -27,6 +29,7 @@ func _ready() -> void:
 	GameState.victory.connect(_on_victory)
 	GameState.defeat.connect(_on_defeat)
 	GameState.endless_wave_started.connect(_on_endless_wave_started)
+	GameState.doppelganger_spawn_requested.connect(_on_doppelganger_spawn_requested)
 
 	var map: MapSizeData = GameState.map_size
 	var half: float = Config.tiles(map.size_in_tiles) * 0.5
@@ -49,6 +52,7 @@ func _ready() -> void:
 		world = w
 	add_child(world)
 	bounds = world.get("rect")
+	_bounds = bounds
 
 	# All moving things live here so they y-sort together.
 	_entities = Node2D.new()
@@ -147,8 +151,8 @@ func _on_monster_spawned(monster: Monster) -> void:
 	monster.died.connect(_on_monster_died)
 
 
-func _on_monster_died(gold: int, pos: Vector2, is_demon: bool, is_goblin: bool) -> void:
-	GameState.add_gold(gold)
+func _on_monster_died(gold: int, pos: Vector2, is_demon: bool, drops_enhancer: bool) -> void:
+	GameState.add_combat_gold(gold)
 	var luck: float = GameState.luck_multiplier()
 	if randf() < Config.MOD_PART_DROP_CHANCE * luck:
 		var pickup: ModPickup = ModPickupScene.instantiate()
@@ -160,7 +164,7 @@ func _on_monster_died(gold: int, pos: Vector2, is_demon: bool, is_goblin: bool) 
 		aug_pickup.kind = ModPickup.Kind.AUG_SCROLL
 		aug_pickup.position = pos + Vector2(12, 0)
 		_entities.call_deferred("add_child", aug_pickup)
-	if is_goblin and randf() < Config.ENHANCER_DROP_CHANCE * luck:
+	if drops_enhancer and randf() < Config.ENHANCER_DROP_CHANCE * luck:
 		var enh_pickup: ModPickup = ModPickupScene.instantiate()
 		enh_pickup.kind = ModPickup.Kind.ENHANCER
 		enh_pickup.position = pos + Vector2(-12, 0)
@@ -203,13 +207,23 @@ func _on_mega_minion_spawned(minion: Node) -> void:
 
 
 func _on_boss_died(gold: int, pos: Vector2) -> void:
-	GameState.add_gold(gold)
+	GameState.add_combat_gold(gold)
 	GameState.on_boss_defeated()
 	if randf() < Config.BOSS_SPELL_DROP_CHANCE * GameState.luck_multiplier():
 		var pickup: ModPickup = ModPickupScene.instantiate()
 		pickup.kind = ModPickup.Kind.BOSS_SPELL
 		pickup.position = pos
 		_entities.call_deferred("add_child", pickup)
+
+
+func _on_doppelganger_spawn_requested(snapshot: Dictionary) -> void:
+	if not is_inside_tree() or _entities == null:
+		return
+	var dop: Node2D = DoppelgangerScript.new()
+	dop.call("setup_from_snapshot", snapshot, _bounds)
+	var base_pos: Vector2 = _player.global_position if _player != null else Vector2.ZERO
+	dop.position = base_pos + Vector2(-Config.tiles(1.5), Config.tiles(1.0))
+	_entities.add_child(dop)
 
 
 func _on_mega_boss_died(_gold: int, pos: Vector2) -> void:

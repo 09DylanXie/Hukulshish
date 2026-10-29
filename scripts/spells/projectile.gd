@@ -199,6 +199,15 @@ func _check_swept_hits(from_pos: Vector2, to_pos: Vector2) -> void:
 			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(player.global_position, from_pos, to_pos)
 			if closest.distance_to(player.global_position) <= radius + hit_r:
 				_on_body_entered(player)
+				return
+		for node in get_tree().get_nodes_in_group("doppelgangers"):
+			var dop := node as Node2D
+			if dop != null and not dop.is_queued_for_deletion() and dop.has_method("take_damage"):
+				var hit_r: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
+				var closest: Vector2 = Geometry2D.get_closest_point_to_segment(dop.global_position, from_pos, to_pos)
+				if closest.distance_to(dop.global_position) <= radius + hit_r:
+					_on_body_entered(dop)
+					return
 
 
 func _on_body_entered(body: Node) -> void:
