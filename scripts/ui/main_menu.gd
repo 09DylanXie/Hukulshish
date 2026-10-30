@@ -126,6 +126,7 @@ func _build_tab_basics() -> Control:
 
 	# Left: Illustrated diagram of Hukulshish, Castle, and Gold Mine
 	var diag := Control.new()
+	diag.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	diag.custom_minimum_size = Vector2(460, 0)
 	diag.draw.connect(_draw_basics_diagram.bind(diag))
 	hbox.add_child(diag)
@@ -208,6 +209,7 @@ func _build_tab_enemies_and_bosses() -> Control:
 	hbox.add_theme_constant_override("separation", 24)
 
 	var diag := Control.new()
+	diag.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	diag.custom_minimum_size = Vector2(480, 0)
 	diag.draw.connect(_draw_enemies_diagram.bind(diag))
 	hbox.add_child(diag)
@@ -295,29 +297,34 @@ func _draw_basics_diagram(c: Control) -> void:
 	c.draw_colored_polygon(PackedVector2Array([
 		cat_pos + Vector2(8, 0), cat_pos + Vector2(0, 6), cat_pos + Vector2(-8, 0), cat_pos + Vector2(0, -6)
 	]), Color(0.78, 0.42, 1.0))
-	# Robe & Hat
-	c.draw_circle(p_pos, r, Color(0.25, 0.3, 0.85))
-	c.draw_colored_polygon(PackedVector2Array([
-		p_pos + Vector2(-20, -7), p_pos + Vector2(20, -7), p_pos + Vector2(5, -42)
-	]), Color(0.45, 0.2, 0.75))
+	# Robe & Hat (pixel-art sprite)
+	var mage_tex: Texture2D = Config.get_tex("res://assets/sprites/player/player_mage.png")
+	if mage_tex != null:
+		Config.draw_sprite_centered(c, mage_tex, p_pos, Vector2(58, 58))
+	else:
+		c.draw_circle(p_pos, r, Color(0.25, 0.3, 0.85))
 	c.draw_string(font, Vector2(200, 105), "Hukulshish (5 Base HP)", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.95, 0.9, 0.5))
 	c.draw_string(font, Vector2(200, 128), "• Main Hand: Arcane Wand", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.75, 0.9, 1.0))
 	c.draw_string(font, Vector2(200, 148), "• Offhand: Magic Catalyst", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.65, 1.0))
 
 	# 2. Kingdom Castle (Heals up to 3 HP)
 	var cas_pos := Vector2(120, 275)
-	c.draw_rect(Rect2(cas_pos - Vector2(42, 42), Vector2(84, 84)), Color(0.42, 0.4, 0.46))
-	c.draw_rect(Rect2(cas_pos - Vector2(32, 32), Vector2(64, 64)), Color(0.28, 0.26, 0.32))
+	var cas_tex: Texture2D = Config.get_tex("res://assets/sprites/world/castle.png")
+	if cas_tex != null:
+		Config.draw_sprite_centered(c, cas_tex, cas_pos, Vector2(96, 96))
+	else:
+		c.draw_rect(Rect2(cas_pos - Vector2(42, 42), Vector2(84, 84)), Color(0.42, 0.4, 0.46))
 	c.draw_string(font, Vector2(200, 265), "Kingdom Castle", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.95, 0.82, 0.32))
 	c.draw_string(font, Vector2(200, 288), "• Heals up to 3 HP on entry", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.6, 0.95, 0.7))
 	c.draw_string(font, Vector2(200, 308), "• Opens Spell, Personal & Gold Shops", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.88, 0.95))
 
 	# 3. Gold Mine
 	var mine_pos := Vector2(120, 425)
-	c.draw_circle(mine_pos, 32.0, Color(0.38, 0.35, 0.32))
-	c.draw_circle(mine_pos, 24.0, Color(0.28, 0.25, 0.22))
-	for off in [Vector2(-10, -8), Vector2(9, -6), Vector2(0, 9), Vector2(8, 8)]:
-		c.draw_circle(mine_pos + off, 5.5, Color(1.0, 0.88, 0.22))
+	var mine_tex: Texture2D = Config.get_tex("res://assets/sprites/world/gold_mine.png")
+	if mine_tex != null:
+		Config.draw_sprite_centered(c, mine_tex, mine_pos, Vector2(78, 78))
+	else:
+		c.draw_circle(mine_pos, 32.0, Color(0.38, 0.35, 0.32))
 	c.draw_string(font, Vector2(200, 415), "Gold Mines (×3 on Map)", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.88, 0.25))
 	c.draw_string(font, Vector2(200, 438), "• 7.5 gold/s (333 cap base)", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.88, 0.95))
 	c.draw_string(font, Vector2(200, 458), "• Walk over or buy 500g Auto-Collector (30s)", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.88, 0.95))
@@ -430,43 +437,42 @@ func _draw_enemies_diagram(c: Control) -> void:
 
 	# 1. Cyan Spell Scroll
 	var p1 := Vector2(45, 72)
-	c.draw_circle(p1, 12.0, Color(0.35, 0.9, 1.0))
+	Config.draw_sprite_centered(c, Config.get_tex("res://assets/sprites/spells/spell_scroll.png"), p1, Vector2(28, 28))
 	c.draw_string(font, Vector2(72, 78), "Spell Scroll (1/7 all monsters) → Spell Mods", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.75, 0.95, 1.0))
 
 	# 2. Crimson Aug Scroll
 	var p2 := Vector2(45, 112)
-	c.draw_colored_polygon(PackedVector2Array([p2 + Vector2(0, -13), p2 + Vector2(11, 0), p2 + Vector2(0, 13), p2 + Vector2(-11, 0)]), Color(1.0, 0.22, 0.38))
-	c.draw_circle(p2, 4.0, Color(1.0, 0.88, 0.3))
+	Config.draw_sprite_centered(c, Config.get_tex("res://assets/sprites/spells/aug_scroll.png"), p2, Vector2(28, 28))
 	c.draw_string(font, Vector2(72, 118), "Augmentation Scroll (1/5 Demons) → 3 Augmentations", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.65, 0.72))
 
 	# 3. Emerald Enhancer
 	var p3 := Vector2(45, 152)
-	c.draw_circle(p3, 12.0, Color(0.28, 0.95, 0.45))
+	Config.draw_sprite_centered(c, Config.get_tex("res://assets/sprites/spells/enhancer.png"), p3, Vector2(28, 28))
 	c.draw_string(font, Vector2(72, 158), "Enhancer (1/4 Goblins & Undead) → Personal Shop", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.65, 1.0, 0.75))
 
 	# 4. Orange Boss Spell & Red Mega Spell
 	var p4 := Vector2(45, 192)
-	c.draw_circle(p4 - Vector2(8, 0), 10.0, Color(1.0, 0.55, 0.15))
-	c.draw_circle(p4 + Vector2(10, 0), 11.0, Color(1.0, 0.15, 0.15))
+	Config.draw_sprite_centered(c, Config.get_tex("res://assets/sprites/spells/boss_spell.png"), p4 - Vector2(10, 0), Vector2(24, 24))
+	Config.draw_sprite_centered(c, Config.get_tex("res://assets/sprites/spells/mega_spell.png"), p4 + Vector2(10, 0), Vector2(26, 26))
 	c.draw_string(font, Vector2(72, 198), "Orange Boss Spell (1/3) & RED Endless Mega Spell (1/1)", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.75, 0.55))
 
 	# Demon Bubble Shield + Undead White Slow Spell + Mega Boss Shield
 	c.draw_string(font, Vector2(20, 250), "Special Enemy Mechanics", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(0.95, 0.85, 0.35))
 
 	var d_pos := Vector2(55, 305)
-	c.draw_circle(d_pos, 16.0, Color(0.85, 0.18, 0.25))
+	Config.draw_sprite_centered(c, Config.get_tex("res://assets/sprites/monsters/demon.png"), d_pos, Vector2(36, 36))
 	c.draw_circle(d_pos, 22.0, Color(0.25, 0.85, 1.0, 0.25))
 	c.draw_arc(d_pos, 22.0, 0.0, TAU, 28, Color(0.45, 0.95, 1.0), 2.0)
 	c.draw_string(font, Vector2(95, 310), "Demon: 1-Hit Cyan Bubble Shield", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.9, 0.95))
 
 	var u_pos := Vector2(55, 365)
-	c.draw_circle(u_pos, 15.0, Color(0.45, 0.55, 0.65))
+	Config.draw_sprite_centered(c, Config.get_tex("res://assets/sprites/monsters/undead.png"), u_pos, Vector2(36, 36))
 	c.draw_line(u_pos + Vector2(18, 0), u_pos + Vector2(58, 0), Color(1, 1, 1, 0.6), 4.0)
 	c.draw_circle(u_pos + Vector2(58, 0), 6.0, Color.WHITE)
 	c.draw_string(font, Vector2(128, 370), "Undead: White 0-Dmg Slow Spell (½ Speed)", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.95, 0.95, 1.0))
 
 	var m_pos := Vector2(55, 435)
-	c.draw_circle(m_pos, 22.0, Color(0.35, 0.05, 0.4))
+	Config.draw_sprite_centered(c, Config.get_tex("res://assets/sprites/bosses/mega_boss.png"), m_pos, Vector2(48, 48))
 	c.draw_arc(m_pos, 28.0, 0.0, TAU, 32, Color(0.35, 0.9, 1.0), 2.5)
 	c.draw_string(font, Vector2(95, 432), "Mega Boss (2000 HP): 100 HP Shield", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.9, 1.0))
 	c.draw_string(font, Vector2(95, 452), "Regenerates at 75%, 50%, and 25% HP!", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.55, 0.9, 1.0))

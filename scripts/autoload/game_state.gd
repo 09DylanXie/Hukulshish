@@ -7,6 +7,8 @@ signal changed
 signal mana_changed(mana: float, max_mana: int, regen: float)
 signal endless_wave_started(wave: int)
 signal doppelganger_spawn_requested(snapshot: Dictionary)
+signal screen_shake_requested(intensity: float, duration: float)
+signal floating_text_requested(world_pos: Vector2, text: String, col: Color)
 signal victory
 signal defeat
 
@@ -795,3 +797,12 @@ func on_player_died() -> void:
 		return
 	run_over = true
 	defeat.emit()
+
+
+func request_shake(intensity: float, duration: float = 0.18) -> void:
+	screen_shake_requested.emit(intensity, duration)
+
+
+func spawn_floating_text(world_pos: Vector2, text: String, col: Color = Color.WHITE) -> void:
+	floating_text_requested.emit(world_pos, text, col)
+

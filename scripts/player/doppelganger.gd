@@ -46,6 +46,7 @@ func setup_from_snapshot(snapshot: Dictionary, map_bounds: Rect2) -> void:
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group("doppelgangers")
 	collision_layer = Config.LAYER_PLAYER
 	collision_mask = Config.LAYER_WORLD
@@ -208,19 +209,13 @@ func take_damage(amount: float) -> void:
 
 func _draw() -> void:
 	var alpha: float = 0.45 if (_iframes > 0.0 and int(_iframes * 20.0) % 2 == 0) else 0.85
+	draw_circle(Vector2(0, _radius * 0.65), _radius * 0.9, Color(0.25, 0.05, 0.45, 0.35 * alpha))
 
-	# Wand / Staff extending from the doppelganger's body
 	var staff_dir: Vector2 = _aim_dir if _aim_dir != Vector2.ZERO else Vector2.RIGHT
 	var perp: Vector2 = Vector2(-staff_dir.y, staff_dir.x)
-	var hand_offset: Vector2 = perp * (_radius * 0.35)
-	var staff_base: Vector2 = hand_offset + staff_dir * (_radius * 0.35)
-	var staff_tip: Vector2 = hand_offset + staff_dir * (_radius * 2.05)
-	draw_line(staff_base, staff_tip, Color(0.35, 0.22, 0.48, alpha), 4.0)
-	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.28, Color(0.75, 0.4, 1.0, alpha * 0.5))
-	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.18, Color(0.9, 0.7, 1.0, alpha))
 
 	# Offhand Magic Catalyst on the doppelganger
-	var offhand_pos: Vector2 = -perp * (_radius * 0.95) + staff_dir * (_radius * 0.65)
+	var offhand_pos: Vector2 = -perp * (_radius * 1.0) + staff_dir * (_radius * 0.65)
 	draw_circle(offhand_pos, _radius * 0.40, Color(0.6, 0.3, 1.0, alpha * 0.3))
 	var cat_pts := PackedVector2Array([
 		offhand_pos + staff_dir * (_radius * 0.30),
@@ -230,20 +225,39 @@ func _draw() -> void:
 	])
 	draw_colored_polygon(cat_pts, Color(0.75, 0.45, 1.0, alpha))
 
-	# Spectral twin robe & hat (never has a shield aura)
-	draw_circle(Vector2.ZERO, _radius * 1.15, Color(0.55, 0.25, 0.95, alpha * 0.28))
-	draw_circle(Vector2.ZERO, _radius, Color(0.45, 0.22, 0.82, alpha))
-	var hat := PackedVector2Array([
-		Vector2(-_radius * 0.9, -_radius * 0.3),
-		Vector2(_radius * 0.9, -_radius * 0.3),
-		Vector2(_radius * 0.2, -_radius * 1.8),
-	])
-	draw_colored_polygon(hat, Color(0.28, 0.12, 0.58, alpha))
-	draw_circle(staff_dir * _radius * 0.55, _radius * 0.2, Color(0.75, 0.95, 1.0, alpha))
+	# Spectral twin sprite (never has a shield aura)
+	draw_circle(Vector2.ZERO, _radius * 1.15, Color(0.55, 0.25, 0.95, alpha * 0.25))
+	var tex: Texture2D = Config.get_tex("res://assets/sprites/player/player_mage.png")
+	if tex != null:
+		Config.draw_sprite_centered(
+			self,
+			tex,
+			Vector2(0, -_radius * 0.22),
+			Vector2(_radius * 2.8, _radius * 2.8),
+			Color(0.75, 0.48, 1.0, alpha),
+			staff_dir.x < -0.05
+		)
+	else:
+		draw_circle(Vector2.ZERO, _radius, Color(0.45, 0.22, 0.82, alpha))
+		var hat := PackedVector2Array([
+			Vector2(-_radius * 0.9, -_radius * 0.3),
+			Vector2(_radius * 0.9, -_radius * 0.3),
+			Vector2(_radius * 0.2, -_radius * 1.8),
+		])
+		draw_colored_polygon(hat, Color(0.28, 0.12, 0.58, alpha))
+
+	# Wand / Staff extending from the doppelganger's body
+	var hand_offset: Vector2 = perp * (_radius * 0.4)
+	var staff_base: Vector2 = hand_offset + staff_dir * (_radius * 0.35)
+	var staff_tip: Vector2 = hand_offset + staff_dir * (_radius * 2.05)
+	draw_line(staff_base, staff_tip, Color(0.35, 0.22, 0.48, alpha), 4.0)
+	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.28, Color(0.75, 0.4, 1.0, alpha * 0.5))
+	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.18, Color(0.9, 0.7, 1.0, alpha))
 
 	# HP bar (5 max HP, no shield bar)
 	var w: float = _radius * 2.2
-	var top: Vector2 = Vector2(-w * 0.5, -_radius - 10.0)
+	var top: Vector2 = Vector2(-w * 0.5, -_radius - 12.0)
 	draw_rect(Rect2(top, Vector2(w, 4)), Color(0, 0, 0, 0.65))
 	draw_rect(Rect2(top, Vector2(w * float(hp) / float(max_hp), 4)), Color(0.75, 0.38, 1.0))
+
 

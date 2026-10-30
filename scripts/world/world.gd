@@ -33,6 +33,8 @@ var _flow_ready: bool = false
 func _ready() -> void:
 	add_to_group("world")
 	z_index = -10
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var rng := RandomNumberGenerator.new()
 	if rng_seed != 0:
 		rng.seed = rng_seed
@@ -263,18 +265,34 @@ func is_open(pos: Vector2, margin: float = 0.0) -> bool:
 func _draw() -> void:
 	var r: Rect2 = rect
 	var tile: float = Config.tiles(1)
-	draw_rect(r.grow(tile * 4), Color(0.08, 0.1, 0.08))
-	draw_rect(r, Color(0.22, 0.42, 0.22))
-	# Checker grass every 2 tiles
-	var cell: float = tile * 2.0
-	var cols: int = int(r.size.x / cell)
-	var alt := Color(0.2, 0.39, 0.2)
-	for x in cols:
-		for y in cols:
-			if (x + y) % 2 == 0:
-				draw_rect(Rect2(r.position + Vector2(x, y) * cell, Vector2(cell, cell)), alt)
-	draw_rect(r, Color(0.35, 0.25, 0.15), false, 4.0)
-	# Maze walls (hedge-stone look)
+	# Deep abyss border outside map bounds
+	draw_rect(r.grow(tile * 6.0), Color(0.04, 0.03, 0.07))
+
+	var ground_tex: Texture2D = Config.get_tex("res://assets/tilesets/ground_tile.png")
+	if ground_tex != null:
+		draw_texture_rect(ground_tex, r, true, Color(0.92, 0.95, 0.98))
+	else:
+		draw_rect(r, Color(0.12, 0.2, 0.16))
+
+	# Subtle Hades-style arcane sanctuary plaza ring around the Castle at (0, 0)
+	var plaza_r: float = Config.tiles(4.2)
+	draw_circle(Vector2.ZERO, plaza_r, Color(0.14, 0.12, 0.22, 0.55))
+	draw_arc(Vector2.ZERO, plaza_r, 0.0, TAU, 64, Color(0.42, 0.78, 0.88, 0.35), 2.5)
+	draw_arc(Vector2.ZERO, plaza_r * 0.78, 0.0, TAU, 48, Color(0.85, 0.68, 0.28, 0.28), 1.5)
+
+	# Outer arena runic boundary
+	draw_rect(r.grow(4.0), Color(0.08, 0.06, 0.14), false, 8.0)
+	draw_rect(r, Color(0.32, 0.68, 0.75, 0.7), false, 3.0)
+
+	# Maze walls (ancient runic stone walls with drop shadow)
+	var wall_tex: Texture2D = Config.get_tex("res://assets/tilesets/wall_tile.png")
 	for w in wall_rects:
-		draw_rect(w.grow(2.0), Color(0.12, 0.14, 0.12))
-		draw_rect(w, Color(0.45, 0.47, 0.42))
+		# Drop shadow
+		draw_rect(Rect2(w.position + Vector2(3, 5), w.size), Color(0.02, 0.01, 0.05, 0.65))
+		draw_rect(w.grow(2.0), Color(0.08, 0.06, 0.12))
+		if wall_tex != null:
+			draw_texture_rect(wall_tex, w, true)
+		else:
+			draw_rect(w, Color(0.28, 0.3, 0.36))
+		draw_rect(w, Color(0.32, 0.72, 0.78, 0.42), false, 1.5)
+

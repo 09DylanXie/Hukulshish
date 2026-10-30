@@ -23,6 +23,11 @@ var _endless_banner_timer: float = 0.0
 var _crosshair_tex: ImageTexture
 
 const _SLOT_TITLES: Array[String] = ["Shield [1]", "Heal +3 [2]", "2× Dmg [3]"]
+const _SLOT_ICONS: Array[String] = [
+	"res://assets/sprites/ui/icon_shield.png",
+	"res://assets/sprites/ui/icon_heal_potion.png",
+	"res://assets/sprites/ui/icon_damage_potion.png",
+]
 const _SLOT_COLORS: Array[Color] = [
 	Color(0.25, 0.72, 1.0),
 	Color(0.95, 0.28, 0.42),
@@ -255,6 +260,7 @@ func _build_hotbar() -> void:
 
 	for idx in 3:
 		var slot := Control.new()
+		slot.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		slot.custom_minimum_size = Vector2(84, 88)
 		slot.mouse_filter = Control.MOUSE_FILTER_STOP
 		slot.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -305,22 +311,13 @@ func _draw_slot(idx: int, slot: Control) -> void:
 		var ratio: float = clampf(active_timer / Config.POTION_DURATION_SEC, 0.0, 1.0)
 		slot.draw_arc(center, r + 4.0, -PI * 0.5, -PI * 0.5 + TAU * ratio, 36, Color(1.0, 0.95, 0.35), 3.0)
 
-	var icon_alpha: float = 1.0 if (count > 0 or active_timer > 0.0) else 0.35
-	var ic := Color(tint.r, tint.g, tint.b, icon_alpha)
-	if idx == 0:
-		var pts := PackedVector2Array([
-			center + Vector2(0, -14),
-			center + Vector2(12, -8),
-			center + Vector2(10, 6),
-			center + Vector2(0, 15),
-			center + Vector2(-10, 6),
-			center + Vector2(-12, -8),
-		])
-		slot.draw_colored_polygon(pts, ic)
+	var icon_alpha: float = 1.0 if (count > 0 or active_timer > 0.0 or GameState.sandbox_mode) else 0.38
+	var icon_tex: Texture2D = Config.get_tex(_SLOT_ICONS[idx])
+	if icon_tex != null:
+		Config.draw_sprite_centered(slot, icon_tex, center, Vector2(36, 36), Color(1, 1, 1, icon_alpha))
 	else:
-		slot.draw_circle(center + Vector2(0, 4), 11.0, ic)
-		slot.draw_rect(Rect2(center + Vector2(-4, -13), Vector2(8, 8)), ic.lightened(0.25))
-		slot.draw_rect(Rect2(center + Vector2(-6, -15), Vector2(12, 3)), Color(0.85, 0.75, 0.55, icon_alpha))
+		var ic := Color(tint.r, tint.g, tint.b, icon_alpha)
+		slot.draw_circle(center, 12.0, ic)
 
 	var font: Font = ThemeDB.fallback_font
 	var badge_str: String = "∞" if GameState.sandbox_mode else ("×%d" % count)

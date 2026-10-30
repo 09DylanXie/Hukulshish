@@ -21,6 +21,9 @@ var _slow_fire_cooldown: float = Config.UNDEAD_SLOW_FIRE_INTERVAL_SEC
 var _flash: float = 0.0
 var _dead: bool = false
 var _world: World
+var _anim_t: float = 0.0
+var _facing_left: bool = false
+var _sprite_path: String = ""
 
 
 func setup(monster_stats: MonsterStats, _hp_mult: float) -> void:
@@ -32,9 +35,22 @@ func setup(monster_stats: MonsterStats, _hp_mult: float) -> void:
 	_has_bubble_shield = stats.has_bubble_shield or stats.name == "Demon"
 	_is_undead = stats.name == "Undead"
 	_slow_fire_cooldown = randf_range(1.2, Config.UNDEAD_SLOW_FIRE_INTERVAL_SEC)
+	_anim_t = randf() * TAU
+	match stats.name:
+		"Goblin":
+			_sprite_path = "res://assets/sprites/monsters/goblin.png"
+		"Undead":
+			_sprite_path = "res://assets/sprites/monsters/undead.png"
+		"Ogre":
+			_sprite_path = "res://assets/sprites/monsters/ogre.png"
+		"Demon":
+			_sprite_path = "res://assets/sprites/monsters/demon.png"
+		_:
+			_sprite_path = "res://assets/sprites/monsters/goblin.png"
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group("targets")
 	add_to_group("monsters")
 	collision_layer = Config.LAYER_ENEMIES
@@ -52,11 +68,12 @@ func _physics_process(delta: float) -> void:
 	if stats == null:
 		return
 	_attack_cooldown -= delta
+	_anim_t += delta * 10.0
 	if _is_undead:
 		_slow_fire_cooldown -= delta
 	if _flash > 0.0:
 		_flash -= delta
-		queue_redraw()
+	queue_redraw()
 
 	var player := get_tree().get_first_node_in_group("player") as Player
 	if player == null or player.is_dead():
@@ -73,6 +90,8 @@ func _physics_process(delta: float) -> void:
 	else:
 		var dir: Vector2 = _world.flow_direction(global_position, player.global_position) if _world != null else to_player.normalized()
 		velocity = dir * _speed
+		if absf(velocity.x) > 2.0:
+			_facing_left = velocity.x < 0.0
 	move_and_slide()
 
 	if _is_undead and _slow_fire_cooldown <= 0.0 and to_player.length() <= Config.tiles(Config.UNDEAD_SLOW_RANGE_TILES):
@@ -119,10 +138,16 @@ func take_damage(amount: float) -> void:
 	if _has_bubble_shield:
 		_has_bubble_shield = false
 		_flash = 0.15
+		GameState.spawn_floating_text(global_position + Vector2(0, -_radius), "SHIELD BREAK", Color(0.45, 0.95, 1.0))
 		queue_redraw()
 		return
 	hp -= amount
 	_flash = 0.1
+	GameState.spawn_floating_text(
+		global_position + Vector2(randf_range(-8, 8), -_radius),
+		"-%d" % maxi(1, int(round(amount))),
+		Color(1.0, 0.92, 0.45)
+	)
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true
@@ -135,20 +160,37 @@ func take_damage(amount: float) -> void:
 func _draw() -> void:
 	if stats == null:
 		return
-	var body_color: Color = Color.WHITE if _flash > 0.0 else stats.color
-	draw_circle(Vector2.ZERO, _radius, body_color)
-	draw_arc(Vector2.ZERO, _radius, 0.0, TAU, 24, body_color.darkened(0.5), 1.5)
-	# Eyes
-	draw_circle(Vector2(-_radius * 0.35, -_radius * 0.2), _radius * 0.15, Color.BLACK)
-	draw_circle(Vector2(_radius * 0.35, -_radius * 0.2), _radius * 0.15, Color.BLACK)
+	# Ground shadow
+	draw_circle(Vector2(0, _radius * 0.65), _radius * 0.92, Color(0, 0, 0, 0.36))
+
+	var tex: Texture2D = Config.get_tex(_sprite_path)
+	var bob: float = sin(_anim_t) * 1.4
+	if tex != null:
+		var mod_col: Color = Color(2.5, 2.5, 2.5, 1.0) if _flash > 0.0 else Color.WHITE
+		Config.draw_sprite_centered(
+			self,
+			tex,
+			Vector2(0, -_radius * 0.18 + bob),
+			Vector2(_radius * 2.55, _radius * 2.55),
+			mod_col,
+			_facing_left
+		)
+	else:
+		var body_color: Color = Color.WHITE if _flash > 0.0 else stats.color
+		draw_circle(Vector2.ZERO, _radius, body_color)
+		draw_arc(Vector2.ZERO, _radius, 0.0, TAU, 24, body_color.darkened(0.5), 1.5)
+		draw_circle(Vector2(-_radius * 0.35, -_radius * 0.2), _radius * 0.15, Color.BLACK)
+		draw_circle(Vector2(_radius * 0.35, -_radius * 0.2), _radius * 0.15, Color.BLACK)
+
 	# Demon bubble shield
 	if _has_bubble_shield:
-		var sr: float = _radius * 1.38
-		draw_circle(Vector2.ZERO, sr, Color(0.25, 0.85, 1.0, 0.26))
+		var sr: float = _radius * 1.42
+		draw_circle(Vector2.ZERO, sr, Color(0.25, 0.85, 1.0, 0.24))
 		draw_arc(Vector2.ZERO, sr, 0.0, TAU, 28, Color(0.45, 0.95, 1.0, 0.92), 2.0)
 	# HP bar (only once damaged)
 	if hp < max_hp:
-		var w: float = _radius * 2.0
-		var top: Vector2 = Vector2(-_radius, -_radius - 6.0)
-		draw_rect(Rect2(top, Vector2(w, 3)), Color(0, 0, 0, 0.6))
-		draw_rect(Rect2(top, Vector2(w * hp / max_hp, 3)), Color(0.9, 0.2, 0.2))
+		var w: float = _radius * 2.1
+		var top: Vector2 = Vector2(-w * 0.5, -_radius - 9.0)
+		draw_rect(Rect2(top - Vector2(1, 1), Vector2(w + 2, 5)), Color(0, 0, 0, 0.72))
+		draw_rect(Rect2(top, Vector2(w * maxf(hp, 0.0) / max_hp, 3)), Color(0.95, 0.22, 0.28))
+

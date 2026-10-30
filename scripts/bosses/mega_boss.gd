@@ -76,6 +76,11 @@ func take_damage(amount: float) -> void:
 	if _dead or amount <= 0.0:
 		return
 	_flash = 0.1
+	GameState.spawn_floating_text(
+		global_position + Vector2(randf_range(-16, 16), -_radius),
+		"-%d" % maxi(1, int(round(amount))),
+		Color(0.45, 0.92, 1.0) if shield > 0.0 else Color(1.0, 0.38, 0.55)
+	)
 	if shield > 0.0:
 		if amount <= shield:
 			shield -= amount
@@ -92,11 +97,14 @@ func take_damage(amount: float) -> void:
 		if hp > 0.0:
 			hp = maxf(hp, threshold_hp)
 			shield = max_shield
+			GameState.spawn_floating_text(global_position + Vector2(0, -_radius - 18.0), "SHIELD REGENERATED!", Color(0.35, 0.92, 1.0))
+			GameState.request_shake(8.0, 0.25)
 			break
 
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true
+		GameState.request_shake(14.0, 0.45)
 		_on_killed()
 		died.emit(gold, global_position)
 		queue_free()
@@ -112,20 +120,38 @@ func _spawn_minion(node: Node2D, counts: bool) -> void:
 
 
 func _draw() -> void:
-	super._draw()
 	var r: float = _radius
-	# Crown
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(-r * 0.5, -r * 0.75), Vector2(-r * 0.5, -r * 1.05), Vector2(-r * 0.25, -r * 0.88),
-		Vector2(0, -r * 1.15), Vector2(r * 0.25, -r * 0.88), Vector2(r * 0.5, -r * 1.05), Vector2(r * 0.5, -r * 0.75),
-	]), Color(1, 0.82, 0.2))
+	draw_circle(Vector2(0, r * 0.65), r * 1.1, Color(0, 0, 0, 0.48))
+	draw_circle(Vector2.ZERO, r * 1.25, Color(0.42, 0.1, 0.58, 0.28))
+
+	var tex: Texture2D = Config.get_tex("res://assets/sprites/bosses/mega_boss.png")
+	var bob: float = sin(_anim_t) * 2.2
+	if tex != null:
+		var mod_col: Color = Color(2.4, 2.4, 2.4, 1.0) if _flash > 0.0 else Color.WHITE
+		Config.draw_sprite_centered(
+			self,
+			tex,
+			Vector2(0, -r * 0.18 + bob),
+			Vector2(r * 2.75, r * 2.75),
+			mod_col,
+			_facing_left
+		)
+	else:
+		super._draw()
+
+	# HP bar
+	var w: float = r * 2.2
+	var top: Vector2 = Vector2(-w * 0.5, -r - 14.0)
+	draw_rect(Rect2(top - Vector2(1, 1), Vector2(w + 2, 7)), Color(0, 0, 0, 0.82))
+	draw_rect(Rect2(top, Vector2(w * maxf(hp, 0.0) / max_hp, 5)), Color(0.95, 0.2, 0.55))
+
 	# Mega Boss 100 HP regenerating shield aura & bar
 	if shield > 0.0:
-		var sr: float = r * 1.28
-		draw_circle(Vector2.ZERO, sr, Color(0.2, 0.78, 1.0, 0.22))
+		var sr: float = r * 1.32
+		draw_circle(Vector2.ZERO, sr, Color(0.2, 0.78, 1.0, 0.20))
 		draw_arc(Vector2.ZERO, sr, 0.0, TAU, 36, Color(0.35, 0.9, 1.0, 0.92), 2.5)
-		var w: float = r * 2.0
-		var s_top: Vector2 = Vector2(-r, -r - 16.0)
-		draw_rect(Rect2(s_top, Vector2(w, 4)), Color(0, 0, 0, 0.6))
-		draw_rect(Rect2(s_top, Vector2(w * clampf(shield / max_shield, 0.0, 1.0), 4)), Color(0.25, 0.82, 1.0))
+		var s_top: Vector2 = Vector2(-w * 0.5, -r - 22.0)
+		draw_rect(Rect2(s_top - Vector2(1, 1), Vector2(w + 2, 6)), Color(0, 0, 0, 0.82))
+		draw_rect(Rect2(s_top, Vector2(w * clampf(shield / max_shield, 0.0, 1.0), 4)), Color(0.25, 0.85, 1.0))
+
 

@@ -300,3 +300,48 @@ func monster_speed_tiles(radius_tiles: float) -> float:
 ## Applies a difficulty multiplier to a base HP, rounding up (§9 Q4 assumption), minimum 1.
 func scale_hp(base_hp: int, mult: float) -> int:
 	return maxi(1, ceili(base_hp * mult))
+
+
+# --- Sprite / Texture helpers ---
+var _tex_cache: Dictionary = {}
+
+
+## Loads and caches a Texture2D from `res://assets/...` (works both with imported resources and raw files in dev).
+func get_tex(res_path: String) -> Texture2D:
+	if _tex_cache.has(res_path):
+		return _tex_cache[res_path] as Texture2D
+	var tex: Texture2D = null
+	if ResourceLoader.exists(res_path):
+		tex = ResourceLoader.load(res_path) as Texture2D
+	if tex == null:
+		var abs_path: String = ProjectSettings.globalize_path(res_path)
+		if FileAccess.file_exists(abs_path):
+			var img: Image = Image.load_from_file(abs_path)
+			if img != null and not img.is_empty():
+				tex = ImageTexture.create_from_image(img)
+	_tex_cache[res_path] = tex
+	return tex
+
+
+## Draws `tex` centered at `pos` fitting inside `max_size` (preserving aspect ratio), with optional horizontal flip.
+func draw_sprite_centered(
+	canvas: CanvasItem,
+	tex: Texture2D,
+	pos: Vector2,
+	max_size: Vector2,
+	modulate_col: Color = Color.WHITE,
+	flip_h: bool = false
+) -> void:
+	if tex == null:
+		return
+	var ts: Vector2 = tex.get_size()
+	if ts.x <= 0.0 or ts.y <= 0.0:
+		return
+	var scale_f: float = minf(max_size.x / ts.x, max_size.y / ts.y)
+	var draw_sz: Vector2 = ts * scale_f
+	var rect := Rect2(pos - draw_sz * 0.5, draw_sz)
+	if flip_h:
+		rect.position.x += draw_sz.x
+		rect.size.x = -draw_sz.x
+	canvas.draw_texture_rect(tex, rect, false, modulate_col)
+

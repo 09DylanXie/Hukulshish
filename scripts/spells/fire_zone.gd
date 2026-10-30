@@ -20,6 +20,7 @@ func setup(fire_dps: float, dur: float = Config.BOMB_DURATION_SEC, rad_px: float
 
 func _ready() -> void:
 	z_index = -2
+	GameState.request_shake(3.5, 0.14)
 	# Apply first tick immediately on impact so enemies in the blast take an instant tick (breaking Demon shields).
 	_apply_tick(Config.BOMB_TICK_SEC)
 	_tick_timer = Config.BOMB_TICK_SEC
@@ -51,7 +52,16 @@ func _draw() -> void:
 	var fade: float = clampf(1.0 - (_elapsed / duration) * 0.45, 0.2, 1.0)
 	var pulse: float = 1.0 + 0.06 * sin(_elapsed * 14.0)
 	var r: float = radius * pulse
-	draw_circle(Vector2.ZERO, r, Color(1.0, 0.32, 0.05, 0.28 * fade))
-	draw_circle(Vector2.ZERO, r * 0.65, Color(1.0, 0.65, 0.1, 0.32 * fade))
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, 36, Color(1.0, 0.5, 0.1, 0.85 * fade), 2.5)
+	# Hades-style hellfire sigil zone
+	draw_circle(Vector2.ZERO, r, Color(0.95, 0.22, 0.05, 0.24 * fade))
+	draw_circle(Vector2.ZERO, r * 0.72, Color(1.0, 0.55, 0.08, 0.28 * fade))
+	draw_circle(Vector2.ZERO, r * 0.36, Color(1.0, 0.9, 0.35, 0.32 * fade))
+	draw_arc(Vector2.ZERO, r, 0.0, TAU, 40, Color(1.0, 0.52, 0.12, 0.9 * fade), 2.5)
+	draw_arc(Vector2.ZERO, r * 0.78, _elapsed * 2.2, _elapsed * 2.2 + TAU * 0.75, 28, Color(1.0, 0.85, 0.28, 0.65 * fade), 1.8)
+	for i in 6:
+		var ang: float = _elapsed * 2.5 + float(i) * TAU / 6.0
+		var p_in: Vector2 = Vector2.from_angle(ang) * (r * 0.45)
+		var p_out: Vector2 = Vector2.from_angle(ang + 0.35) * (r * 0.92)
+		draw_line(p_in, p_out, Color(1.0, 0.78, 0.22, 0.55 * fade), 2.0)
+
 

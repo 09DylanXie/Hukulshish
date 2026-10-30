@@ -368,8 +368,11 @@ func _spawn_bomb_zone(container: Node) -> void:
 
 
 func _draw() -> void:
-	# Little comet: glow + core + tail (drawn along +X, node is rotated to face direction).
-	draw_circle(Vector2.ZERO, radius * 1.6, Color(color, 0.3))
-	draw_circle(Vector2.ZERO, radius, color)
-	var tail_len: float = radius * (5.0 if proj_kind == ProjKind.SNIPER else 3.0)
-	draw_line(Vector2.ZERO, Vector2(-tail_len, 0), Color(color, 0.5), radius * 0.8)
+	# Multi-layered Hades-style glowing arcane bolt (drawn along +X, node is rotated to face direction).
+	var tail_len: float = radius * (5.5 if proj_kind == ProjKind.SNIPER else 3.4)
+	draw_line(Vector2.ZERO, Vector2(-tail_len, 0), Color(color, 0.28), radius * 1.45)
+	draw_line(Vector2.ZERO, Vector2(-tail_len * 0.7, 0), Color(color.lightened(0.35), 0.65), radius * 0.75)
+	draw_circle(Vector2.ZERO, radius * 1.85, Color(color, 0.26))
+	draw_circle(Vector2.ZERO, radius * 1.15, color)
+	draw_circle(Vector2.ZERO, radius * 0.58, Color.WHITE)
+

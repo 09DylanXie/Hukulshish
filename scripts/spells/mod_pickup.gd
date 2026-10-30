@@ -20,6 +20,7 @@ var _t: float = 0.0
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group("pickups")
 	collision_layer = 0
 	collision_mask = Config.LAYER_PLAYER
@@ -55,76 +56,53 @@ func _collect() -> void:
 	match kind:
 		Kind.MEGA_BOSS_SPELL:
 			GameState.acquire_mega_boss_spell()
+			GameState.spawn_floating_text(global_position + Vector2(0, -16), "MEGA SPELL!", Color(1.0, 0.25, 0.25))
 		Kind.BOSS_SPELL:
 			GameState.acquire_boss_spell()
+			GameState.spawn_floating_text(global_position + Vector2(0, -16), "BOSS SPELL!", Color(1.0, 0.65, 0.2))
 		Kind.AUG_SCROLL:
 			GameState.add_aug_scrolls(1)
+			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Aug Scroll", Color(1.0, 0.35, 0.52))
 		Kind.ENHANCER:
 			GameState.add_enhancers(1)
+			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Enhancer", Color(0.35, 0.98, 0.55))
 		_:
 			GameState.add_mod_parts(1)
+			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Spell Scroll", Color(0.45, 0.92, 1.0))
 	queue_free()
 
 
 func _draw() -> void:
+	var bob: float = sin(_t * 4.5) * 3.0
+	var pulse: float = 1.0 + 0.12 * sin(_t * 5.0)
+	draw_circle(Vector2(0, 8), 8.0, Color(0, 0, 0, 0.35))
+
+	var tex_path: String = "res://assets/sprites/spells/spell_scroll.png"
+	var glow_col := Color(0.35, 0.9, 1.0)
+	var icon_sz: float = 26.0
 	match kind:
 		Kind.MEGA_BOSS_SPELL:
-			var col := Color(1.0, 0.15, 0.15)
-			var r: float = Config.tiles(0.55) * (1.0 + 0.16 * sin(_t * 5.5))
-			draw_circle(Vector2.ZERO, r * 1.85, Color(col, 0.34))
-			var pts1 := PackedVector2Array([Vector2(0, -r * 1.15), Vector2(r * 0.8, 0), Vector2(0, r * 1.15), Vector2(-r * 0.8, 0)])
-			var pts2 := PackedVector2Array([Vector2(-r * 0.7, -r * 0.7), Vector2(r * 0.7, -r * 0.7), Vector2(r * 0.7, r * 0.7), Vector2(-r * 0.7, r * 0.7)])
-			draw_colored_polygon(pts2, col.darkened(0.25))
-			draw_colored_polygon(pts1, Color(1.0, 0.88, 0.35))
-			draw_circle(Vector2.ZERO, r * 0.32, Color.WHITE)
+			tex_path = "res://assets/sprites/spells/mega_spell.png"
+			glow_col = Color(1.0, 0.15, 0.15)
+			icon_sz = 34.0
 		Kind.BOSS_SPELL:
-			var col := Color(1.0, 0.55, 0.15)
-			var r: float = Config.tiles(0.45) * (1.0 + 0.15 * sin(_t * 5.0))
-			draw_circle(Vector2.ZERO, r * 1.7, Color(col, 0.28))
-			var pts1 := PackedVector2Array([Vector2(0, -r), Vector2(r * 0.7, 0), Vector2(0, r), Vector2(-r * 0.7, 0)])
-			var pts2 := PackedVector2Array([Vector2(-r * 0.6, -r * 0.6), Vector2(r * 0.6, -r * 0.6), Vector2(r * 0.6, r * 0.6), Vector2(-r * 0.6, r * 0.6)])
-			draw_colored_polygon(pts2, col.darkened(0.2))
-			draw_colored_polygon(pts1, col.lightened(0.25))
+			tex_path = "res://assets/sprites/spells/boss_spell.png"
+			glow_col = Color(1.0, 0.55, 0.15)
+			icon_sz = 30.0
 		Kind.AUG_SCROLL:
-			var col := Color(1.0, 0.22, 0.38)
-			var r: float = Config.tiles(0.38) * (1.0 + 0.14 * sin(_t * 4.5))
-			draw_circle(Vector2.ZERO, r * 1.6, Color(col, 0.28))
-			# Crimson scroll / diamond rune
-			var diamond := PackedVector2Array([
-				Vector2(0, -r * 1.1),
-				Vector2(r * 0.9, 0),
-				Vector2(0, r * 1.1),
-				Vector2(-r * 0.9, 0),
-			])
-			draw_colored_polygon(diamond, col)
-			draw_circle(Vector2.ZERO, r * 0.35, Color(1.0, 0.88, 0.3))
+			tex_path = "res://assets/sprites/spells/aug_scroll.png"
+			glow_col = Color(1.0, 0.22, 0.38)
+			icon_sz = 28.0
 		Kind.ENHANCER:
-			var col := Color(0.28, 0.95, 0.45)
-			var r: float = Config.tiles(0.36) * (1.0 + 0.13 * sin(_t * 4.8))
-			draw_circle(Vector2.ZERO, r * 1.55, Color(col, 0.28))
-			# Emerald enhancer crystal
-			var tri_up := PackedVector2Array([
-				Vector2(0, -r * 1.05),
-				Vector2(r * 0.9, r * 0.55),
-				Vector2(-r * 0.9, r * 0.55),
-			])
-			var tri_down := PackedVector2Array([
-				Vector2(0, r * 1.05),
-				Vector2(r * 0.9, -r * 0.55),
-				Vector2(-r * 0.9, -r * 0.55),
-			])
-			draw_colored_polygon(tri_down, col.darkened(0.2))
-			draw_colored_polygon(tri_up, col.lightened(0.15))
-		_:
-			var col := Color(0.35, 0.9, 1.0)
-			var r: float = Config.tiles(0.32) * (1.0 + 0.12 * sin(_t * 4.0))
-			draw_circle(Vector2.ZERO, r * 1.5, Color(col, 0.25))
-			var hex := PackedVector2Array([
-				Vector2(0, -r),
-				Vector2(r * 0.85, -r * 0.5),
-				Vector2(r * 0.85, r * 0.5),
-				Vector2(0, r),
-				Vector2(-r * 0.85, r * 0.5),
-				Vector2(-r * 0.85, -r * 0.5),
-			])
-			draw_colored_polygon(hex, col)
+			tex_path = "res://assets/sprites/spells/enhancer.png"
+			glow_col = Color(0.28, 0.95, 0.45)
+			icon_sz = 26.0
+
+	draw_circle(Vector2(0, bob), icon_sz * 0.68 * pulse, Color(glow_col, 0.26))
+	draw_arc(Vector2(0, bob), icon_sz * 0.65 * pulse, 0.0, TAU, 24, Color(glow_col.lightened(0.25), 0.72), 1.6)
+	var tex: Texture2D = Config.get_tex(tex_path)
+	if tex != null:
+		Config.draw_sprite_centered(self, tex, Vector2(0, bob), Vector2(icon_sz, icon_sz))
+	else:
+		draw_circle(Vector2(0, bob), icon_sz * 0.4, glow_col)
+

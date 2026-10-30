@@ -3,13 +3,30 @@ extends RefCounted
 ## Small helpers for building the prototype's menus in code (no art yet).
 
 
-## Full-screen dark background + a centered VBox. Returns the VBox to add widgets to.
+## Full-screen key-art background + a centered VBox. Returns the VBox to add widgets to.
 static func make_centered_menu(parent: Control, title: String, subtitle: String = "") -> VBoxContainer:
 	var bg := ColorRect.new()
-	bg.color = Color(0.07, 0.06, 0.12)
+	bg.color = Color(0.05, 0.04, 0.09)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(bg)
+
+	var bg_tex: Texture2D = Config.get_tex("res://assets/sprites/ui/menu_background.png")
+	if bg_tex != null:
+		var art := TextureRect.new()
+		art.texture = bg_tex
+		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		art.set_anchors_preset(Control.PRESET_FULL_RECT)
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		parent.add_child(art)
+
+		var dim := ColorRect.new()
+		dim.color = Color(0.03, 0.02, 0.07, 0.46)
+		dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+		dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		parent.add_child(dim)
 
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -18,13 +35,13 @@ static func make_centered_menu(parent: Control, title: String, subtitle: String 
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
-	box.custom_minimum_size = Vector2(420, 0)
+	box.custom_minimum_size = Vector2(440, 0)
 	box.mouse_filter = Control.MOUSE_FILTER_PASS
 	center.add_child(box)
 
-	box.add_child(make_label(title, 56, Color(0.95, 0.8, 0.3)))
+	box.add_child(make_label(title, 58, Color(0.98, 0.84, 0.35)))
 	if subtitle != "":
-		box.add_child(make_label(subtitle, 22, Color(0.8, 0.8, 0.9)))
+		box.add_child(make_label(subtitle, 22, Color(0.84, 0.9, 0.96)))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 16)
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -38,6 +55,8 @@ static func make_label(text: String, size: int = 20, color: Color = Color.WHITE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color(0.03, 0.02, 0.06, 0.92))
+	label.add_theme_constant_override("outline_size", 5)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
 

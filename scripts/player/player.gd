@@ -23,9 +23,14 @@ var _dead: bool = false
 var _radius: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
 var _facing: Vector2 = Vector2.RIGHT
 var _aim_dir: Vector2 = Vector2.RIGHT
+var _walk_t: float = 0.0
+var _camera: Camera2D
+var _shake_intensity: float = 0.0
+var _shake_timer: float = 0.0
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group("player")
 	collision_layer = Config.LAYER_PLAYER
 	collision_mask = Config.LAYER_WORLD
@@ -37,15 +42,15 @@ func _ready() -> void:
 	shape.shape = circle
 	add_child(shape)
 
-	var camera := Camera2D.new()
-	camera.zoom = Vector2(2, 2)
-	camera.position_smoothing_enabled = true
+	_camera = Camera2D.new()
+	_camera.zoom = Vector2(2, 2)
+	_camera.position_smoothing_enabled = true
 	if bounds.has_area():
-		camera.limit_left = int(bounds.position.x)
-		camera.limit_top = int(bounds.position.y)
-		camera.limit_right = int(bounds.end.x)
-		camera.limit_bottom = int(bounds.end.y)
-	add_child(camera)
+		_camera.limit_left = int(bounds.position.x)
+		_camera.limit_top = int(bounds.position.y)
+		_camera.limit_right = int(bounds.end.x)
+		_camera.limit_bottom = int(bounds.end.y)
+	add_child(_camera)
 
 	var caster: Node2D = SpellCasterScript.new()
 	caster.name = "SpellCaster"
@@ -54,8 +59,14 @@ func _ready() -> void:
 	max_hp = GameState.player_max_hp()
 	hp = max_hp
 	GameState.changed.connect(_on_game_state_changed)
+	GameState.screen_shake_requested.connect(_on_screen_shake_requested)
 	hp_changed.emit(hp, max_hp)
 	shield_changed.emit(shield, max_shield)
+
+
+func _on_screen_shake_requested(intensity: float, duration: float) -> void:
+	_shake_intensity = maxf(_shake_intensity, intensity)
+	_shake_timer = maxf(_shake_timer, duration)
 
 
 func _on_game_state_changed() -> void:
@@ -77,6 +88,16 @@ func _physics_process(delta: float) -> void:
 	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if input != Vector2.ZERO:
 		_facing = input.normalized()
+		_walk_t += delta * 12.0
+	else:
+		_walk_t += delta * 2.5
+
+	if _shake_timer > 0.0 and _camera != null:
+		_shake_timer = maxf(0.0, _shake_timer - delta)
+		_camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake_intensity
+		if _shake_timer <= 0.0:
+			_shake_intensity = 0.0
+			_camera.offset = Vector2.ZERO
 
 	if _slow_timer > 0.0:
 		_slow_timer = maxf(0.0, _slow_timer - delta)
@@ -130,6 +151,7 @@ func take_damage(amount: float) -> void:
 	if dmg > 0:
 		hp = maxi(0, hp - dmg)
 		hp_changed.emit(hp, max_hp)
+	GameState.request_shake(5.0, 0.2)
 	_iframes = Config.PLAYER_IFRAMES_SEC
 	queue_redraw()
 	if hp <= 0:
@@ -173,28 +195,23 @@ func is_dead() -> bool:
 
 
 func _draw() -> void:
+	# Ground shadow
+	draw_circle(Vector2(0, _radius * 0.65), _radius * 0.95, Color(0, 0, 0, 0.38))
+
 	# Frost aura when slowed by Undead slow spell
 	if _slow_timer > 0.0:
-		draw_circle(Vector2.ZERO, _radius * 1.45, Color(0.35, 0.9, 1.0, 0.25))
-		draw_arc(Vector2.ZERO, _radius * 1.45, 0.0, TAU, 28, Color(0.55, 0.95, 1.0, 0.9), 2.0)
+		draw_circle(Vector2.ZERO, _radius * 1.55, Color(0.35, 0.9, 1.0, 0.25))
+		draw_arc(Vector2.ZERO, _radius * 1.55, 0.0, TAU, 28, Color(0.55, 0.95, 1.0, 0.9), 2.0)
 	# Magic shield aura when shield > 0
 	if shield > 0:
-		draw_circle(Vector2.ZERO, _radius * 1.35, Color(0.2, 0.7, 1.0, 0.22))
-		draw_arc(Vector2.ZERO, _radius * 1.35, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
+		draw_circle(Vector2.ZERO, _radius * 1.45, Color(0.2, 0.7, 1.0, 0.22))
+		draw_arc(Vector2.ZERO, _radius * 1.45, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
 
-	# Wand / Staff extending out from the mage's main hand toward cursor aim direction
 	var staff_dir: Vector2 = _aim_dir if _aim_dir != Vector2.ZERO else _facing
 	var perp: Vector2 = Vector2(-staff_dir.y, staff_dir.x)
-	var hand_offset: Vector2 = perp * (_radius * 0.35)
-	var staff_base: Vector2 = hand_offset + staff_dir * (_radius * 0.35)
-	var staff_tip: Vector2 = hand_offset + staff_dir * (_radius * 2.05)
-	draw_line(staff_base, staff_tip, Color(0.48, 0.30, 0.14), 4.0)
-	draw_line(staff_tip - staff_dir * 4.5, staff_tip, Color(0.95, 0.82, 0.28), 5.0)
-	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.32, Color(0.35, 0.85, 1.0, 0.38))
-	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.20, Color(0.65, 0.95, 1.0))
 
 	# Offhand Magic Catalyst (arcane focus crystal + orbiting rune ring on the opposite hand)
-	var offhand_pos: Vector2 = -perp * (_radius * 0.95) + staff_dir * (_radius * 0.65)
+	var offhand_pos: Vector2 = -perp * (_radius * 1.05) + staff_dir * (_radius * 0.65)
 	draw_circle(offhand_pos, _radius * 0.44, Color(0.68, 0.28, 1.0, 0.28))
 	draw_arc(offhand_pos, _radius * 0.42, 0.0, TAU, 20, Color(0.95, 0.8, 0.32, 0.9), 1.6)
 	var cat_pts := PackedVector2Array([
@@ -206,14 +223,34 @@ func _draw() -> void:
 	draw_colored_polygon(cat_pts, Color(0.75, 0.38, 1.0))
 	draw_circle(offhand_pos, _radius * 0.13, Color(1.0, 0.95, 0.75))
 
-	# Robe
-	draw_circle(Vector2.ZERO, _radius, Color(0.25, 0.3, 0.85))
-	# Hat
-	var hat := PackedVector2Array([
-		Vector2(-_radius * 0.9, -_radius * 0.3),
-		Vector2(_radius * 0.9, -_radius * 0.3),
-		Vector2(_radius * 0.2, -_radius * 1.8),
-	])
-	draw_colored_polygon(hat, Color(0.45, 0.2, 0.75))
-	# Facing indicator
-	draw_circle(staff_dir * _radius * 0.55, _radius * 0.22, Color(1, 0.95, 0.6))
+	# Mage pixel-art sprite (or fallback robe + hat)
+	var tex: Texture2D = Config.get_tex("res://assets/sprites/player/player_mage.png")
+	var bob: float = sin(_walk_t) * 1.6 if velocity.length_squared() > 4.0 else sin(_walk_t) * 0.6
+	if tex != null:
+		var flip_left: bool = staff_dir.x < -0.05
+		Config.draw_sprite_centered(
+			self,
+			tex,
+			Vector2(0, -_radius * 0.22 + bob),
+			Vector2(_radius * 2.85, _radius * 2.85),
+			Color.WHITE,
+			flip_left
+		)
+	else:
+		draw_circle(Vector2.ZERO, _radius, Color(0.25, 0.3, 0.85))
+		var hat := PackedVector2Array([
+			Vector2(-_radius * 0.9, -_radius * 0.3),
+			Vector2(_radius * 0.9, -_radius * 0.3),
+			Vector2(_radius * 0.2, -_radius * 1.8),
+		])
+		draw_colored_polygon(hat, Color(0.45, 0.2, 0.75))
+
+	# Wand / Staff extending out from the mage's main hand toward cursor aim direction
+	var hand_offset: Vector2 = perp * (_radius * 0.42)
+	var staff_base: Vector2 = hand_offset + staff_dir * (_radius * 0.35)
+	var staff_tip: Vector2 = hand_offset + staff_dir * (_radius * 2.08)
+	draw_line(staff_base, staff_tip, Color(0.48, 0.30, 0.14), 4.0)
+	draw_line(staff_tip - staff_dir * 4.5, staff_tip, Color(0.95, 0.82, 0.28), 5.0)
+	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.34, Color(0.35, 0.85, 1.0, 0.42))
+	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.20, Color(0.65, 0.95, 1.0))
+

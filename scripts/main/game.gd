@@ -18,6 +18,8 @@ const DoppelgangerScript: GDScript = preload("res://scripts/player/doppelganger.
 const NEST_CORNER_INSET_TILES: float = 4.0
 
 var _entities: Node2D
+var _fx_layer: Node2D
+var _floating_texts: Array[Dictionary] = []
 var _player: Player
 var _castle_menu: CastleMenu
 var _bounds: Rect2 = Rect2()
@@ -30,6 +32,7 @@ func _ready() -> void:
 	GameState.defeat.connect(_on_defeat)
 	GameState.endless_wave_started.connect(_on_endless_wave_started)
 	GameState.doppelganger_spawn_requested.connect(_on_doppelganger_spawn_requested)
+	GameState.floating_text_requested.connect(_on_floating_text_requested)
 
 	var map: MapSizeData = GameState.map_size
 	var half: float = Config.tiles(map.size_in_tiles) * 0.5
@@ -73,6 +76,12 @@ func _ready() -> void:
 	_spawn_nests(_nest_positions)
 	_spawn_gold_mines(mine_positions)
 
+	_fx_layer = Node2D.new()
+	_fx_layer.name = "FXLayer"
+	_fx_layer.z_index = 15
+	_fx_layer.draw.connect(_draw_fx_layer)
+	add_child(_fx_layer)
+
 	var hud: HUD = HUDScene.instantiate()
 	add_child(hud)
 	hud.bind_player(_player)
@@ -86,6 +95,49 @@ func _on_castle_entered() -> void:
 	if _player != null:
 		_player.heal_at_castle()
 	_castle_menu.open()
+
+
+func _process(delta: float) -> void:
+	if _floating_texts.is_empty():
+		return
+	var i: int = _floating_texts.size() - 1
+	while i >= 0:
+		var item: Dictionary = _floating_texts[i]
+		var t: float = float(item["t"]) + delta
+		if t >= float(item["dur"]):
+			_floating_texts.remove_at(i)
+		else:
+			item["t"] = t
+			item["pos"] = (item["pos"] as Vector2) + Vector2(0, -28.0 * delta)
+		i -= 1
+	if _fx_layer != null:
+		_fx_layer.queue_redraw()
+
+
+func _on_floating_text_requested(world_pos: Vector2, text: String, col: Color) -> void:
+	if _floating_texts.size() > 60:
+		_floating_texts.pop_front()
+	_floating_texts.append({
+		"pos": world_pos,
+		"text": text,
+		"col": col,
+		"t": 0.0,
+		"dur": 0.75,
+	})
+	if _fx_layer != null:
+		_fx_layer.queue_redraw()
+
+
+func _draw_fx_layer() -> void:
+	var font: Font = ThemeDB.fallback_font
+	for item in _floating_texts:
+		var ratio: float = clampf(1.0 - float(item["t"]) / float(item["dur"]), 0.0, 1.0)
+		var pos: Vector2 = item["pos"] as Vector2
+		var col: Color = item["col"] as Color
+		var txt: String = String(item["text"])
+		_fx_layer.draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, 4, Color(0, 0, 0, ratio * 0.9))
+		_fx_layer.draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, Color(col.r, col.g, col.b, ratio))
+
 
 
 func _compute_nest_positions(bounds: Rect2) -> Array[Vector2]:
