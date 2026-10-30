@@ -48,14 +48,14 @@ func _physics_process(delta: float) -> void:
 		elif GameState.is_auto_shoot_active():
 			if _auto_cooldowns[i] > 0.0:
 				continue
-			var target: Node2D = _find_target(max_range)
-			if target != null:
-				if not GameState.try_spend_mana(mana_cost):
-					continue
-				var dir: Vector2 = global_position.direction_to(target.global_position)
-				_fire_dir(spell, dir, max_range)
-				var auto_rate: float = maxf(0.05, base_rate * Config.AUTO_SHOOT_FIRE_RATE_MULT)
-				_auto_cooldowns[i] = 1.0 / auto_rate
+			if not GameState.try_spend_mana(mana_cost):
+				continue
+			var dir: Vector2 = global_position.direction_to(mouse_world)
+			if dir == Vector2.ZERO:
+				dir = Vector2.RIGHT
+			_fire_dir(spell, dir, max_range)
+			var auto_rate: float = maxf(0.05, base_rate * Config.AUTO_SHOOT_FIRE_RATE_MULT)
+			_auto_cooldowns[i] = 1.0 / auto_rate
 
 
 ## Nearest monster / boss / nest within `max_range` pixels.

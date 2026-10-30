@@ -13,6 +13,7 @@ signal victory
 signal defeat
 
 const TOTAL_NESTS: int = 4
+const TOTAL_MEGA_BOSSES: int = 2
 
 var map_size: MapSizeData
 var difficulty: DifficultyData
@@ -53,6 +54,7 @@ var doppelganger_alive: bool = false
 var magnet_unlocked: bool = false
 var auto_collector_unlocked: bool = false
 var auto_collector_timer: float = 0.0
+var wall_pierce_unlocked: bool = false
 var auto_shoot_unlocked: bool = false
 var auto_shoot_enabled: bool = false
 var homing_unlocked: bool = false
@@ -67,6 +69,7 @@ var nests_destroyed: int = 0
 var bosses_defeated: int = 0
 var mega_boss_spawned: bool = false
 var mega_boss_defeated: bool = false
+var mega_bosses_defeated: int = 0
 var run_over: bool = false
 
 
@@ -100,6 +103,7 @@ func start_run() -> void:
 	magnet_unlocked = false
 	auto_collector_unlocked = false
 	auto_collector_timer = 0.0
+	wall_pierce_unlocked = false
 	auto_shoot_unlocked = false
 	auto_shoot_enabled = false
 	homing_unlocked = false
@@ -113,6 +117,7 @@ func start_run() -> void:
 	bosses_defeated = 0
 	mega_boss_spawned = false
 	mega_boss_defeated = false
+	mega_bosses_defeated = 0
 	endless_wave = 0
 	endless_hp_mult = 1.0
 	run_over = false
@@ -589,6 +594,17 @@ func collect_all_gold_mines() -> void:
 			node.call("collect")
 
 
+func try_buy_wall_pierce() -> bool:
+	if wall_pierce_unlocked or (not sandbox_mode and gold < Config.GOLD_SHOP_WALL_PIERCE_COST):
+		return false
+	if not sandbox_mode:
+		gold -= Config.GOLD_SHOP_WALL_PIERCE_COST
+	wall_pierce_unlocked = true
+	_refill_sandbox_resources()
+	changed.emit()
+	return true
+
+
 func try_buy_auto_shoot() -> bool:
 	if auto_shoot_unlocked or (not sandbox_mode and gold < Config.GOLD_SHOP_AUTO_SHOOT_COST):
 		return false
@@ -744,7 +760,7 @@ func acquire_mega_boss_spell() -> Dictionary:
 		base["fire_rate"] * Config.BOSS_SPELL_FIRE_RATE_MULT,
 		base["speed_tiles"],
 		base["range_tiles"],
-		Config.BOSS_SPELL_MANA_COST,
+		Config.MEGA_BOSS_SPELL_MANA_COST,
 		true,
 		aug_levels.duplicate()
 	)
@@ -770,26 +786,34 @@ func on_boss_defeated() -> void:
 
 func on_mega_boss_spawned() -> void:
 	mega_boss_spawned = true
+	mega_bosses_defeated = 0
 	changed.emit()
 
 
-## Victory in Normal mode when the mega boss is defeated; in Endless mode, spawns 4 new spawners
-## and doubles everything's HP (×2 per Mega Boss kill).
-func on_mega_boss_defeated() -> void:
+## Victory in Normal mode when BOTH Mega Bosses (original + 50% HP duplicate) are defeated;
+## in Endless mode, defeating both spawns 4 new spawners and doubles everything's HP (×2).
+## Returns true when both Mega Bosses have been defeated.
+func on_mega_boss_defeated() -> bool:
+	mega_bosses_defeated += 1
+	if mega_bosses_defeated < TOTAL_MEGA_BOSSES:
+		changed.emit()
+		return false
 	if endless_mode:
 		endless_wave += 1
 		endless_hp_mult *= Config.ENDLESS_WAVE_HP_MULT
 		nests_destroyed = 0
 		mega_boss_spawned = false
 		mega_boss_defeated = false
+		mega_bosses_defeated = 0
 		changed.emit()
 		endless_wave_started.emit(endless_wave)
-		return
+		return true
 	mega_boss_defeated = true
 	changed.emit()
 	if not run_over:
 		run_over = true
 		victory.emit()
+	return true
 
 
 func on_player_died() -> void:

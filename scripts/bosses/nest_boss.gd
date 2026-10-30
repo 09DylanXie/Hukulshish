@@ -62,13 +62,15 @@ func _physics_process(delta: float) -> void:
 	var reach: float = _radius + Config.tiles(Config.PLAYER_RADIUS_TILES) + 2.0
 	if to_player.length() <= reach:
 		velocity = Vector2.ZERO
+		if absf(to_player.x) > 4.0:
+			_facing_left = to_player.x < 0.0
 		if _attack_cooldown <= 0.0:
 			player.take_damage(Config.BOSS_MELEE_DAMAGE)
 			_attack_cooldown = Config.MONSTER_ATTACK_COOLDOWN_SEC
 	else:
 		var dir: Vector2 = _world.flow_direction(global_position, player.global_position) if _world != null else to_player.normalized()
 		velocity = dir * Config.tiles(Config.PLAYER_SPEED_TILES * Config.BOSS_SPEED_MULT)
-		if absf(velocity.x) > 2.0:
+		if absf(velocity.x) > 8.0:
 			_facing_left = velocity.x < 0.0
 	move_and_slide()
 
@@ -117,17 +119,17 @@ func _on_killed() -> void:
 
 
 func _draw() -> void:
-	draw_circle(Vector2(0, _radius * 0.65), _radius * 1.05, Color(0, 0, 0, 0.42))
-	draw_circle(Vector2.ZERO, _radius * 1.18, Color(color, 0.25))
+	Config.draw_ground_shadow(self, _radius * 1.05, _radius * 0.72, 0.38)
+	draw_circle(Vector2.ZERO, _radius * 1.15, Color(color, 0.22))
 	var tex: Texture2D = Config.get_tex("res://assets/sprites/bosses/nest_boss.png")
-	var bob: float = sin(_anim_t) * 1.8
+	var bob: float = sin(_anim_t) * 1.5
 	if tex != null:
 		var mod_col: Color = Color(2.4, 2.4, 2.4, 1.0) if _flash > 0.0 else color.lightened(0.45)
 		Config.draw_sprite_centered(
 			self,
 			tex,
-			Vector2(0, -_radius * 0.15 + bob),
-			Vector2(_radius * 2.55, _radius * 2.55),
+			Vector2(0, bob),
+			Vector2(_radius * 2.4, _radius * 2.4),
 			mod_col,
 			_facing_left
 		)

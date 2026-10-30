@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 name = "Boss Spell"
-speed_tiles = 6
+speed_tiles = 6.3
 range_tiles = 10
 fire_rate = 2
 color = Color(1, 0.55, 0.15, 1)

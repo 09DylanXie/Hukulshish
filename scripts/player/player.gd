@@ -136,7 +136,7 @@ func apply_slow(duration: float) -> void:
 
 func get_wand_tip_global(dir_override: Vector2 = Vector2.ZERO) -> Vector2:
 	var d: Vector2 = dir_override.normalized() if dir_override != Vector2.ZERO else _aim_dir
-	return global_position + d * (_radius * 2.15)
+	return global_position + Config.get_staff_gem_offset(_radius, d)
 
 
 func take_damage(amount: float) -> void:
@@ -195,44 +195,30 @@ func is_dead() -> bool:
 
 
 func _draw() -> void:
-	# Ground shadow
-	draw_circle(Vector2(0, _radius * 0.65), _radius * 0.95, Color(0, 0, 0, 0.38))
+	# Flat elliptical ground shadow right under the mage's feet
+	Config.draw_ground_shadow(self, _radius, _radius * 0.72, 0.34)
 
 	# Frost aura when slowed by Undead slow spell
 	if _slow_timer > 0.0:
-		draw_circle(Vector2.ZERO, _radius * 1.55, Color(0.35, 0.9, 1.0, 0.25))
-		draw_arc(Vector2.ZERO, _radius * 1.55, 0.0, TAU, 28, Color(0.55, 0.95, 1.0, 0.9), 2.0)
+		draw_circle(Vector2.ZERO, _radius * 1.48, Color(0.35, 0.9, 1.0, 0.25))
+		draw_arc(Vector2.ZERO, _radius * 1.48, 0.0, TAU, 28, Color(0.55, 0.95, 1.0, 0.9), 2.0)
 	# Magic shield aura when shield > 0
 	if shield > 0:
-		draw_circle(Vector2.ZERO, _radius * 1.45, Color(0.2, 0.7, 1.0, 0.22))
-		draw_arc(Vector2.ZERO, _radius * 1.45, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
+		draw_circle(Vector2.ZERO, _radius * 1.38, Color(0.2, 0.7, 1.0, 0.22))
+		draw_arc(Vector2.ZERO, _radius * 1.38, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
 
 	var staff_dir: Vector2 = _aim_dir if _aim_dir != Vector2.ZERO else _facing
-	var perp: Vector2 = Vector2(-staff_dir.y, staff_dir.x)
+	var bob: float = sin(_walk_t) * 1.4 if velocity.length_squared() > 4.0 else sin(_walk_t) * 0.5
 
-	# Offhand Magic Catalyst (arcane focus crystal + orbiting rune ring on the opposite hand)
-	var offhand_pos: Vector2 = -perp * (_radius * 1.05) + staff_dir * (_radius * 0.65)
-	draw_circle(offhand_pos, _radius * 0.44, Color(0.68, 0.28, 1.0, 0.28))
-	draw_arc(offhand_pos, _radius * 0.42, 0.0, TAU, 20, Color(0.95, 0.8, 0.32, 0.9), 1.6)
-	var cat_pts := PackedVector2Array([
-		offhand_pos + staff_dir * (_radius * 0.34),
-		offhand_pos + perp * (_radius * 0.24),
-		offhand_pos - staff_dir * (_radius * 0.34),
-		offhand_pos - perp * (_radius * 0.24),
-	])
-	draw_colored_polygon(cat_pts, Color(0.75, 0.38, 1.0))
-	draw_circle(offhand_pos, _radius * 0.13, Color(1.0, 0.95, 0.75))
-
-	# Mage pixel-art sprite (or fallback robe + hat)
+	# Mage pixel-art sprite centered squarely on the (0, 0) hitbox
 	var tex: Texture2D = Config.get_tex("res://assets/sprites/player/player_mage.png")
-	var bob: float = sin(_walk_t) * 1.6 if velocity.length_squared() > 4.0 else sin(_walk_t) * 0.6
 	if tex != null:
 		var flip_left: bool = staff_dir.x < -0.05
 		Config.draw_sprite_centered(
 			self,
 			tex,
-			Vector2(0, -_radius * 0.22 + bob),
-			Vector2(_radius * 2.85, _radius * 2.85),
+			Vector2(0, bob),
+			Vector2(_radius * 2.55, _radius * 2.55),
 			Color.WHITE,
 			flip_left
 		)
@@ -245,12 +231,6 @@ func _draw() -> void:
 		])
 		draw_colored_polygon(hat, Color(0.45, 0.2, 0.75))
 
-	# Wand / Staff extending out from the mage's main hand toward cursor aim direction
-	var hand_offset: Vector2 = perp * (_radius * 0.42)
-	var staff_base: Vector2 = hand_offset + staff_dir * (_radius * 0.35)
-	var staff_tip: Vector2 = hand_offset + staff_dir * (_radius * 2.08)
-	draw_line(staff_base, staff_tip, Color(0.48, 0.30, 0.14), 4.0)
-	draw_line(staff_tip - staff_dir * 4.5, staff_tip, Color(0.95, 0.82, 0.28), 5.0)
-	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.34, Color(0.35, 0.85, 1.0, 0.42))
-	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.20, Color(0.65, 0.95, 1.0))
+	# Main-hand Sapphire Rhombus Staff + Offhand Open Magic Tome
+	Config.draw_mage_loadout(self, Vector2.ZERO, _radius, staff_dir, bob, false, 1.0)
 

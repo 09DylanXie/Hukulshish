@@ -11,6 +11,7 @@ enum ProjKind {
 
 const FireZoneScript: GDScript = preload("res://scripts/spells/fire_zone.gd")
 const ChainLightningScript: GDScript = preload("res://scripts/spells/chain_lightning.gd")
+const TRAIL_DURATION_SEC: float = 0.14
 
 var direction: Vector2 = Vector2.RIGHT
 var speed: float = 192.0
@@ -34,6 +35,9 @@ var split_depth: int = 0
 
 var _traveled: float = 0.0
 var _spent: bool = false
+var _trail_pts: PackedVector2Array = PackedVector2Array()
+var _trail_ages: PackedFloat32Array = PackedFloat32Array()
+var _glint_t: float = 0.0
 
 
 func setup(
@@ -95,6 +99,10 @@ func _max_split_depth_for_proj() -> int:
 	return _aug_lvl("split")
 
 
+func _can_pierce_walls() -> bool:
+	return from_player and GameState.wall_pierce_unlocked
+
+
 func _ready() -> void:
 	monitoring = true
 	monitorable = true
@@ -104,6 +112,8 @@ func _ready() -> void:
 		collision_mask = Config.LAYER_ENEMIES if proj_kind == ProjKind.SNIPER else (Config.LAYER_ENEMIES | Config.LAYER_NESTS)
 	else:
 		collision_mask = Config.LAYER_PLAYER
+	if not _can_pierce_walls():
+		collision_mask |= Config.LAYER_WORLD
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = radius
@@ -111,10 +121,43 @@ func _ready() -> void:
 	add_child(shape)
 	body_entered.connect(_on_body_entered)
 	rotation = direction.angle()
+	_push_trail_point(global_position)
+
+
+func _push_trail_point(wpos: Vector2) -> void:
+	_trail_pts.append(wpos)
+	_trail_ages.append(0.0)
+
+
+func _age_trail(delta: float) -> void:
+	var write_idx: int = 0
+	for i in _trail_ages.size():
+		var new_age: float = _trail_ages[i] + delta
+		if new_age < TRAIL_DURATION_SEC:
+			_trail_ages[write_idx] = new_age
+			_trail_pts[write_idx] = _trail_pts[i]
+			write_idx += 1
+	_trail_ages.resize(write_idx)
+	_trail_pts.resize(write_idx)
+
+
+func _retire_with_trail() -> void:
+	_spent = true
+	set_deferred("monitoring", false)
+	set_deferred("monitorable", false)
+	_push_trail_point(global_position)
+	queue_redraw()
+	if not from_player or _trail_pts.size() < 2:
+		queue_free()
 
 
 func _physics_process(delta: float) -> void:
+	_glint_t += delta * 24.0
+	_age_trail(delta)
 	if _spent:
+		queue_redraw()
+		if _trail_pts.size() < 2:
+			queue_free()
 		return
 	# Homing does not apply to Split Shots; Sniper always homes to monsters/bosses.
 	var should_home: bool = from_player and proj_kind != ProjKind.SPLIT and (
@@ -135,6 +178,8 @@ func _physics_process(delta: float) -> void:
 	var step: float = speed * delta
 	position += direction * step
 	_traveled += step
+	_push_trail_point(global_position)
+	queue_redraw()
 
 	# Swept-segment hit check guarantees hits on StaticBody2D nests, monsters, and bosses.
 	_check_swept_hits(prev_pos, global_position)
@@ -143,7 +188,7 @@ func _physics_process(delta: float) -> void:
 
 	if max_distance > 0.0 and _traveled >= max_distance:
 		_on_range_expired()
-		queue_free()
+		_retire_with_trail()
 
 
 func _on_range_expired() -> void:
@@ -175,7 +220,57 @@ func _find_homing_target(exclude_nests: bool = false) -> Node2D:
 	return best
 
 
+func _segment_wall_hit_t(from_pos: Vector2, to_pos: Vector2) -> float:
+	var world := get_tree().get_first_node_in_group("world") as World
+	if world == null:
+		return -1.0
+	var seg: Vector2 = to_pos - from_pos
+	var best_t: float = INF
+	var pad: float = radius * 0.25
+	for w in world.wall_rects:
+		var box: Rect2 = w.grow(pad)
+		var tmin: float = 0.0
+		var tmax: float = 1.0
+		if absf(seg.x) < 1e-6:
+			if from_pos.x < box.position.x or from_pos.x > box.end.x:
+				continue
+		else:
+			var tx1: float = (box.position.x - from_pos.x) / seg.x
+			var tx2: float = (box.end.x - from_pos.x) / seg.x
+			if tx1 > tx2:
+				var tmp: float = tx1
+				tx1 = tx2
+				tx2 = tmp
+			tmin = maxf(tmin, tx1)
+			tmax = minf(tmax, tx2)
+		if absf(seg.y) < 1e-6:
+			if from_pos.y < box.position.y or from_pos.y > box.end.y:
+				continue
+		else:
+			var ty1: float = (box.position.y - from_pos.y) / seg.y
+			var ty2: float = (box.end.y - from_pos.y) / seg.y
+			if ty1 > ty2:
+				var tmp_y: float = ty1
+				ty1 = ty2
+				ty2 = tmp_y
+			tmin = maxf(tmin, ty1)
+			tmax = minf(tmax, ty2)
+		if tmin <= tmax and tmin < best_t:
+			best_t = tmin
+	if not world.rect.has_point(to_pos):
+		best_t = minf(best_t, 1.0)
+	return best_t if best_t <= 1.0 else -1.0
+
+
 func _check_swept_hits(from_pos: Vector2, to_pos: Vector2) -> void:
+	var effective_to: Vector2 = to_pos
+	var hit_wall: bool = false
+	if not _can_pierce_walls():
+		var wt: float = _segment_wall_hit_t(from_pos, to_pos)
+		if wt >= 0.0:
+			hit_wall = true
+			effective_to = from_pos.lerp(to_pos, wt)
+
 	if from_player:
 		var best_node: Node2D = null
 		var best_dist_sq: float = INF
@@ -187,7 +282,7 @@ func _check_swept_hits(from_pos: Vector2, to_pos: Vector2) -> void:
 			if proj_kind == ProjKind.SNIPER and target.is_in_group("nests"):
 				continue
 			var hit_r: float = float(target.call("get_hit_radius")) if target.has_method("get_hit_radius") else Config.tiles(0.5)
-			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(target.global_position, from_pos, to_pos)
+			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(target.global_position, from_pos, effective_to)
 			if closest.distance_to(target.global_position) <= radius + hit_r:
 				var d_sq: float = from_pos.distance_squared_to(target.global_position)
 				if d_sq < best_dist_sq:
@@ -195,11 +290,12 @@ func _check_swept_hits(from_pos: Vector2, to_pos: Vector2) -> void:
 					best_node = target
 		if best_node != null:
 			_on_body_entered(best_node)
+			return
 	else:
 		var player := get_tree().get_first_node_in_group("player") as Node2D
 		if player != null and not player.is_queued_for_deletion() and player.has_method("take_damage"):
 			var hit_r: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
-			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(player.global_position, from_pos, to_pos)
+			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(player.global_position, from_pos, effective_to)
 			if closest.distance_to(player.global_position) <= radius + hit_r:
 				_on_body_entered(player)
 				return
@@ -207,14 +303,21 @@ func _check_swept_hits(from_pos: Vector2, to_pos: Vector2) -> void:
 			var dop := node as Node2D
 			if dop != null and not dop.is_queued_for_deletion() and dop.has_method("take_damage"):
 				var hit_r: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
-				var closest: Vector2 = Geometry2D.get_closest_point_to_segment(dop.global_position, from_pos, to_pos)
+				var closest: Vector2 = Geometry2D.get_closest_point_to_segment(dop.global_position, from_pos, effective_to)
 				if closest.distance_to(dop.global_position) <= radius + hit_r:
 					_on_body_entered(dop)
 					return
 
+	if hit_wall and not _spent:
+		global_position = effective_to
+		_retire_with_trail()
+
 
 func _on_body_entered(body: Node) -> void:
 	if _spent or body == ignore_target:
+		return
+	if not _can_pierce_walls() and body is StaticBody2D and not body.is_in_group("nests"):
+		_retire_with_trail()
 		return
 	if from_player and proj_kind == ProjKind.SNIPER and body.is_in_group("nests"):
 		return
@@ -231,7 +334,7 @@ func _on_body_entered(body: Node) -> void:
 			body.take_damage(damage)
 		if from_player and body is Node2D and uses_augments:
 			_apply_augmentations(body as Node2D)
-		queue_free()
+		_retire_with_trail()
 
 
 func _apply_augmentations(hit_target: Node2D) -> void:
@@ -368,11 +471,64 @@ func _spawn_bomb_zone(container: Node) -> void:
 
 
 func _draw() -> void:
-	# Multi-layered Hades-style glowing arcane bolt (drawn along +X, node is rotated to face direction).
-	var tail_len: float = radius * (5.5 if proj_kind == ProjKind.SNIPER else 3.4)
-	draw_line(Vector2.ZERO, Vector2(-tail_len, 0), Color(color, 0.28), radius * 1.45)
-	draw_line(Vector2.ZERO, Vector2(-tail_len * 0.7, 0), Color(color.lightened(0.35), 0.65), radius * 0.75)
-	draw_circle(Vector2.ZERO, radius * 1.85, Color(color, 0.26))
-	draw_circle(Vector2.ZERO, radius * 1.15, color)
-	draw_circle(Vector2.ZERO, radius * 0.58, Color.WHITE)
+	if from_player:
+		var len_f: float = clampf(radius * (1.75 if proj_kind == ProjKind.SNIPER else 1.45), 6.2, 12.5)
+		var wing_y: float = clampf(radius * 0.55, 2.4, 4.6)
+		var back_x: float = -len_f * 0.58
+
+		# 1. Small temporary fading world-space trail behind the sharp spell triangle
+		var cnt: int = _trail_pts.size()
+		if cnt >= 2:
+			for i in range(cnt - 1):
+				var p0: Vector2 = to_local(_trail_pts[i])
+				var p1: Vector2 = to_local(_trail_pts[i + 1])
+				var frac: float = 1.0 - clampf(_trail_ages[i + 1] / TRAIL_DURATION_SEC, 0.0, 1.0)
+				if frac <= 0.02:
+					continue
+				draw_line(p0, p1, Color(color, 0.28 * frac), maxf(1.2, wing_y * 1.45 * frac))
+				draw_line(p0, p1, Color(color.lightened(0.45), 0.78 * frac), maxf(0.8, wing_y * 0.62 * frac))
+				if i % 2 == 1 and frac > 0.3:
+					draw_circle(p0.lerp(p1, 0.5), maxf(0.8, 1.3 * frac), Color(1.0, 1.0, 1.0, 0.65 * frac))
+
+		if _spent:
+			return
+
+		# 2. Flashy outer arcane triangle halo
+		var pulse: float = 0.28 + 0.08 * sin(_glint_t)
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(len_f * 1.28, 0.0),
+			Vector2(back_x * 1.22, -wing_y * 1.45),
+			Vector2(back_x * 1.22, wing_y * 1.45),
+		]), Color(color.lightened(0.18), pulse))
+
+		# 3. Sharp small triangle spell body + bright rim
+		var tri := PackedVector2Array([
+			Vector2(len_f, 0.0),
+			Vector2(back_x, -wing_y),
+			Vector2(back_x, wing_y),
+		])
+		draw_colored_polygon(tri, color.lightened(0.12))
+		draw_polyline(PackedVector2Array([
+			Vector2(len_f, 0.0),
+			Vector2(back_x, -wing_y),
+			Vector2(back_x, wing_y),
+			Vector2(len_f, 0.0),
+		]), color.lightened(0.55), 1.1)
+
+		# 4. Blazing white-hot inner needle triangle + tip star-glint
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(len_f * 0.74, 0.0),
+			Vector2(back_x * 0.52, -wing_y * 0.44),
+			Vector2(back_x * 0.52, wing_y * 0.44),
+		]), Color.WHITE)
+		var glint_len: float = wing_y * (0.95 + 0.25 * sin(_glint_t * 1.3))
+		var gp := Vector2(len_f * 0.58, 0.0)
+		draw_line(gp + Vector2(0.0, -glint_len), gp + Vector2(0.0, glint_len), Color(1.0, 1.0, 1.0, 0.78), 1.1)
+	else:
+		# Enemy bolts (Boss fiery bolt & Undead white slow orb)
+		var tail_len: float = radius * 3.0
+		draw_line(Vector2.ZERO, Vector2(-tail_len, 0), Color(color, 0.28), radius * 1.35)
+		draw_circle(Vector2.ZERO, radius * 1.65, Color(color, 0.24))
+		draw_circle(Vector2.ZERO, radius * 1.08, color)
+		draw_circle(Vector2.ZERO, radius * 0.52, Color.WHITE)
 

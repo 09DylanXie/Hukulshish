@@ -1,14 +1,14 @@
 extends Control
 ## Difficulty Select: Easy, Medium, Hard, Extreme, plus Endless Mode & Sandbox Mode (§3).
 ## In Endless Mode, defeating the Mega Boss spawns 4 new spawners and multiplies everything's HP by 2×.
-## In Sandbox Mode, all resources (Gold, Spell Scrolls, Augmentation Scrolls, Enhancers, Mana, and Potions) are infinite.
+## In Sandbox Mode, all resources (Gold, Spell Scrolls, Augmentation Scrolls, Enhancers, Mana, Shields & Potions) are infinite.
 
 var _endless_toggle: Button
-var _sandbox_toggle: Button
 
 
 func _ready() -> void:
 	GameState.endless_mode = false
+	GameState.sandbox_mode = false
 	var box: VBoxContainer = UIKit.make_centered_menu(self, "Difficulty")
 	for d in Config.DIFFICULTIES:
 		var data: DifficultyData = d
@@ -22,16 +22,13 @@ func _ready() -> void:
 	box.add_child(endless_btn)
 
 	var sandbox_btn: Button = UIKit.make_button(
-		"Sandbox  (infinite Gold, Scrolls, Enhancers & Mana)",
+		"Sandbox  (All Resources Infinite)",
 		_choose.bind(Config.DIFFICULTIES[1], false, true)
 	)
 	box.add_child(sandbox_btn)
 
 	_endless_toggle = UIKit.make_button("", _toggle_endless, 18)
 	box.add_child(_endless_toggle)
-
-	_sandbox_toggle = UIKit.make_button("", _toggle_sandbox, 18)
-	box.add_child(_sandbox_toggle)
 	_refresh_toggle_text()
 
 	box.add_child(UIKit.make_button("Back", func() -> void: SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT), 20))
@@ -42,24 +39,15 @@ func _toggle_endless() -> void:
 	_refresh_toggle_text()
 
 
-func _toggle_sandbox() -> void:
-	GameState.sandbox_mode = not GameState.sandbox_mode
-	_refresh_toggle_text()
-
-
 func _refresh_toggle_text() -> void:
 	if _endless_toggle != null:
 		var state_str: String = "ON (4 new spawners + ×2 HP after Mega Boss)" if GameState.endless_mode else "OFF"
 		_endless_toggle.text = "Endless Mode Modifier: %s" % state_str
-	if _sandbox_toggle != null:
-		var sb_str: String = "ON (All Resources Infinite)" if GameState.sandbox_mode else "OFF"
-		_sandbox_toggle.text = "Sandbox Mode Modifier: %s" % sb_str
 
 
 func _choose(data: DifficultyData, force_endless: bool, force_sandbox: bool) -> void:
 	GameState.difficulty = data
 	if force_endless:
 		GameState.endless_mode = true
-	if force_sandbox:
-		GameState.sandbox_mode = true
+	GameState.sandbox_mode = force_sandbox
 	SceneRouter.goto(SceneRouter.GAME)

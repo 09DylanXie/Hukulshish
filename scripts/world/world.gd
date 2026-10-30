@@ -28,6 +28,8 @@ var _dist: PackedInt32Array
 var _queue: PackedInt32Array
 var _flow_timer: float = 0.0
 var _flow_ready: bool = false
+## Deterministic outdoor meadow details: Vector4(x, y, radius_or_size, kind)
+var _decor: Array[Vector4] = []
 
 
 func _ready() -> void:
@@ -43,6 +45,7 @@ func _ready() -> void:
 	_generate_maze(rng)
 	_build_walls()
 	_build_nav_grid()
+	_build_outdoor_decor(rng)
 
 
 func _physics_process(delta: float) -> void:
@@ -262,37 +265,98 @@ func is_open(pos: Vector2, margin: float = 0.0) -> bool:
 	return rect.grow(-margin).has_point(pos)
 
 
+func _build_outdoor_decor(rng: RandomNumberGenerator) -> void:
+	_decor.clear()
+	var r: Rect2 = rect
+	var area_scale: float = float(size_in_tiles * size_in_tiles) / 3600.0
+	var grass_patches: int = int(round(95.0 * area_scale))
+	var stones_count: int = int(round(65.0 * area_scale))
+	var flowers_count: int = int(round(75.0 * area_scale))
+	var plaza_r: float = Config.tiles(4.1)
+
+	for _i in grass_patches:
+		var p := Vector2(rng.randf_range(r.position.x + 24.0, r.end.x - 24.0), rng.randf_range(r.position.y + 24.0, r.end.y - 24.0))
+		if p.length() > plaza_r + 16.0:
+			_decor.append(Vector4(p.x, p.y, rng.randf_range(14.0, 38.0), 0.0 if rng.randf() < 0.5 else 1.0))
+
+	for _i in stones_count:
+		var p := Vector2(rng.randf_range(r.position.x + 20.0, r.end.x - 20.0), rng.randf_range(r.position.y + 20.0, r.end.y - 20.0))
+		if p.length() > plaza_r * 0.85 and is_open(p, 8.0):
+			_decor.append(Vector4(p.x, p.y, rng.randf_range(2.2, 4.4), 2.0))
+
+	for _i in flowers_count:
+		var p := Vector2(rng.randf_range(r.position.x + 20.0, r.end.x - 20.0), rng.randf_range(r.position.y + 20.0, r.end.y - 20.0))
+		if p.length() > plaza_r + 8.0 and is_open(p, 8.0):
+			_decor.append(Vector4(p.x, p.y, 1.5, 3.0 if rng.randf() < 0.55 else 4.0))
+
+
 func _draw() -> void:
 	var r: Rect2 = rect
 	var tile: float = Config.tiles(1)
-	# Deep abyss border outside map bounds
-	draw_rect(r.grow(tile * 6.0), Color(0.04, 0.03, 0.07))
+	# Deep forest-shadow perimeter outside map bounds
+	draw_rect(r.grow(tile * 8.0), Color(0.10, 0.15, 0.09))
 
 	var ground_tex: Texture2D = Config.get_tex("res://assets/tilesets/ground_tile.png")
 	if ground_tex != null:
-		draw_texture_rect(ground_tex, r, true, Color(0.92, 0.95, 0.98))
+		draw_texture_rect(ground_tex, r, true, Color.WHITE)
 	else:
-		draw_rect(r, Color(0.12, 0.2, 0.16))
+		draw_rect(r, Color(0.22, 0.31, 0.18))
 
-	# Subtle Hades-style arcane sanctuary plaza ring around the Castle at (0, 0)
-	var plaza_r: float = Config.tiles(4.2)
-	draw_circle(Vector2.ZERO, plaza_r, Color(0.14, 0.12, 0.22, 0.55))
-	draw_arc(Vector2.ZERO, plaza_r, 0.0, TAU, 64, Color(0.42, 0.78, 0.88, 0.35), 2.5)
-	draw_arc(Vector2.ZERO, plaza_r * 0.78, 0.0, TAU, 48, Color(0.85, 0.68, 0.28, 0.28), 1.5)
+	# Non-repeating outdoor meadow variations (soft sunlit/shaded grass patches, pebbles, tiny wildflowers)
+	for d in _decor:
+		var p := Vector2(d.x, d.y)
+		var kind: int = int(d.w)
+		if kind == 0:
+			draw_circle(p, d.z, Color(0.15, 0.24, 0.12, 0.14))
+		elif kind == 1:
+			draw_circle(p, d.z, Color(0.32, 0.44, 0.23, 0.12))
+		elif kind == 2:
+			draw_circle(p + Vector2(1.0, 1.2), d.z, Color(0.12, 0.17, 0.10, 0.35))
+			draw_circle(p, d.z, Color(0.42, 0.44, 0.40, 0.65))
+			draw_circle(p + Vector2(-0.6, -0.6), d.z * 0.55, Color(0.54, 0.56, 0.51, 0.55))
+		elif kind == 3:
+			draw_circle(p, 1.6, Color(0.92, 0.84, 0.36, 0.78))
+		else:
+			draw_circle(p, 1.5, Color(0.90, 0.94, 0.86, 0.72))
 
-	# Outer arena runic boundary
-	draw_rect(r.grow(4.0), Color(0.08, 0.06, 0.14), false, 8.0)
-	draw_rect(r, Color(0.32, 0.68, 0.75, 0.7), false, 3.0)
+	# Soft packed-earth clearings beneath Gold Mines & Nests
+	for z in clear_zones:
+		var zp := Vector2(z.x, z.y)
+		var zr: float = minf(z.z * 0.62, Config.tiles(1.8))
+		draw_circle(zp, zr * 1.15, Color(0.28, 0.25, 0.17, 0.24))
+		draw_circle(zp, zr * 0.85, Color(0.34, 0.30, 0.20, 0.26))
 
-	# Maze walls (ancient runic stone walls with drop shadow)
+	# Outdoor cobblestone & packed-earth courtyard around the Kingdom Castle at (0, 0)
+	var plaza_r: float = Config.tiles(3.9)
+	draw_circle(Vector2.ZERO, plaza_r * 1.12, Color(0.30, 0.27, 0.19, 0.34))
+	draw_circle(Vector2.ZERO, plaza_r, Color(0.33, 0.32, 0.29, 0.48))
+	draw_arc(Vector2.ZERO, plaza_r, 0.0, TAU, 64, Color(0.46, 0.45, 0.41, 0.55), 2.5)
+	draw_arc(Vector2.ZERO, plaza_r * 0.78, 0.0, TAU, 48, Color(0.76, 0.66, 0.34, 0.28), 1.5)
+
+	# Outer kingdom stone wall boundary
 	var wall_tex: Texture2D = Config.get_tex("res://assets/tilesets/wall_tile.png")
+	var bt: float = Config.tiles(0.75)
+	var border_pieces: Array[Rect2] = [
+		Rect2(r.position.x - bt, r.position.y - bt, r.size.x + 2.0 * bt, bt),
+		Rect2(r.position.x - bt, r.end.y, r.size.x + 2.0 * bt, bt),
+		Rect2(r.position.x - bt, r.position.y, bt, r.size.y),
+		Rect2(r.end.x, r.position.y, bt, r.size.y),
+	]
+	for bp in border_pieces:
+		draw_rect(Rect2(bp.position + Vector2(3, 5), bp.size), Color(0.05, 0.08, 0.04, 0.52))
+		if wall_tex != null:
+			draw_texture_rect(wall_tex, bp, true)
+		else:
+			draw_rect(bp, Color(0.32, 0.34, 0.38))
+		draw_rect(bp, Color(0.18, 0.20, 0.22, 0.8), false, 1.5)
+
+	# Maze walls (weathered kingdom stone walls with soft outdoor shadow)
 	for w in wall_rects:
-		# Drop shadow
-		draw_rect(Rect2(w.position + Vector2(3, 5), w.size), Color(0.02, 0.01, 0.05, 0.65))
-		draw_rect(w.grow(2.0), Color(0.08, 0.06, 0.12))
+		draw_rect(Rect2(w.position + Vector2(3, 5), w.size), Color(0.05, 0.08, 0.04, 0.48))
+		draw_rect(w.grow(1.5), Color(0.16, 0.18, 0.20))
 		if wall_tex != null:
 			draw_texture_rect(wall_tex, w, true)
 		else:
-			draw_rect(w, Color(0.28, 0.3, 0.36))
-		draw_rect(w, Color(0.32, 0.72, 0.78, 0.42), false, 1.5)
+			draw_rect(w, Color(0.32, 0.34, 0.38))
+		draw_rect(w, Color(0.56, 0.59, 0.63, 0.38), false, 1.2)
 

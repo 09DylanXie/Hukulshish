@@ -247,8 +247,24 @@ func _spawn_mega_boss(pos: Vector2, tint: Color) -> void:
 	mega.setup(tint, GameState.difficulty.hp_mult)
 	mega.position = pos
 	mega.minion_spawned.connect(_on_mega_minion_spawned)
+	mega.duplicated_boss.connect(_on_mega_boss_duplicated)
 	mega.died.connect(_on_mega_boss_died)
 	_entities.call_deferred("add_child", mega)
+
+
+func _on_mega_boss_duplicated(pos: Vector2, tint: Color, mult: float) -> void:
+	if not is_inside_tree() or GameState.run_over or _entities == null:
+		return
+	var clone: MegaBoss = MegaBossScene.instantiate()
+	clone.setup_as_duplicate(tint, mult)
+	var spawn_pos: Vector2 = pos + Vector2(Config.tiles(2.2), 0.0)
+	if _bounds.has_area():
+		var r: float = Config.tiles(Config.MEGA_BOSS_RADIUS_TILES)
+		spawn_pos = spawn_pos.clamp(_bounds.position + Vector2.ONE * r, _bounds.end - Vector2.ONE * r)
+	clone.position = spawn_pos
+	clone.minion_spawned.connect(_on_mega_minion_spawned)
+	clone.died.connect(_on_mega_boss_died)
+	_entities.call_deferred("add_child", clone)
 
 
 func _on_mega_minion_spawned(minion: Node) -> void:
@@ -279,13 +295,13 @@ func _on_doppelganger_spawn_requested(snapshot: Dictionary) -> void:
 
 
 func _on_mega_boss_died(_gold: int, pos: Vector2) -> void:
-	if GameState.endless_mode:
-		# Guaranteed 1/1 Mega Boss Spell drop every time the Mega Boss is defeated in Endless Mode.
+	var both_defeated: bool = GameState.on_mega_boss_defeated()
+	if both_defeated and GameState.endless_mode:
+		# Guaranteed 1/1 Mega Boss Spell drop when both Mega Bosses are defeated in Endless Mode.
 		var pickup: ModPickup = ModPickupScene.instantiate()
 		pickup.kind = ModPickup.Kind.MEGA_BOSS_SPELL
 		pickup.position = pos
 		_entities.call_deferred("add_child", pickup)
-	GameState.on_mega_boss_defeated()
 
 
 func _on_endless_wave_started(_wave: int) -> void:

@@ -103,7 +103,7 @@ func _process(delta: float) -> void:
 	elif _elapsed < Config.NEST_SPAWN_DELAY_SEC:
 		_hint_label.text = "Monsters awaken in %d…" % ceili(Config.NEST_SPAWN_DELAY_SEC - _elapsed)
 	elif GameState.mega_boss_spawned and not GameState.mega_boss_defeated:
-		var msg: String = "THE MEGA BOSS HAS AWAKENED! Defeat it to spawn the next wave!" if GameState.endless_mode else "THE MEGA BOSS HAS AWAKENED! Defeat it to win!"
+		var msg: String = "THE MEGA BOSS HAS AWAKENED! Defeat both Mega Bosses (%d/2) to spawn the next wave!" % GameState.mega_bosses_defeated if GameState.endless_mode else "THE MEGA BOSS HAS AWAKENED! Defeat both Mega Bosses (%d/2) to win!" % GameState.mega_bosses_defeated
 		_hint_label.text = msg
 	elif not GameState.auto_shoot_unlocked and _elapsed < 12.0:
 		_hint_label.text = "Left-click to shoot toward cursor • Enter castle to shop & heal"
@@ -381,6 +381,8 @@ func _refresh() -> void:
 		mode_tag += " [Magnet]"
 	if GameState.auto_collector_unlocked:
 		mode_tag += " [Auto-Mine]"
+	if GameState.wall_pierce_unlocked:
+		mode_tag += " [Wall-Pierce]"
 	if GameState.doppelganger_alive:
 		mode_tag += " [Twin]"
 	if GameState.sandbox_mode:
@@ -391,7 +393,7 @@ func _refresh() -> void:
 	if GameState.endless_mode:
 		wave_tag = "   [Endless W%d • ×%d HP]" % [GameState.endless_wave + 1, int(round(GameState.endless_hp_mult))]
 	if GameState.mega_boss_spawned:
-		_objective_label.text = "Nests  4/4    Mega Boss  ACTIVE%s" % wave_tag
+		_objective_label.text = "Nests  4/4    Mega Bosses  %d/2%s" % [GameState.mega_bosses_defeated, wave_tag]
 	else:
 		_objective_label.text = "Nests  %d/4    Bosses  %d%s" % [GameState.nests_destroyed, GameState.bosses_defeated, wave_tag]
 	for s in _slots:

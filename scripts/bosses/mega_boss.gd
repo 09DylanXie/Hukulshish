@@ -6,6 +6,7 @@ extends NestBoss
 ## Defeating it wins the game (or starts the next 2× HP wave in Endless mode).
 
 signal minion_spawned(minion: Node)
+signal duplicated_boss(pos: Vector2, tint: Color, mult: float)
 
 const MonsterScene: PackedScene = preload("res://scenes/monsters/Monster.tscn")
 const BossScene: PackedScene = preload("res://scenes/bosses/NestBoss.tscn")
@@ -14,7 +15,10 @@ const QUARTER_THRESHOLDS: Array[float] = [0.75, 0.50, 0.25]
 var hp_mult: float = 1.0
 var max_shield: float = Config.MEGA_BOSS_SHIELD_HP
 var shield: float = Config.MEGA_BOSS_SHIELD_HP
+var is_duplicate: bool = false
 
+var _base_tint: Color = Color(0.6, 0.1, 0.6)
+var _has_duplicated: bool = false
 var _next_quarter_idx: int = 0
 var _boss_timer: float = Config.MEGA_BOSS_SPAWN_BOSS_SEC
 ## One spawn timer per monster class, same order as Config.MONSTERS.
@@ -34,13 +38,25 @@ func _init() -> void:
 
 
 func setup(tint: Color, mult: float) -> void:
+	_base_tint = tint
 	hp_mult = mult
 	color = tint.darkened(0.5)
 	max_hp = GameState.scaled_mega_boss_hp()
 	hp = max_hp
 	max_shield = Config.MEGA_BOSS_SHIELD_HP
 	shield = max_shield
+	is_duplicate = false
+	_has_duplicated = false
 	_next_quarter_idx = 0
+
+
+func setup_as_duplicate(tint: Color, mult: float) -> void:
+	setup(tint, mult)
+	is_duplicate = true
+	_has_duplicated = true
+	hp = max_hp * 0.5
+	_next_quarter_idx = 2
+	shield = max_shield
 
 
 func _ready() -> void:
@@ -101,6 +117,13 @@ func take_damage(amount: float) -> void:
 			GameState.request_shake(8.0, 0.25)
 			break
 
+	# Once the Mega Boss loses 50% of its HP, it duplicates into a second Mega Boss!
+	if not is_duplicate and not _has_duplicated and hp <= max_hp * 0.5:
+		_has_duplicated = true
+		GameState.spawn_floating_text(global_position + Vector2(0, -_radius - 32.0), "MEGA BOSS DUPLICATED!", Color(1.0, 0.38, 0.95))
+		GameState.request_shake(12.0, 0.38)
+		duplicated_boss.emit(global_position, _base_tint, hp_mult)
+
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true
@@ -121,18 +144,18 @@ func _spawn_minion(node: Node2D, counts: bool) -> void:
 
 func _draw() -> void:
 	var r: float = _radius
-	draw_circle(Vector2(0, r * 0.65), r * 1.1, Color(0, 0, 0, 0.48))
-	draw_circle(Vector2.ZERO, r * 1.25, Color(0.42, 0.1, 0.58, 0.28))
+	Config.draw_ground_shadow(self, r * 1.08, r * 0.72, 0.42)
+	draw_circle(Vector2.ZERO, r * 1.22, Color(0.42, 0.1, 0.58, 0.25))
 
 	var tex: Texture2D = Config.get_tex("res://assets/sprites/bosses/mega_boss.png")
-	var bob: float = sin(_anim_t) * 2.2
+	var bob: float = sin(_anim_t) * 1.8
 	if tex != null:
 		var mod_col: Color = Color(2.4, 2.4, 2.4, 1.0) if _flash > 0.0 else Color.WHITE
 		Config.draw_sprite_centered(
 			self,
 			tex,
-			Vector2(0, -r * 0.18 + bob),
-			Vector2(r * 2.75, r * 2.75),
+			Vector2(0, bob),
+			Vector2(r * 2.55, r * 2.55),
 			mod_col,
 			_facing_left
 		)

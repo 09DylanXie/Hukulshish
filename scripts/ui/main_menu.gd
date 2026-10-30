@@ -15,12 +15,6 @@ func _ready() -> void:
 	)
 	box.add_child(start)
 
-	var sandbox_btn: Button = UIKit.make_button("Sandbox Mode (Infinite Resources)", func() -> void:
-		GameState.sandbox_mode = true
-		SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT)
-	)
-	box.add_child(sandbox_btn)
-
 	var rules_btn: Button = UIKit.make_button("Rules & Guide", _open_rules)
 	box.add_child(rules_btn)
 
@@ -140,9 +134,9 @@ func _build_tab_basics() -> Control:
 	right.add_child(_section_title("Controls & Combat", Color(0.45, 0.85, 1.0)))
 	right.add_child(_body_text(
 		"• WASD / Arrow Keys: Move around the maze (3.0 tiles/sec base).\n" +
-		"• Left-Click (Crosshair): Shoot spells from your wand toward the cursor.\n" +
-		"• Mana Bar (Purple): Starts at 10 max mana (1.0/s regen). Base Spell costs 2 mana; Boss Spells cost 3 mana.\n" +
-		"• E Key (once Auto-Shooting is unlocked): Toggle Auto-Fire ON/OFF (auto-fires at ½ fire rate so you can still manually shoot).\n" +
+		"• Left-Click (Crosshair): Shoot sharp arcane spells from your sapphire staff toward the cursor.\n" +
+		"• Mana Bar (Purple): Starts at 10 max mana (1.0/s regen). Base Spell costs 2 mana; Boss Spells cost 1.5 mana; Endless Mega Spell costs 2 mana.\n" +
+		"• E Key (once Auto-Shooting is unlocked): Toggle Auto-Fire ON/OFF (automatically fires in the direction you point your staff at ½ fire rate).\n" +
 		"• F Key (once Homing is unlocked): Toggle Homing ON/OFF (curves spells toward enemies; does not affect Split Shots).\n" +
 		"• 1 / 2 / 3 Keys (or click bottom icons): Use Magic Shield (+1 Shield, max 5), Healing Potion (+3 HP), or 2× Damage Potion (30s).\n" +
 		"• Esc or P: Pause the game."
@@ -155,7 +149,7 @@ func _build_tab_basics() -> Control:
 		"  2. Personal Shop (Emerald Enhancers, 1/4 Goblin & Undead drop; costs 3, 5, 9 for Lv 1–3):\n" +
 		"     • Luck (+20%/lv drop rate) • Movement Speed (+5%/lv) • Health Regen (+1 HP/10s per lv)\n" +
 		"     • Capacity (+1/3 mine cap/lv) • Rate (+15% mine gold/s per lv) • Income Multiplier (+50%/lv enemy & boss gold).\n" +
-		"  3. Gold Shop: Upgrade Max HP (5 → 6 → 7 → 10 without instant heal), buy Spell Scrolls (up to 10), Magnet (300g), Auto Gold Collector (500g — collects all 3 mines every 30s), Shield/Potions, Auto-Shoot (1000g), Homing (1500g), or a Doppelganger (5000g — 5 HP twin with no shield that copies your abilities and fights with you until death)."
+		"  3. Gold Shop: Upgrade Max HP (7 → 8 → 9 → 12 without instant heal), buy Spell Scrolls (up to 10), Magnet (300g), Auto Gold Collector (500g), Shoot Through Walls (500g — lets your spells pass through maze walls), Shield/Potions, Auto-Shoot (1000g), Homing (1500g), or a Doppelganger (5000g)."
 	))
 	return hbox
 
@@ -230,9 +224,9 @@ func _build_tab_enemies_and_bosses() -> Control:
 
 	right.add_child(_section_title("Nests, Mega Boss & Endless Mode", Color(1.0, 0.3, 0.3)))
 	right.add_child(_body_text(
-		"• 4 Corner Nests (70 HP): Destroying a Nest immediately spawns a Nest Boss (80 HP, drops 1000 gold + 1/3 chance for an Orange Boss Spell).\n" +
-		"• Mega Boss (2000 HP): Awakens once all 4 Nests are destroyed. Fires projectiles at player spell speed (6 tiles/s), summons bosses/monsters at 2× rate, and has a 100 HP Shield that regenerates after each ¼ of its max HP is lost (75%, 50%, 25%).\n" +
-		"• Endless Mode: Defeating the Mega Boss spawns 4 new corner spawners, multiplies EVERYTHING'S HP by 2×, and drops a guaranteed 1/1 RED MEGA SPELL (combines all current spells × 1.5 damage and copies & uses your Base Spell's augmentations)!"
+		"• 4 Corner Nests (70 HP): Destroying a Nest immediately spawns a Nest Boss (240 HP, drops 1000 gold + 1/3 chance for an Orange Boss Spell costing 1.5 mana).\n" +
+		"• Mega Boss (2000 HP): Awakens once all 4 Nests are destroyed. Has a 100 HP Shield that regenerates after each ¼ of its max HP is lost (75%, 50%, 25%), and DUPLICATES into a second Mega Boss once 50% HP is lost! Defeat BOTH Mega Bosses to win!\n" +
+		"• Endless Mode: Defeating both Mega Bosses spawns 4 new corner spawners, multiplies EVERYTHING'S HP by 2×, and drops a guaranteed 1/1 RED MEGA SPELL (costs 2 mana, combines all current spells × 1.5 damage and copies & uses your Base Spell's augmentations)!"
 	))
 	return hbox
 
@@ -282,30 +276,20 @@ func _draw_basics_diagram(c: Control) -> void:
 	c.draw_rect(rect, Color(0.3, 0.35, 0.48), false, 2.0)
 	var font: Font = ThemeDB.fallback_font
 
-	# 1. Mage with Wand + Offhand Catalyst
+	# 1. Mage with Sapphire Rhombus Staff + Offhand Open Magic Tome
 	var p_pos := Vector2(120, 120)
 	var r: float = 24.0
 	c.draw_circle(p_pos, r * 1.35, Color(0.2, 0.7, 1.0, 0.22))
 	c.draw_arc(p_pos, r * 1.35, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
-	# Wand (right hand)
-	c.draw_line(p_pos + Vector2(8, 10), p_pos + Vector2(50, 10), Color(0.48, 0.30, 0.14), 5.0)
-	c.draw_circle(p_pos + Vector2(54, 10), 7.0, Color(0.65, 0.95, 1.0))
-	# Offhand Catalyst (left hand)
-	var cat_pos := p_pos + Vector2(14, -24)
-	c.draw_circle(cat_pos, 11.0, Color(0.68, 0.28, 1.0, 0.3))
-	c.draw_arc(cat_pos, 10.0, 0.0, TAU, 20, Color(0.95, 0.8, 0.32), 1.8)
-	c.draw_colored_polygon(PackedVector2Array([
-		cat_pos + Vector2(8, 0), cat_pos + Vector2(0, 6), cat_pos + Vector2(-8, 0), cat_pos + Vector2(0, -6)
-	]), Color(0.78, 0.42, 1.0))
-	# Robe & Hat (pixel-art sprite)
 	var mage_tex: Texture2D = Config.get_tex("res://assets/sprites/player/player_mage.png")
 	if mage_tex != null:
 		Config.draw_sprite_centered(c, mage_tex, p_pos, Vector2(58, 58))
 	else:
 		c.draw_circle(p_pos, r, Color(0.25, 0.3, 0.85))
-	c.draw_string(font, Vector2(200, 105), "Hukulshish (5 Base HP)", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.95, 0.9, 0.5))
-	c.draw_string(font, Vector2(200, 128), "• Main Hand: Arcane Wand", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.75, 0.9, 1.0))
-	c.draw_string(font, Vector2(200, 148), "• Offhand: Magic Catalyst", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.65, 1.0))
+	Config.draw_mage_loadout(c, p_pos, r, Vector2.RIGHT, 0.0, false, 1.0)
+	c.draw_string(font, Vector2(200, 105), "Hukulshish (7 Base HP)", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.95, 0.9, 0.5))
+	c.draw_string(font, Vector2(200, 128), "• Main Hand: Sapphire Gem Staff", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.65, 0.88, 1.0))
+	c.draw_string(font, Vector2(200, 148), "• Offhand: Open Magic Tome", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.95, 0.88, 0.68))
 
 	# 2. Kingdom Castle (Heals up to 3 HP)
 	var cas_pos := Vector2(120, 275)

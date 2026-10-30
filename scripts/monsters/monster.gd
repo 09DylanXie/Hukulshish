@@ -84,13 +84,15 @@ func _physics_process(delta: float) -> void:
 	var reach: float = _radius + Config.tiles(Config.PLAYER_RADIUS_TILES) + 2.0
 	if to_player.length() <= reach:
 		velocity = Vector2.ZERO
+		if absf(to_player.x) > 4.0:
+			_facing_left = to_player.x < 0.0
 		if _attack_cooldown <= 0.0:
 			player.take_damage(stats.damage)
 			_attack_cooldown = Config.MONSTER_ATTACK_COOLDOWN_SEC
 	else:
 		var dir: Vector2 = _world.flow_direction(global_position, player.global_position) if _world != null else to_player.normalized()
 		velocity = dir * _speed
-		if absf(velocity.x) > 2.0:
+		if absf(velocity.x) > 8.0:
 			_facing_left = velocity.x < 0.0
 	move_and_slide()
 
@@ -160,18 +162,18 @@ func take_damage(amount: float) -> void:
 func _draw() -> void:
 	if stats == null:
 		return
-	# Ground shadow
-	draw_circle(Vector2(0, _radius * 0.65), _radius * 0.92, Color(0, 0, 0, 0.36))
+	# Flat ground shadow directly beneath the monster's feet
+	Config.draw_ground_shadow(self, _radius, _radius * 0.72, 0.34)
 
 	var tex: Texture2D = Config.get_tex(_sprite_path)
-	var bob: float = sin(_anim_t) * 1.4
+	var bob: float = sin(_anim_t) * 1.2 if velocity.length_squared() > 4.0 else sin(_anim_t * 0.35) * 0.4
 	if tex != null:
 		var mod_col: Color = Color(2.5, 2.5, 2.5, 1.0) if _flash > 0.0 else Color.WHITE
 		Config.draw_sprite_centered(
 			self,
 			tex,
-			Vector2(0, -_radius * 0.18 + bob),
-			Vector2(_radius * 2.55, _radius * 2.55),
+			Vector2(0, bob),
+			Vector2(_radius * 2.35, _radius * 2.35),
 			mod_col,
 			_facing_left
 		)
@@ -182,15 +184,15 @@ func _draw() -> void:
 		draw_circle(Vector2(-_radius * 0.35, -_radius * 0.2), _radius * 0.15, Color.BLACK)
 		draw_circle(Vector2(_radius * 0.35, -_radius * 0.2), _radius * 0.15, Color.BLACK)
 
-	# Demon bubble shield
+	# Demon bubble shield centered on the (0, 0) hitbox
 	if _has_bubble_shield:
-		var sr: float = _radius * 1.42
-		draw_circle(Vector2.ZERO, sr, Color(0.25, 0.85, 1.0, 0.24))
+		var sr: float = _radius * 1.38
+		draw_circle(Vector2.ZERO, sr, Color(0.25, 0.85, 1.0, 0.22))
 		draw_arc(Vector2.ZERO, sr, 0.0, TAU, 28, Color(0.45, 0.95, 1.0, 0.92), 2.0)
 	# HP bar (only once damaged)
 	if hp < max_hp:
 		var w: float = _radius * 2.1
-		var top: Vector2 = Vector2(-w * 0.5, -_radius - 9.0)
+		var top: Vector2 = Vector2(-w * 0.5, -_radius - 10.0)
 		draw_rect(Rect2(top - Vector2(1, 1), Vector2(w + 2, 5)), Color(0, 0, 0, 0.72))
 		draw_rect(Rect2(top, Vector2(w * maxf(hp, 0.0) / max_hp, 3)), Color(0.95, 0.22, 0.28))
 

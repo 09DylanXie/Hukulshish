@@ -136,21 +136,17 @@ func _update_weapons(delta: float) -> void:
 		var max_range: float = Config.tiles(float(spell["range_tiles"]))
 		var base_rate: float = maxf(0.05, float(spell["fire_rate"]))
 
+		var dir: Vector2 = global_position.direction_to(mouse_world)
+		if dir == Vector2.ZERO:
+			dir = Vector2.RIGHT
+		_aim_dir = dir
 		if manual_click:
-			var dir: Vector2 = global_position.direction_to(mouse_world)
-			if dir == Vector2.ZERO:
-				dir = Vector2.RIGHT
-			_aim_dir = dir
 			_fire_spell(spell, dir, max_range)
 			_cooldowns[i] = 1.0 / base_rate
 		else:
-			var target: Node2D = _find_target(max_range)
-			if target != null:
-				var dir: Vector2 = global_position.direction_to(target.global_position)
-				_aim_dir = dir
-				_fire_spell(spell, dir, max_range)
-				var auto_rate: float = maxf(0.05, base_rate * Config.AUTO_SHOOT_FIRE_RATE_MULT)
-				_cooldowns[i] = 1.0 / auto_rate
+			_fire_spell(spell, dir, max_range)
+			var auto_rate: float = maxf(0.05, base_rate * Config.AUTO_SHOOT_FIRE_RATE_MULT)
+			_cooldowns[i] = 1.0 / auto_rate
 
 
 func _find_target(max_range: float) -> Node2D:
@@ -185,7 +181,7 @@ func _fire_spell(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 		can_use_aug,
 		_aug_levels
 	)
-	p.global_position = global_position + dir * (_radius * 2.1)
+	p.global_position = global_position + Config.get_staff_gem_offset(_radius, dir)
 	var container: Node = get_tree().get_first_node_in_group("projectile_container")
 	if container == null:
 		container = get_tree().current_scene
@@ -209,31 +205,19 @@ func take_damage(amount: float) -> void:
 
 func _draw() -> void:
 	var alpha: float = 0.45 if (_iframes > 0.0 and int(_iframes * 20.0) % 2 == 0) else 0.85
-	draw_circle(Vector2(0, _radius * 0.65), _radius * 0.9, Color(0.25, 0.05, 0.45, 0.35 * alpha))
+	Config.draw_ground_shadow(self, _radius, _radius * 0.72, 0.32 * alpha, Color(0.25, 0.05, 0.45))
 
 	var staff_dir: Vector2 = _aim_dir if _aim_dir != Vector2.ZERO else Vector2.RIGHT
-	var perp: Vector2 = Vector2(-staff_dir.y, staff_dir.x)
 
-	# Offhand Magic Catalyst on the doppelganger
-	var offhand_pos: Vector2 = -perp * (_radius * 1.0) + staff_dir * (_radius * 0.65)
-	draw_circle(offhand_pos, _radius * 0.40, Color(0.6, 0.3, 1.0, alpha * 0.3))
-	var cat_pts := PackedVector2Array([
-		offhand_pos + staff_dir * (_radius * 0.30),
-		offhand_pos + perp * (_radius * 0.22),
-		offhand_pos - staff_dir * (_radius * 0.30),
-		offhand_pos - perp * (_radius * 0.22),
-	])
-	draw_colored_polygon(cat_pts, Color(0.75, 0.45, 1.0, alpha))
-
-	# Spectral twin sprite (never has a shield aura)
-	draw_circle(Vector2.ZERO, _radius * 1.15, Color(0.55, 0.25, 0.95, alpha * 0.25))
+	# Spectral twin sprite centered on (0, 0) hitbox (never has a shield aura)
+	draw_circle(Vector2.ZERO, _radius * 1.12, Color(0.55, 0.25, 0.95, alpha * 0.22))
 	var tex: Texture2D = Config.get_tex("res://assets/sprites/player/player_mage.png")
 	if tex != null:
 		Config.draw_sprite_centered(
 			self,
 			tex,
-			Vector2(0, -_radius * 0.22),
-			Vector2(_radius * 2.8, _radius * 2.8),
+			Vector2.ZERO,
+			Vector2(_radius * 2.5, _radius * 2.5),
 			Color(0.75, 0.48, 1.0, alpha),
 			staff_dir.x < -0.05
 		)
@@ -246,17 +230,11 @@ func _draw() -> void:
 		])
 		draw_colored_polygon(hat, Color(0.28, 0.12, 0.58, alpha))
 
-	# Wand / Staff extending from the doppelganger's body
-	var hand_offset: Vector2 = perp * (_radius * 0.4)
-	var staff_base: Vector2 = hand_offset + staff_dir * (_radius * 0.35)
-	var staff_tip: Vector2 = hand_offset + staff_dir * (_radius * 2.05)
-	draw_line(staff_base, staff_tip, Color(0.35, 0.22, 0.48, alpha), 4.0)
-	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.28, Color(0.75, 0.4, 1.0, alpha * 0.5))
-	draw_circle(staff_tip + staff_dir * 2.5, _radius * 0.18, Color(0.9, 0.7, 1.0, alpha))
+	Config.draw_mage_loadout(self, Vector2.ZERO, _radius, staff_dir, 0.0, true, alpha)
 
 	# HP bar (5 max HP, no shield bar)
 	var w: float = _radius * 2.2
-	var top: Vector2 = Vector2(-w * 0.5, -_radius - 12.0)
+	var top: Vector2 = Vector2(-w * 0.5, -_radius - 13.0)
 	draw_rect(Rect2(top, Vector2(w, 4)), Color(0, 0, 0, 0.65))
 	draw_rect(Rect2(top, Vector2(w * float(hp) / float(max_hp), 4)), Color(0.75, 0.38, 1.0))
 

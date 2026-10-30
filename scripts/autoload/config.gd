@@ -7,8 +7,8 @@ extends Node
 const TILE_SIZE: int = 32
 
 # --- Player (§6.1) ---
-const PLAYER_MAX_HP: int = 5
-const PLAYER_MAX_HP_BY_LEVEL: Array[int] = [5, 6, 7, 10]
+const PLAYER_MAX_HP: int = 7
+const PLAYER_MAX_HP_BY_LEVEL: Array[int] = [7, 8, 9, 12]
 const PLAYER_MAX_HP_MAX_LEVEL: int = 3
 const PLAYER_MAX_SHIELD: int = 5
 const PLAYER_SPEED_TILES: float = 3.0
@@ -26,7 +26,8 @@ const MANA_REGEN_STEP: float = 0.5
 const MANA_POOL_MAX: int = 29
 const MANA_POOL_MAX_LEVEL: int = 12
 const BASE_SPELL_MANA_COST: float = 2.0
-const BOSS_SPELL_MANA_COST: float = 3.0
+const BOSS_SPELL_MANA_COST: float = 1.5
+const MEGA_BOSS_SPELL_MANA_COST: float = 2.0
 
 # --- Base spell (§6.2) ---
 const SPELL_MAX_LEVEL: int = 9
@@ -80,6 +81,7 @@ const GOLD_SHOP_SHIELD_COST: int = 200
 const GOLD_SHOP_POTION_COST: int = 100
 const GOLD_SHOP_MAGNET_COST: int = 300
 const GOLD_SHOP_AUTO_COLLECTOR_COST: int = 500
+const GOLD_SHOP_WALL_PIERCE_COST: int = 500
 const AUTO_COLLECTOR_INTERVAL_SEC: float = 30.0
 const GOLD_SHOP_AUTO_SHOOT_COST: int = 1000
 const GOLD_SHOP_HOMING_COST: int = 1500
@@ -149,8 +151,8 @@ const UNDEAD_SLOW_RANGE_TILES: float = 9.0
 const UNDEAD_SLOW_SPEED_MULT: float = 0.5
 const UNDEAD_SLOW_DURATION_SEC: float = 2.5
 
-# --- Nest boss (§6.6) — 4× previous HP (20 → 80) ---
-const BOSS_HP: int = 80
+# --- Nest boss (§6.6) — buffed 3× (80 → 240 HP) ---
+const BOSS_HP: int = 240
 const BOSS_MELEE_DAMAGE: int = 5
 const BOSS_BOLT_DAMAGE: int = 1
 const BOSS_BOLT_SPEED_TILES: float = 1.0
@@ -252,7 +254,8 @@ func mod_cost(level: int) -> int:
 	var n: int = level + 1
 	if n <= MOD_LINEAR_UPGRADES:
 		return n
-	return MOD_LINEAR_UPGRADES * int(pow(2, n - MOD_LINEAR_UPGRADES))
+	var exp_steps: int = mini(n - MOD_LINEAR_UPGRADES, 50)
+	return MOD_LINEAR_UPGRADES * (1 << exp_steps)
 
 
 ## Max mana for a given `mana_pool` upgrade level (0..12):
@@ -339,9 +342,136 @@ func draw_sprite_centered(
 		return
 	var scale_f: float = minf(max_size.x / ts.x, max_size.y / ts.y)
 	var draw_sz: Vector2 = ts * scale_f
-	var rect := Rect2(pos - draw_sz * 0.5, draw_sz)
-	if flip_h:
-		rect.position.x += draw_sz.x
-		rect.size.x = -draw_sz.x
+	# In Godot 4, negative rect.size.x flips horizontally in-place within [rect.position.x, rect.position.x + draw_sz.x].
+	var rect := Rect2(pos - draw_sz * 0.5, Vector2(-draw_sz.x if flip_h else draw_sz.x, draw_sz.y))
 	canvas.draw_texture_rect(tex, rect, false, modulate_col)
+
+
+## Draws a flat elliptical ground shadow directly beneath an entity's feet so it never looks like a separate target.
+func draw_ground_shadow(
+	canvas: CanvasItem,
+	radius: float,
+	y_offset: float,
+	alpha: float = 0.32,
+	tint: Color = Color.BLACK
+) -> void:
+	canvas.draw_set_transform(Vector2(0.0, y_offset), 0.0, Vector2(1.0, 0.42))
+	canvas.draw_circle(Vector2.ZERO, radius * 0.88, Color(tint.r, tint.g, tint.b, alpha))
+	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Returns the local offset of the sapphire rhombus gem at the tip of the mage's staff.
+func get_staff_gem_offset(radius: float, aim_dir: Vector2) -> Vector2:
+	var dir: Vector2 = aim_dir.normalized() if aim_dir != Vector2.ZERO else Vector2.RIGHT
+	var facing_sign: float = -1.0 if dir.x < -0.05 else 1.0
+	var s: float = radius / 12.8
+	var main_hand := Vector2(facing_sign * radius * 0.62, radius * 0.08)
+	return main_hand + dir * (radius * 1.18 + 3.6 * s)
+
+
+## Draws the mage's offhand small open magic tome/book and main-hand staff with a small sapphire rhombus gem tip.
+func draw_mage_loadout(
+	canvas: CanvasItem,
+	center: Vector2,
+	radius: float,
+	aim_dir: Vector2,
+	bob: float = 0.0,
+	spectral: bool = false,
+	alpha: float = 1.0
+) -> void:
+	var dir: Vector2 = aim_dir.normalized() if aim_dir != Vector2.ZERO else Vector2.RIGHT
+	var perp := Vector2(-dir.y, dir.x)
+	var facing_sign: float = -1.0 if dir.x < -0.05 else 1.0
+	var s: float = radius / 12.8
+
+	# 1. Offhand: Small Open Magic Tome / Book
+	var b: Vector2 = center + Vector2(-facing_sign * radius * 0.64, radius * 0.14 + bob * 0.65)
+	var aura_col := Color(0.55, 0.30, 1.0, 0.22 * alpha) if spectral else Color(0.18, 0.55, 1.0, 0.20 * alpha)
+	var cover_col := Color(0.32, 0.14, 0.52, alpha) if spectral else Color(0.20, 0.14, 0.36, alpha)
+	var trim_col := Color(0.82, 0.62, 1.0, alpha) if spectral else Color(0.90, 0.74, 0.28, alpha)
+	var page_left := Color(0.88, 0.80, 1.0, alpha) if spectral else Color(0.96, 0.92, 0.80, alpha)
+	var page_right := Color(0.80, 0.70, 0.96, alpha) if spectral else Color(0.89, 0.84, 0.71, alpha)
+	var rune_col := Color(0.62, 0.28, 1.0, 0.92 * alpha) if spectral else Color(0.14, 0.50, 0.95, 0.92 * alpha)
+
+	canvas.draw_circle(b, 5.2 * s, aura_col)
+	# Leather cover with 1px dark outline
+	var cover_out := PackedVector2Array([
+		b + Vector2(-5.3 * s, -3.0 * s),
+		b + Vector2(0.0, -1.9 * s),
+		b + Vector2(5.3 * s, -3.0 * s),
+		b + Vector2(5.3 * s, 3.4 * s),
+		b + Vector2(0.0, 4.4 * s),
+		b + Vector2(-5.3 * s, 3.4 * s),
+	])
+	canvas.draw_colored_polygon(cover_out, Color(0.07, 0.04, 0.10, 0.95 * alpha))
+	var cover_pts := PackedVector2Array([
+		b + Vector2(-4.6 * s, -2.4 * s),
+		b + Vector2(0.0, -1.4 * s),
+		b + Vector2(4.6 * s, -2.4 * s),
+		b + Vector2(4.6 * s, 2.8 * s),
+		b + Vector2(0.0, 3.8 * s),
+		b + Vector2(-4.6 * s, 2.8 * s),
+	])
+	canvas.draw_colored_polygon(cover_pts, cover_col)
+	# Open left & right parchment pages
+	canvas.draw_colored_polygon(PackedVector2Array([
+		b + Vector2(-3.8 * s, -1.9 * s),
+		b + Vector2(-0.35 * s, -1.0 * s),
+		b + Vector2(-0.35 * s, 3.0 * s),
+		b + Vector2(-3.8 * s, 2.1 * s),
+	]), page_left)
+	canvas.draw_colored_polygon(PackedVector2Array([
+		b + Vector2(0.35 * s, -1.0 * s),
+		b + Vector2(3.8 * s, -1.9 * s),
+		b + Vector2(3.8 * s, 2.1 * s),
+		b + Vector2(0.35 * s, 3.0 * s),
+	]), page_right)
+	# Center spine & glowing arcane rune lines on the pages
+	canvas.draw_line(b + Vector2(0.0, -1.3 * s), b + Vector2(0.0, 3.6 * s), trim_col, maxf(1.0, 1.1 * s))
+	canvas.draw_line(b + Vector2(-3.1 * s, -0.5 * s), b + Vector2(-1.0 * s, 0.0), rune_col, maxf(1.0, 0.95 * s))
+	canvas.draw_line(b + Vector2(-3.1 * s, 1.0 * s), b + Vector2(-1.0 * s, 1.5 * s), rune_col, maxf(1.0, 0.95 * s))
+	canvas.draw_line(b + Vector2(1.0 * s, 0.0), b + Vector2(3.1 * s, -0.5 * s), rune_col, maxf(1.0, 0.95 * s))
+	canvas.draw_line(b + Vector2(1.0 * s, 1.5 * s), b + Vector2(3.1 * s, 1.0 * s), rune_col, maxf(1.0, 0.95 * s))
+
+	# 2. Main Hand: Staff with Small Sapphire Rhombus Gem at the Tip
+	var main_hand: Vector2 = center + Vector2(facing_sign * radius * 0.62, radius * 0.08 + bob * 0.85)
+	var staff_butt: Vector2 = main_hand - dir * (radius * 0.62)
+	var staff_head: Vector2 = main_hand + dir * (radius * 1.18)
+	var shaft_col := Color(0.38, 0.22, 0.54, alpha) if spectral else Color(0.42, 0.25, 0.13, alpha)
+
+	# Dark pixel outline + sleek carved wooden shaft + gold ferrule & butt cap
+	canvas.draw_line(staff_butt, staff_head, Color(0.07, 0.04, 0.10, 0.92 * alpha), 3.8 * s)
+	canvas.draw_line(staff_butt, staff_head, shaft_col, 2.2 * s)
+	canvas.draw_line(staff_butt, staff_butt + dir * (1.8 * s), trim_col, 2.6 * s)
+	canvas.draw_line(staff_head - dir * (2.2 * s), staff_head + dir * (0.6 * s), trim_col, 3.2 * s)
+
+	# Small Sapphire Rhombus Gem at the tip
+	var gem_pos: Vector2 = staff_head + dir * (3.6 * s)
+	var gem_glow := Color(0.58, 0.28, 1.0, 0.30 * alpha) if spectral else Color(0.10, 0.50, 1.0, 0.30 * alpha)
+	var gem_body := Color(0.56, 0.28, 0.98, alpha) if spectral else Color(0.08, 0.42, 0.96, alpha)
+	var gem_core := Color(0.90, 0.78, 1.0, alpha) if spectral else Color(0.68, 0.92, 1.0, alpha)
+
+	canvas.draw_circle(gem_pos, 4.2 * s, gem_glow)
+	# Outer dark border rhombus
+	canvas.draw_colored_polygon(PackedVector2Array([
+		gem_pos + dir * (3.9 * s),
+		gem_pos + perp * (2.4 * s),
+		gem_pos - dir * (3.7 * s),
+		gem_pos - perp * (2.4 * s),
+	]), Color(0.05, 0.08, 0.20, 0.95 * alpha))
+	# Sapphire rhombus body
+	canvas.draw_colored_polygon(PackedVector2Array([
+		gem_pos + dir * (3.1 * s),
+		gem_pos + perp * (1.75 * s),
+		gem_pos - dir * (2.9 * s),
+		gem_pos - perp * (1.75 * s),
+	]), gem_body)
+	# Bright inner sapphire facet
+	canvas.draw_colored_polygon(PackedVector2Array([
+		gem_pos + dir * (1.6 * s),
+		gem_pos + perp * (0.85 * s),
+		gem_pos - dir * (1.3 * s),
+		gem_pos - perp * (0.85 * s),
+	]), gem_core)
+
 

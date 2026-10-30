@@ -129,7 +129,8 @@ func _build() -> void:
 func _refresh() -> void:
 	if _root == null:
 		return
-	if GameState.sandbox_mode:
+	var free: bool = GameState.sandbox_mode
+	if free:
 		_resources_label.text = "SANDBOX MODE — Gold: ∞      Spell Scrolls: ∞      Augmentation Scrolls: ∞      Enhancers: ∞"
 	else:
 		_resources_label.text = "Gold: %d      Spell Scrolls: %d      Augmentation Scrolls: %d      Enhancers: %d" % [
@@ -143,7 +144,7 @@ func _refresh() -> void:
 		var cost: int = GameState.next_upgrade_cost()
 		_upgrade_button.text = "Upgrade Base Spell  Lv %d → %d  (%d → %d base dmg)  —  %d gold" % [
 			lvl, lvl + 1, Config.spell_damage(lvl), Config.spell_damage(lvl + 1), cost]
-		_upgrade_button.disabled = GameState.gold < cost
+		_upgrade_button.disabled = (not free) and GameState.gold < cost
 
 	# Populate Spell Mods (Spell Scrolls)
 	for c in _mods_box.get_children():
@@ -152,28 +153,29 @@ func _refresh() -> void:
 		var mod_lvl: int = int(GameState.mod_levels.get(id, 0))
 		var cost: int = GameState.next_mod_cost(id)
 		var scroll_word: String = "scroll" if cost == 1 else "scrolls"
+		var cost_tag: String = "FREE (∞)" if free else ("%d %s" % [cost, scroll_word])
 		var text: String = ""
 		var maxed: bool = GameState.is_mod_maxed(id)
 		match id:
 			"damage":
 				var cur_m: float = GameState.mod_multiplier("damage")
-				text = "Damage  Lv %d (×%.1f → ×%.1f)  —  %d %s" % [mod_lvl, cur_m, cur_m + Config.MOD_STEP, cost, scroll_word]
+				text = "Damage  Lv %d (×%.1f → ×%.1f)  —  %s" % [mod_lvl, cur_m, cur_m + Config.MOD_STEP, cost_tag]
 			"mana_regen":
 				var cur_r: float = GameState.mana_regen()
-				text = "Mana Regen  Lv %d (%.1f/s → %.1f/s)  —  %d %s" % [mod_lvl, cur_r, cur_r + Config.MANA_REGEN_STEP, cost, scroll_word]
+				text = "Mana Regen  Lv %d (%.1f/s → %.1f/s)  —  %s" % [mod_lvl, cur_r, cur_r + Config.MANA_REGEN_STEP, cost_tag]
 			"mana_pool":
 				var cur_p: int = GameState.max_mana()
 				if maxed:
 					text = "Mana Pool  Lv %d (%d max mana) — MAX" % [mod_lvl, cur_p]
 				else:
 					var next_p: int = Config.max_mana_for_level(mod_lvl + 1)
-					text = "Mana Pool  Lv %d (%d → %d max mana)  —  %d %s" % [mod_lvl, cur_p, next_p, cost, scroll_word]
+					text = "Mana Pool  Lv %d (%d → %d max mana)  —  %s" % [mod_lvl, cur_p, next_p, cost_tag]
 			"range":
 				var cur_rng: float = GameState.mod_multiplier("range")
-				text = "Range  Lv %d (×%.1f → ×%.1f)  —  %d %s" % [mod_lvl, cur_rng, cur_rng + Config.MOD_STEP, cost, scroll_word]
+				text = "Range  Lv %d (×%.1f → ×%.1f)  —  %s" % [mod_lvl, cur_rng, cur_rng + Config.MOD_STEP, cost_tag]
 		var btn: Button = UIKit.make_button(text, _on_buy_mod.bind(id), 16)
 		btn.custom_minimum_size = Vector2(0, 40)
-		btn.disabled = maxed or GameState.mod_parts < cost
+		btn.disabled = maxed or ((not free) and GameState.mod_parts < cost)
 		_mods_box.add_child(btn)
 
 	# Populate Augmentations (Augmentation Scrolls: max 3, costs 1, 2, 3)
@@ -219,7 +221,7 @@ func _refresh() -> void:
 					text = "Sniper  Lv %d → %d (%d× → %d× dmg)  —  %d %s" % [aug_lvl, aug_lvl + 1, cur_mult, next_mult, cost, scroll_word]
 		var btn: Button = UIKit.make_button(text, _on_buy_aug.bind(id), 16)
 		btn.custom_minimum_size = Vector2(0, 40)
-		btn.disabled = maxed or GameState.aug_scrolls < cost
+		btn.disabled = maxed or ((not free) and GameState.aug_scrolls < cost)
 		_augs_box.add_child(btn)
 
 	# Populate Personal Shop (Goblin & Undead Enhancers: max 3, costs 3, 5, 9)
@@ -273,7 +275,7 @@ func _refresh() -> void:
 					text = "Income Multiplier  Lv %d → %d (+%d%% → +%d%% enemy gold)  —  %d enhancers" % [p_lvl, p_lvl + 1, cur_pct, next_pct, cost]
 		var btn: Button = UIKit.make_button(text, _on_buy_personal.bind(id), 15)
 		btn.custom_minimum_size = Vector2(0, 40)
-		btn.disabled = maxed or GameState.enhancers < cost
+		btn.disabled = maxed or ((not free) and GameState.enhancers < cost)
 		_personal_box.add_child(btn)
 
 	# Populate Boss Spells
@@ -281,12 +283,13 @@ func _refresh() -> void:
 		c.queue_free()
 	if GameState.boss_spells.is_empty():
 		_spells_box.add_child(UIKit.make_label(
-			"None yet — bosses have a 1/3 chance to drop a new spell (costs %d mana)." % int(Config.BOSS_SPELL_MANA_COST),
+			"None yet — bosses have a 1/3 chance to drop a new spell (costs %.1f mana)." % Config.BOSS_SPELL_MANA_COST,
 			15, Color(0.7, 0.7, 0.75)))
 	else:
 		for s in GameState.boss_spells:
-			var info: String = "★ %s — %.1f dmg, %.2f/s, %d mana (frozen)" % [
-				s["name"], float(s["damage"]), float(s["fire_rate"]), int(s.get("mana_cost", Config.BOSS_SPELL_MANA_COST))]
+			var m_cost: float = float(s.get("mana_cost", Config.BOSS_SPELL_MANA_COST))
+			var info: String = "★ %s — %.1f dmg, %.2f/s, %s mana (frozen)" % [
+				s["name"], float(s["damage"]), float(s["fire_rate"]), str(snappedf(m_cost, 0.1))]
 			_spells_box.add_child(UIKit.make_label(info, 15, s["color"] as Color))
 
 	# Populate Gold Shop
@@ -307,7 +310,7 @@ func _refresh() -> void:
 			"Max HP +%d (%d → %d Max HP)  —  %d gold" % [next_mhp - cur_mhp, cur_mhp, next_mhp, mhp_cost],
 			func() -> void: GameState.try_buy_max_hp_gold(), 16)
 		mhp_btn.custom_minimum_size = Vector2(0, 38)
-		mhp_btn.disabled = GameState.gold < mhp_cost
+		mhp_btn.disabled = (not free) and GameState.gold < mhp_cost
 		_gold_shop_box.add_child(mhp_btn)
 
 	# 1. Spell Scroll (100 gold first, +100 each up to 10)
@@ -318,7 +321,7 @@ func _refresh() -> void:
 			"Spell Scroll (%d/%d)  —  %d gold" % [bought, Config.GOLD_SHOP_MOD_PART_MAX, mp_cost],
 			func() -> void: GameState.try_buy_gold_mod_part(), 16)
 		mp_btn.custom_minimum_size = Vector2(0, 38)
-		mp_btn.disabled = GameState.gold < mp_cost
+		mp_btn.disabled = (not free) and GameState.gold < mp_cost
 		_gold_shop_box.add_child(mp_btn)
 	else:
 		var mp_done: Button = UIKit.make_button("Spell Scroll (%d/%d) — SOLD OUT" % [bought, Config.GOLD_SHOP_MOD_PART_MAX], func() -> void: pass, 16)
@@ -337,7 +340,7 @@ func _refresh() -> void:
 			"Magnet (pulls dropped scrolls)  —  %d gold" % Config.GOLD_SHOP_MAGNET_COST,
 			func() -> void: GameState.try_buy_magnet(), 16)
 		mag_btn.custom_minimum_size = Vector2(0, 35)
-		mag_btn.disabled = GameState.gold < Config.GOLD_SHOP_MAGNET_COST
+		mag_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_MAGNET_COST
 		_gold_shop_box.add_child(mag_btn)
 
 	# 2b. Auto Gold Collector (500 gold; collects all gold mines every 30s)
@@ -351,31 +354,48 @@ func _refresh() -> void:
 			"Auto Gold Collector (mines every 30s)  —  %d gold" % Config.GOLD_SHOP_AUTO_COLLECTOR_COST,
 			func() -> void: GameState.try_buy_auto_collector(), 16)
 		col_btn.custom_minimum_size = Vector2(0, 35)
-		col_btn.disabled = GameState.gold < Config.GOLD_SHOP_AUTO_COLLECTOR_COST
+		col_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_AUTO_COLLECTOR_COST
 		_gold_shop_box.add_child(col_btn)
 
+	# 2c. Shoot Through Walls (500 gold; lets player spells phase through maze walls)
+	if GameState.wall_pierce_unlocked:
+		var wp_done: Button = UIKit.make_button("Shoot Through Walls — UNLOCKED", func() -> void: pass, 16)
+		wp_done.custom_minimum_size = Vector2(0, 35)
+		wp_done.disabled = true
+		_gold_shop_box.add_child(wp_done)
+	else:
+		var wp_btn: Button = UIKit.make_button(
+			"Shoot Through Walls  —  %d gold" % Config.GOLD_SHOP_WALL_PIERCE_COST,
+			func() -> void: GameState.try_buy_wall_pierce(), 16)
+		wp_btn.custom_minimum_size = Vector2(0, 35)
+		wp_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_WALL_PIERCE_COST
+		_gold_shop_box.add_child(wp_btn)
+
 	# 3. Temporary Magic Shield (+1 Shield, 200 gold)
+	var owned_sh: String = "∞" if free else str(GameState.shield_items)
 	var sh_btn: Button = UIKit.make_button(
-		"Magic Shield (+1 Shield) [Owned: %d]  —  %d gold" % [GameState.shield_items, Config.GOLD_SHOP_SHIELD_COST],
+		"Magic Shield (+1 Shield) [Owned: %s]  —  %d gold" % [owned_sh, Config.GOLD_SHOP_SHIELD_COST],
 		func() -> void: GameState.try_buy_shield_item(), 16)
 	sh_btn.custom_minimum_size = Vector2(0, 38)
-	sh_btn.disabled = GameState.gold < Config.GOLD_SHOP_SHIELD_COST
+	sh_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_SHIELD_COST
 	_gold_shop_box.add_child(sh_btn)
 
 	# 4. 3 HP Healing Potion (100 gold)
+	var owned_hp: String = "∞" if free else str(GameState.heal_potions)
 	var hp_btn: Button = UIKit.make_button(
-		"3 HP Healing Potion [Owned: %d]  —  %d gold" % [GameState.heal_potions, Config.GOLD_SHOP_POTION_COST],
+		"3 HP Healing Potion [Owned: %s]  —  %d gold" % [owned_hp, Config.GOLD_SHOP_POTION_COST],
 		func() -> void: GameState.try_buy_heal_potion(), 16)
 	hp_btn.custom_minimum_size = Vector2(0, 38)
-	hp_btn.disabled = GameState.gold < Config.GOLD_SHOP_POTION_COST
+	hp_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_POTION_COST
 	_gold_shop_box.add_child(hp_btn)
 
 	# 5. 2× Damage Boost Potion (30s, 100 gold)
+	var owned_dmg: String = "∞" if free else str(GameState.damage_potions)
 	var dmg_btn: Button = UIKit.make_button(
-		"2× Damage Boost Potion (30s) [Owned: %d]  —  %d gold" % [GameState.damage_potions, Config.GOLD_SHOP_POTION_COST],
+		"2× Damage Boost Potion (30s) [Owned: %s]  —  %d gold" % [owned_dmg, Config.GOLD_SHOP_POTION_COST],
 		func() -> void: GameState.try_buy_damage_potion(), 16)
 	dmg_btn.custom_minimum_size = Vector2(0, 38)
-	dmg_btn.disabled = GameState.gold < Config.GOLD_SHOP_POTION_COST
+	dmg_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_POTION_COST
 	_gold_shop_box.add_child(dmg_btn)
 
 	# 6. Auto-Shooting Unlock (1000 gold; toggle with E)
@@ -389,7 +409,7 @@ func _refresh() -> void:
 			"Unlock Auto-Shooting (toggle with E)  —  %d gold" % Config.GOLD_SHOP_AUTO_SHOOT_COST,
 			func() -> void: GameState.try_buy_auto_shoot(), 16)
 		auto_btn.custom_minimum_size = Vector2(0, 38)
-		auto_btn.disabled = GameState.gold < Config.GOLD_SHOP_AUTO_SHOOT_COST
+		auto_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_AUTO_SHOOT_COST
 		_gold_shop_box.add_child(auto_btn)
 
 	# 7. Homing Unlock (1500 gold; toggle with F)
@@ -403,7 +423,7 @@ func _refresh() -> void:
 			"Unlock Homing (toggle with F)  —  %d gold" % Config.GOLD_SHOP_HOMING_COST,
 			func() -> void: GameState.try_buy_homing(), 16)
 		homing_btn.custom_minimum_size = Vector2(0, 38)
-		homing_btn.disabled = GameState.gold < Config.GOLD_SHOP_HOMING_COST
+		homing_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_HOMING_COST
 		_gold_shop_box.add_child(homing_btn)
 
 	# 8. Doppelganger (5000 gold; 5 HP, no shield, copies current abilities and follows player until death)
@@ -417,7 +437,7 @@ func _refresh() -> void:
 			"Doppelganger (5 HP, copies abilities)  —  %d gold" % Config.GOLD_SHOP_DOPPELGANGER_COST,
 			func() -> void: GameState.try_buy_doppelganger(), 16)
 		dop_btn.custom_minimum_size = Vector2(0, 38)
-		dop_btn.disabled = GameState.gold < Config.GOLD_SHOP_DOPPELGANGER_COST
+		dop_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_DOPPELGANGER_COST
 		_gold_shop_box.add_child(dop_btn)
 
 
