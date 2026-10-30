@@ -12,3 +12,4 @@ const VICTORY: String = "res://scenes/ui/Victory.tscn"
 func goto(path: String) -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file.call_deferred(path)
+

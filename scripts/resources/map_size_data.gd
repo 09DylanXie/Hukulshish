@@ -7,3 +7,4 @@ extends Resource
 @export var size_in_tiles: int = 60
 ## Optional hand-made map scene. Leave empty to use the generated prototype map.
 @export var scene: PackedScene
+
