@@ -1,4 +1,6 @@
 extends Node2D
+
+signal coop_shop_entered(peer_id: int)
 ## Root of a run (Normal mode). Builds the map + random maze, spawns the castle / player / nests / gold mines,
 ## and wires everything together with signals. Can be run directly with F6 (uses Medium/Medium).
 
@@ -24,6 +26,8 @@ var _player: Player
 var _castle_menu: CastleMenu
 var _bounds: Rect2 = Rect2()
 var _nest_positions: Array[Vector2] = []
+var _coop_players: Dictionary = {}
+var _revivals: CoopRevivalController
 
 
 func _ready() -> void:
@@ -89,12 +93,54 @@ func _ready() -> void:
 	_castle_menu = CastleMenuScene.instantiate()
 	add_child(_castle_menu)
 	castle.player_entered.connect(_on_castle_entered)
+	if GameState.coop_mode:
+		_revivals = CoopRevivalController.new()
+		_revivals.castle_position = castle.global_position
+		add_child(_revivals)
+		_coop_players[1] = _player
+		_revivals.register_player(1, _player)
 
 
-func _on_castle_entered() -> void:
-	if _player != null:
-		_player.heal_at_castle()
-	_castle_menu.open()
+## Called by the authoritative session once a guest has joined the run.
+## The network transport supplies this player's remote input separately.
+func add_coop_player(peer_id: int) -> Player:
+	if not multiplayer.is_server() or GameState.run_over:
+		return null
+	if not GameState.coop_mode or _revivals == null or _coop_players.has(peer_id):
+		return null
+	if peer_id < 2 or peer_id > int(Config.COOP_RULES.player_count):
+		return null
+	var progress: RunState = RunState.new()
+	progress.coop_mode = true
+	progress.map_size = GameState.map_size
+	progress.difficulty = GameState.difficulty
+	add_child(progress)
+	progress.start_run()
+	progress.doppelganger_spawn_requested.connect(_on_doppelganger_spawn_requested.bind(progress))
+	progress.floating_text_requested.connect(_on_floating_text_requested)
+	var player: Player = PlayerScene.instantiate()
+	player.progress = progress
+	player.accepts_local_input = false
+	player.bounds = _bounds
+	_entities.add_child(player)
+	_coop_players[peer_id] = player
+	_revivals.register_player(peer_id, player)
+	if _coop_players.size() == int(Config.COOP_RULES.player_count):
+		_revivals.start()
+	return player
+
+
+func _on_castle_entered(player: Player) -> void:
+	if player == null or player.is_dead():
+		return
+	player.heal_at_castle()
+	if player == _player:
+		_castle_menu.open()
+	elif GameState.coop_mode:
+		for id: int in _coop_players:
+			if _coop_players[id] == player:
+				coop_shop_entered.emit(id)
+				break
 
 
 func _process(delta: float) -> void:
@@ -200,12 +246,13 @@ func _spawn_gold_mines(positions: Array[Vector2]) -> void:
 
 
 func _on_monster_spawned(monster: Monster) -> void:
-	monster.died.connect(_on_monster_died)
+	monster.died.connect(_on_monster_died.bind(monster))
 
 
-func _on_monster_died(gold: int, pos: Vector2, is_demon: bool, drops_enhancer: bool) -> void:
-	GameState.add_combat_gold(gold)
-	var luck: float = GameState.luck_multiplier()
+func _on_monster_died(gold: int, pos: Vector2, is_demon: bool, drops_enhancer: bool, monster: Monster) -> void:
+	GameState.award_kill_gold(gold, monster.killing_player)
+	var killer: RunState = monster.killing_player if GameState.coop_mode else GameState
+	var luck: float = killer.luck_multiplier() if is_instance_valid(killer) else 1.0
 	if randf() < Config.MOD_PART_DROP_CHANCE * luck:
 		var pickup: ModPickup = ModPickupScene.instantiate()
 		pickup.kind = ModPickup.Kind.MOD_PART
@@ -237,7 +284,7 @@ func _on_nest_destroyed(nest: Nest) -> void:
 	var boss: NestBoss = BossScene.instantiate()
 	boss.setup(tint, GameState.difficulty.hp_mult)
 	boss.position = pos
-	boss.died.connect(_on_boss_died)
+	boss.died.connect(_on_boss_died.bind(boss))
 	_entities.call_deferred("add_child", boss)
 
 
@@ -269,27 +316,37 @@ func _on_mega_boss_duplicated(pos: Vector2, tint: Color, mult: float) -> void:
 
 func _on_mega_minion_spawned(minion: Node) -> void:
 	if minion is Monster:
-		(minion as Monster).died.connect(_on_monster_died)
+		(minion as Monster).died.connect(_on_monster_died.bind(minion))
 	elif minion is NestBoss:
-		(minion as NestBoss).died.connect(_on_boss_died)
+		(minion as NestBoss).died.connect(_on_boss_died.bind(minion))
 
 
-func _on_boss_died(gold: int, pos: Vector2) -> void:
-	GameState.add_combat_gold(gold)
+func _on_boss_died(gold: int, pos: Vector2, boss: NestBoss) -> void:
+	GameState.award_kill_gold(gold, boss.killing_player)
 	GameState.on_boss_defeated()
-	if randf() < Config.BOSS_SPELL_DROP_CHANCE * GameState.luck_multiplier():
+	var killer: RunState = boss.killing_player if GameState.coop_mode else GameState
+	var luck: float = killer.luck_multiplier() if is_instance_valid(killer) else 1.0
+	if randf() < Config.BOSS_SPELL_DROP_CHANCE * luck:
 		var pickup: ModPickup = ModPickupScene.instantiate()
 		pickup.kind = ModPickup.Kind.BOSS_SPELL
 		pickup.position = pos
 		_entities.call_deferred("add_child", pickup)
 
 
-func _on_doppelganger_spawn_requested(snapshot: Dictionary) -> void:
+func _on_doppelganger_spawn_requested(snapshot: Dictionary, progress: RunState = null) -> void:
 	if not is_inside_tree() or _entities == null:
 		return
+	if progress == null:
+		progress = GameState
 	var dop: Node2D = DoppelgangerScript.new()
+	dop.set("progress", progress)
 	dop.call("setup_from_snapshot", snapshot, _bounds)
-	var base_pos: Vector2 = _player.global_position if _player != null else Vector2.ZERO
+	var owner_player: Player = _player
+	for player: Player in _coop_players.values():
+		if player.progress == progress:
+			owner_player = player
+			break
+	var base_pos: Vector2 = owner_player.global_position if owner_player != null else Vector2.ZERO
 	dop.position = base_pos + Vector2(-Config.tiles(1.5), Config.tiles(1.0))
 	_entities.add_child(dop)
 

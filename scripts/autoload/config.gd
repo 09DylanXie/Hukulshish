@@ -6,6 +6,9 @@ extends Node
 ## Base unit for distance and speed (AGENTS.md §2 Conventions).
 const TILE_SIZE: int = 32
 
+## Three-player Normal co-op. Player, nest, companion and shield HP are unchanged.
+const COOP_RULES: Resource = preload("res://resources/multiplayer/coop_rules.tres")
+
 # --- Player (§6.1) ---
 const PLAYER_MAX_HP: int = 7
 const PLAYER_MAX_HP_BY_LEVEL: Array[int] = [7, 8, 9, 12]

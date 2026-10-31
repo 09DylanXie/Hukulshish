@@ -127,6 +127,7 @@ func take_damage(amount: float) -> void:
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true
+		killing_player = _damage_owner
 		GameState.request_shake(14.0, 0.45)
 		_on_killed()
 		died.emit(gold, global_position)

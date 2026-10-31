@@ -1,3 +1,4 @@
+class_name RunState
 extends Node
 ## Current run state (autoload "GameState").
 ## Systems listen to these signals instead of referencing each other.
@@ -19,6 +20,10 @@ var map_size: MapSizeData
 var difficulty: DifficultyData
 var endless_mode: bool = false
 var sandbox_mode: bool = false
+var coop_mode: bool = false
+var revival_unlocked: bool = false
+var castle_menu_open: bool = false
+var pause_menu_open: bool = false
 var endless_wave: int = 0
 var endless_hp_mult: float = 1.0
 
@@ -100,6 +105,9 @@ func start_run() -> void:
 	boss_spells.clear()
 	max_hp_level = 0
 	doppelganger_alive = false
+	revival_unlocked = false
+	castle_menu_open = false
+	pause_menu_open = false
 	magnet_unlocked = false
 	auto_collector_unlocked = false
 	auto_collector_timer = 0.0
@@ -181,7 +189,8 @@ func _process(delta: float) -> void:
 ## - Extreme: ×1.5 per 30 s
 func scaled_monster_hp(base_hp: int) -> float:
 	var mult: float = difficulty.hp_mult if difficulty != null else 1.0
-	var hp: float = float(Config.scale_hp(base_hp, mult))
+	var coop_mult: float = Config.COOP_RULES.monster_hp_multiplier if coop_mode else 1.0
+	var hp: float = float(Config.scale_hp(int(round(base_hp * coop_mult)), mult))
 	if run_time >= Config.TIME_SCALE_START_SEC and difficulty != null:
 		var steps: int = int(floor((run_time - Config.TIME_SCALE_START_SEC) / Config.TIME_SCALE_INTERVAL_SEC)) + 1
 		match difficulty.name:
@@ -201,12 +210,14 @@ func scaled_nest_hp() -> float:
 
 func scaled_boss_hp() -> float:
 	var mult: float = difficulty.hp_mult if (Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES and difficulty != null) else 1.0
-	return float(Config.scale_hp(Config.BOSS_HP, mult)) * endless_hp_mult
+	var coop_mult: float = Config.COOP_RULES.boss_hp_multiplier if coop_mode else 1.0
+	return float(Config.scale_hp(int(round(Config.BOSS_HP * coop_mult)), mult)) * endless_hp_mult
 
 
 func scaled_mega_boss_hp() -> float:
 	var mult: float = difficulty.hp_mult if (Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES and difficulty != null) else 1.0
-	return float(Config.scale_hp(Config.MEGA_BOSS_HP, mult)) * endless_hp_mult
+	var coop_mult: float = Config.COOP_RULES.boss_hp_multiplier if coop_mode else 1.0
+	return float(Config.scale_hp(int(round(Config.MEGA_BOSS_HP * coop_mult)), mult)) * endless_hp_mult
 
 
 # --- Mana & Spell Mods ---
@@ -302,6 +313,25 @@ func add_combat_gold(base_gold: int) -> void:
 		return
 	var scaled: int = maxi(1, int(round(float(base_gold) * income_multiplier())))
 	add_gold(scaled)
+
+
+## The host calls this once per death. A co-op kill never pays the host by default.
+func award_kill_gold(base_gold: int, killer: RunState) -> void:
+	if coop_mode:
+		if is_instance_valid(killer):
+			killer.add_combat_gold(base_gold)
+	else:
+		add_combat_gold(base_gold)
+
+
+## Player-owned attacks retain their owner through splits, fire and chain hits.
+func deal_damage(target: Node, amount: float) -> void:
+	if not is_instance_valid(target) or not target.has_method("take_damage"):
+		return
+	if target.has_method("take_player_damage"):
+		target.call("take_player_damage", amount, self)
+	else:
+		target.call("take_damage", amount)
 
 
 func is_spell_maxed() -> bool:
@@ -478,7 +508,7 @@ func income_multiplier() -> float:
 	return 1.0 + Config.INCOME_STEP * personal_level("income")
 
 
-# --- Player Max HP Upgrades (5 → 6 → 7 → 10; does not instantly heal the player) ---
+# --- Player Max HP Upgrades (7 → 8 → 9 → 12; does not instantly heal the player) ---
 
 func player_max_hp() -> int:
 	return Config.player_max_hp_for_level(max_hp_level)
@@ -507,6 +537,19 @@ func try_buy_max_hp_gold() -> bool:
 
 
 # --- Gold Shop purchases ---
+
+func try_buy_revival_unlock() -> bool:
+	if not coop_mode or run_over or revival_unlocked:
+		return false
+	var cost: int = Config.COOP_RULES.revival_unlock_cost
+	if not sandbox_mode and gold < cost:
+		return false
+	if not sandbox_mode:
+		gold -= cost
+	revival_unlocked = true
+	changed.emit()
+	return true
+
 
 func can_buy_gold_mod_part() -> bool:
 	return sandbox_mode or mod_parts_bought_with_gold < Config.GOLD_SHOP_MOD_PART_MAX
@@ -817,6 +860,12 @@ func on_mega_boss_defeated() -> bool:
 
 
 func on_player_died() -> void:
+	if coop_mode:
+		return # The co-op life controller decides when the entire team is defeated.
+	end_run_in_defeat()
+
+
+func end_run_in_defeat() -> void:
 	if run_over:
 		return
 	run_over = true

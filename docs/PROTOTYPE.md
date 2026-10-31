@@ -32,7 +32,7 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
 	- **Rate:** `+15%` gold mine gold generation per upgrade (non-cumulative).
 	- **Income Multiplier:** `+50%` gold per upgrade from monsters and bosses only.
   - **Gold Shop:**
-	- **Max HP Upgrade:** upgrades Max HP from `5 → 6 → 7 → 10` (`+1`, `+1`, `+3` on the final upgrade; does not instantly heal).
+	- **Max HP Upgrade:** upgrades Max HP from `7 → 8 → 9 → 12` (`+1`, `+1`, `+3` on the final upgrade; does not instantly heal).
 	- **Spell Scroll:** `100` gold for the 1st, then `+100` per scroll up to 10 (`100..1000`).
 	- **Magic Shield (+1 Shield):** `200` gold.
 	- **3 HP Healing Potion (30s):** `100` gold.
@@ -45,6 +45,6 @@ All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets a
 - **Enemy Scaling, Nests & Bosses:**
   - After **3 minutes**, enemy HP scales every **30 seconds**: unchanged on **Easy**, `+5 HP` linearly on **Medium**, `×1.2` exponentially on **Hard**, and `×1.5` exponentially on **Extreme**.
   - All 4 corner nests have **70 HP**, spawn monsters directly from their center hole, and take damage from player spells via swept-segment hit detection.
-  - Each destroyed nest immediately spawns a **Nest Boss** (**80 HP**, **1000 gold** + **1/3 chance** to drop a **Boss Spell**).
+  - Each destroyed nest immediately spawns a **Nest Boss** (**240 HP**, **1000 gold** + **1/3 chance** to drop a **Boss Spell**).
   - Destroying all 4 nests awakens the **Mega Boss** (**2000 HP**, **100 HP shield** that regenerates at each 1/4 of HP lost, fires spells at **player base spell speed (`6.0` tiles/sec)**, and spawns bosses every 25 s and normal monsters at **2× their regular rate**).
   - Defeating the Mega Boss wins the run in Normal mode, or in **Endless Mode** drops a **guaranteed 1/1 red Mega Boss Spell** (combines all current spells + `1.5×` damage and copies the base spell's augments), spawns **4 new spawners**, and multiplies **everything's HP by 2×**.

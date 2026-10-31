@@ -11,9 +11,11 @@ func _ready() -> void:
 	var box: VBoxContainer = UIKit.make_centered_menu(self, "Hukulshish", "Defend the kingdom. Destroy the four nests.")
 	var start: Button = UIKit.make_button("Start", func() -> void:
 		GameState.sandbox_mode = false
+		GameState.coop_mode = false
 		SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT)
 	)
 	box.add_child(start)
+	box.add_child(UIKit.make_button("Multiplayer (connection test)", _open_multiplayer, 22))
 
 	var rules_btn: Button = UIKit.make_button("Rules & Guide", _open_rules)
 	box.add_child(rules_btn)
@@ -25,6 +27,14 @@ func _ready() -> void:
 	box.add_child(UIKit.make_label("WASD to move • left-click to shoot • walk into the castle to shop & upgrade", 16, Color(0.6, 0.6, 0.7)))
 
 	_build_rules_overlay()
+
+
+func _open_multiplayer() -> void:
+	if get_node_or_null("WebRTCLobby") != null:
+		return
+	var lobby: Control = preload("res://scripts/ui/webrtc_lobby.gd").new()
+	lobby.name = "WebRTCLobby"
+	add_child(lobby)
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -34,40 +34,48 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_t += delta
-	if GameState.magnet_unlocked:
-		var player := get_tree().get_first_node_in_group("player") as Player
-		if player != null and not player.is_dead():
-			var step: float = Config.tiles(Config.MAGNET_PULL_SPEED_TILES) * delta
-			global_position = global_position.move_toward(player.global_position, step)
-			if global_position.distance_to(player.global_position) <= Config.tiles(0.6):
-				_collect()
-				return
+	var nearest: Player
+	var nearest_distance: float = INF
+	for node: Node in get_tree().get_nodes_in_group("player"):
+		var player: Player = node as Player
+		if player == null or player.is_dead() or not player.progress.magnet_unlocked:
+			continue
+		var distance: float = global_position.distance_squared_to(player.global_position)
+		if distance < nearest_distance:
+			nearest = player
+			nearest_distance = distance
+	if nearest != null:
+		var step: float = Config.tiles(Config.MAGNET_PULL_SPEED_TILES) * delta
+		global_position = global_position.move_toward(nearest.global_position, step)
+		if global_position.distance_to(nearest.global_position) <= Config.tiles(0.6):
+			_collect(nearest.progress)
+			return
 	queue_redraw()
 
 
 func _on_body_entered(body: Node) -> void:
-	if body is Player:
-		_collect()
+	if body is Player and not (body as Player).is_dead():
+		_collect((body as Player).progress)
 
 
-func _collect() -> void:
+func _collect(progress: RunState) -> void:
 	if is_queued_for_deletion():
 		return
 	match kind:
 		Kind.MEGA_BOSS_SPELL:
-			GameState.acquire_mega_boss_spell()
+			progress.acquire_mega_boss_spell()
 			GameState.spawn_floating_text(global_position + Vector2(0, -16), "MEGA SPELL!", Color(1.0, 0.25, 0.25))
 		Kind.BOSS_SPELL:
-			GameState.acquire_boss_spell()
+			progress.acquire_boss_spell()
 			GameState.spawn_floating_text(global_position + Vector2(0, -16), "BOSS SPELL!", Color(1.0, 0.65, 0.2))
 		Kind.AUG_SCROLL:
-			GameState.add_aug_scrolls(1)
+			progress.add_aug_scrolls(1)
 			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Aug Scroll", Color(1.0, 0.35, 0.52))
 		Kind.ENHANCER:
-			GameState.add_enhancers(1)
+			progress.add_enhancers(1)
 			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Enhancer", Color(0.35, 0.98, 0.55))
 		_:
-			GameState.add_mod_parts(1)
+			progress.add_mod_parts(1)
 			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Spell Scroll", Color(0.45, 0.92, 1.0))
 	queue_free()
 

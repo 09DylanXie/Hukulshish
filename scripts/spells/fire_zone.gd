@@ -6,6 +6,7 @@ extends Node2D
 var dps: float = Config.BOMB_BASE_DPS
 var duration: float = Config.BOMB_DURATION_SEC
 var radius: float = Config.tiles(Config.BOMB_RADIUS_TILES)
+var source_state: RunState
 
 var _elapsed: float = 0.0
 var _tick_timer: float = 0.0
@@ -45,7 +46,10 @@ func _apply_tick(dt: float) -> void:
 			continue
 		var hit_r: float = float(target.call("get_hit_radius")) if target.has_method("get_hit_radius") else Config.tiles(0.5)
 		if global_position.distance_to(target.global_position) <= radius + hit_r:
-			target.take_damage(tick_dmg)
+			if is_instance_valid(source_state):
+				source_state.deal_damage(target, tick_dmg)
+			else:
+				target.take_damage(tick_dmg)
 
 
 func _draw() -> void:

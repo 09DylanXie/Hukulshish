@@ -17,6 +17,7 @@ var direction: Vector2 = Vector2.RIGHT
 var speed: float = 192.0
 var damage: float = 1.0
 var from_player: bool = true
+var source_state: RunState
 var color: Color = Color.WHITE
 var radius: float = 6.0
 var max_distance: float = 320.0
@@ -76,7 +77,7 @@ func setup(
 func _aug_lvl(id: String) -> int:
 	if not uses_augments:
 		return 0
-	var live: int = GameState.aug_level(id)
+	var live: int = _progress().aug_level(id)
 	var snap: int = int(aug_override.get(id, 0))
 	return maxi(live, snap)
 
@@ -100,7 +101,7 @@ func _max_split_depth_for_proj() -> int:
 
 
 func _can_pierce_walls() -> bool:
-	return from_player and GameState.wall_pierce_unlocked
+	return from_player and _progress().wall_pierce_unlocked
 
 
 func _ready() -> void:
@@ -161,7 +162,7 @@ func _physics_process(delta: float) -> void:
 		return
 	# Homing does not apply to Split Shots; Sniper always homes to monsters/bosses.
 	var should_home: bool = from_player and proj_kind != ProjKind.SPLIT and (
-		proj_kind == ProjKind.SNIPER or (homing and GameState.is_homing_active())
+		proj_kind == ProjKind.SNIPER or (homing and _progress().is_homing_active())
 	)
 	if should_home:
 		var target: Node2D = _find_homing_target(proj_kind == ProjKind.SNIPER)
@@ -292,29 +293,46 @@ func _check_swept_hits(from_pos: Vector2, to_pos: Vector2) -> void:
 			_on_body_entered(best_node)
 			return
 	else:
-		var player := get_tree().get_first_node_in_group("player") as Node2D
-		if player != null and not player.is_queued_for_deletion() and player.has_method("take_damage"):
+		var candidates: Array[Node] = get_tree().get_nodes_in_group("player")
+		candidates.append_array(get_tree().get_nodes_in_group("doppelgangers"))
+		var first_hit: Node2D
+		var first_distance: float = INF
+		for node: Node in candidates:
+			var target: Node2D = node as Node2D
+			if target == null or target.is_queued_for_deletion() or not target.has_method("take_damage"):
+				continue
+			if target is Player and (target as Player).is_dead():
+				continue
 			var hit_r: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
-			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(player.global_position, from_pos, effective_to)
-			if closest.distance_to(player.global_position) <= radius + hit_r:
-				_on_body_entered(player)
-				return
-		for node in get_tree().get_nodes_in_group("doppelgangers"):
-			var dop := node as Node2D
-			if dop != null and not dop.is_queued_for_deletion() and dop.has_method("take_damage"):
-				var hit_r: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
-				var closest: Vector2 = Geometry2D.get_closest_point_to_segment(dop.global_position, from_pos, effective_to)
-				if closest.distance_to(dop.global_position) <= radius + hit_r:
-					_on_body_entered(dop)
-					return
+			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(target.global_position, from_pos, effective_to)
+			var distance: float = from_pos.distance_squared_to(closest)
+			if closest.distance_to(target.global_position) <= radius + hit_r and distance < first_distance:
+				first_hit = target
+				first_distance = distance
+		if first_hit != null:
+			_on_body_entered(first_hit)
+			return
 
 	if hit_wall and not _spent:
 		global_position = effective_to
 		_retire_with_trail()
 
 
+func _progress() -> RunState:
+	return source_state if is_instance_valid(source_state) else GameState
+
+
+func _deal_damage(target: Node) -> void:
+	if from_player and is_instance_valid(source_state):
+		source_state.deal_damage(target, damage)
+	else:
+		target.call("take_damage", damage)
+
+
 func _on_body_entered(body: Node) -> void:
 	if _spent or body == ignore_target:
+		return
+	if body is Player and (body as Player).is_dead():
 		return
 	if not _can_pierce_walls() and body is StaticBody2D and not body.is_in_group("nests"):
 		_retire_with_trail()
@@ -331,7 +349,7 @@ func _on_body_entered(body: Node) -> void:
 	if body.has_method("take_damage"):
 		_spent = true
 		if damage > 0.0:
-			body.take_damage(damage)
+			_deal_damage(body)
 		if from_player and body is Node2D and uses_augments:
 			_apply_augmentations(body as Node2D)
 		_retire_with_trail()
@@ -392,9 +410,9 @@ func _trigger_chain_lightning(container: Node, hit_target: Node2D) -> void:
 	var end_pos: Vector2 = best.global_position
 	# Both connected enemies get zapped alongside each other for the same damage as the split shot.
 	if not hit_target.is_queued_for_deletion() and hit_target.has_method("take_damage"):
-		hit_target.take_damage(damage)
+		_deal_damage(hit_target)
 	if not best.is_queued_for_deletion() and best.has_method("take_damage"):
-		best.take_damage(damage)
+		_deal_damage(best)
 	var arc: Node2D = ChainLightningScript.new()
 	arc.call("setup", start_pos, end_pos)
 	container.call_deferred("add_child", arc)
@@ -409,6 +427,7 @@ func _spawn_split_shots(container: Node, hit_target: Node2D) -> void:
 		var angle_offset: float = (float(i) - float(count - 1) * 0.5) * step_rad
 		var split_dir: Vector2 = Vector2.from_angle(base_angle + angle_offset)
 		var p: Projectile = this_scene.instantiate()
+		p.source_state = source_state
 		p.setup(
 			split_dir,
 			speed,
@@ -445,6 +464,7 @@ func _spawn_sniper_shot(container: Node, hit_target: Node2D) -> void:
 		return
 	var this_scene: PackedScene = load("res://scenes/spells/Projectile.tscn")
 	var p: Projectile = this_scene.instantiate()
+	p.source_state = source_state
 	p.setup(
 		sniper_dir,
 		speed * Config.SNIPER_SPEED_MULT,
@@ -465,6 +485,7 @@ func _spawn_sniper_shot(container: Node, hit_target: Node2D) -> void:
 
 func _spawn_bomb_zone(container: Node) -> void:
 	var zone: Node2D = FireZoneScript.new()
+	zone.set("source_state", source_state)
 	zone.call("setup", _bomb_dps_for_proj(), Config.BOMB_DURATION_SEC, Config.tiles(Config.BOMB_RADIUS_TILES))
 	zone.global_position = global_position
 	container.call_deferred("add_child", zone)

@@ -10,6 +10,8 @@ const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tsc
 var color: Color = Color(0.6, 0.1, 0.6)
 var max_hp: float = Config.BOSS_HP
 var hp: float = Config.BOSS_HP
+var killing_player: RunState
+var _damage_owner: RunState
 var gold: int = Config.BOSS_GOLD
 var bolt_speed_tiles: float = Config.BOSS_BOLT_SPEED_TILES
 
@@ -53,7 +55,7 @@ func _physics_process(delta: float) -> void:
 		_flash -= delta
 	queue_redraw()
 
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player: Player = Player.first_living_player(get_tree())
 	if player == null or player.is_dead():
 		velocity = Vector2.ZERO
 		return
@@ -95,6 +97,12 @@ func get_hit_radius() -> float:
 	return _radius
 
 
+func take_player_damage(amount: float, source: RunState) -> void:
+	_damage_owner = source
+	take_damage(amount)
+	_damage_owner = null
+
+
 func take_damage(amount: float) -> void:
 	if _dead:
 		return
@@ -107,6 +115,7 @@ func take_damage(amount: float) -> void:
 	)
 	if hp <= 0.0:
 		_dead = true
+		killing_player = _damage_owner
 		GameState.request_shake(9.0, 0.32)
 		_on_killed()
 		died.emit(gold, global_position)

@@ -11,6 +11,8 @@ const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tsc
 var stats: MonsterStats
 var max_hp: float = 1.0
 var hp: float = 1.0
+var killing_player: RunState
+var _damage_owner: RunState
 
 var _radius: float = 12.0
 var _speed: float = 32.0
@@ -75,7 +77,7 @@ func _physics_process(delta: float) -> void:
 		_flash -= delta
 	queue_redraw()
 
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player: Player = Player.first_living_player(get_tree())
 	if player == null or player.is_dead():
 		velocity = Vector2.ZERO
 		return
@@ -134,6 +136,12 @@ func has_bubble_shield() -> bool:
 	return _has_bubble_shield
 
 
+func take_player_damage(amount: float, source: RunState) -> void:
+	_damage_owner = source
+	take_damage(amount)
+	_damage_owner = null
+
+
 func take_damage(amount: float) -> void:
 	if _dead or amount <= 0.0:
 		return
@@ -153,6 +161,7 @@ func take_damage(amount: float) -> void:
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true
+		killing_player = _damage_owner
 		var is_demon: bool = stats != null and (stats.has_bubble_shield or stats.name == "Demon")
 		var drops_enhancer: bool = stats != null and (stats.name == "Goblin" or stats.name == "Undead")
 		died.emit(stats.gold, global_position, is_demon, drops_enhancer)

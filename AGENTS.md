@@ -15,7 +15,7 @@ Instructions and design reference for AI coding agents working on this project.
 | Engine | **Godot 4.x** (GDScript) |
 | Renderer | GL Compatibility (needed for the web export) |
 | Target platform | **itch.io** HTML5/Web build, playable on desktop and mobile browsers |
-| Players | Single player only (multiplayer may come later; don't build for it now) |
+| Players | Single player plus three-player online co-op using WebRTC (approved); build multiplayer in stages |
 | Game modes | Normal (build this first), Infinite (later), TBD |
 | Music / OST | TBD |
 
@@ -109,7 +109,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 - The player spawns in the **center of a preset map**, inside a **kingdom castle**.
 - Goal: defend the castle from monsters.
 - **Victory:** all 4 nests destroyed **and** the Mega Boss defeated.
-- **Defeat:** the player dies. *(The castle is only a plot point. It has no HP and can't be destroyed.)*
+- **Defeat:** the player dies in single player; all three players are downed in co-op. *(The castle is only a plot point. It has no HP and can't be destroyed.)*
 - Entering the castle **heals the player up to 3 HP** (never above 3 HP) and opens the upgrade menu for **base spell levels**, **spell mods**, **augmentations**, **personal shop**, and **gold shop**.
 
 ---
@@ -119,7 +119,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 ### 6.1 Player
 | Stat | Value |
 |---|---|
-| Starting HP | 5 (upgradable in the Gold Shop to `6 → 7 → 10` Max HP via `+1`, `+1`, `+3` without instant healing) |
+| Starting HP | 7 (upgradable in the Gold Shop to `8 → 9 → 12` Max HP via `+1`, `+1`, `+3` without instant healing) |
 | Max Shield | 5 (absorbs damage before HP) |
 | Starting Mana | 10 max (regenerates at 1.0/sec base) |
 | Move speed | 3.0 tiles/sec |
@@ -164,7 +164,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
     5. **Rate:** increases Gold Mine gold generation rate by **+15% per upgrade** (non-cumulative: `+15%`, `+30%`, `+45%`).
     6. **Income Multiplier:** increases gold received from **monsters and bosses only** by **+50% per upgrade** (non-cumulative: `+50%`, `+100%`, `+150%`).
 - **Gold Shop (at the castle):**
-  - **Max HP Upgrade:** increases Max HP from `5 → 6 → 7 → 10` (`+1` for 1st and 2nd, `+3` on the final 3rd upgrade; does not instantly heal the player).
+  - **Max HP Upgrade:** increases Max HP from `7 → 8 → 9 → 12` (`+1` for 1st and 2nd, `+3` on the final 3rd upgrade; does not instantly heal the player).
   - **Spell Scroll:** `100` gold for the 1st, then `+100` gold for each additional scroll up to 10 (`100, 200, …, 1000`).
   - **Magic Shield (`200` gold):** adds 1 shield item to the bottom circular hotbar; using it adds `+1` shield point (up to the 5-shield cap).
   - **3 HP Healing Potion (`100` gold):** adds 1 healing potion to the bottom circular hotbar; using it heals `+3 HP` (30 s effect timer).
@@ -201,7 +201,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 ### 6.6 Nest Bosses
 | Stat | Value |
 |---|---|
-| HP | 80 (increased 4× from 20) |
+| HP | 240 |
 | Melee damage | 5 |
 | Ranged attack | Fires a 1-damage projectile at 1 tile/sec in a straight line |
 | Spawn | Immediately after its nest is destroyed |
@@ -278,6 +278,30 @@ Full workflow is in [`CONTRIBUTING.md`](CONTRIBUTING.md). Agents MUST follow the
 ---
 
 ## 9. Open Design Questions (ask the user before implementing these)
+
+### Approved multiplayer direction
+
+- Three-player online co-op: one player hosts and two players join using WebRTC.
+- Each player has a separate inventory, gold, and upgrade materials.
+- Only the player landing the killing blow receives monster or boss gold.
+- Ground pickups belong to the first living player to collect them.
+- Player starting HP is **7** in both modes. Normal enemies have **2× base HP**
+  in co-op; all boss types have **5× base HP total**, including the Mega Boss.
+  Nest, player, doppelganger and shield HP are not multiplied.
+- Nest boss base HP is **240**, giving **1200 HP** in co-op before difficulty.
+- The castle Gold Shop sells a **permanent Revival unlock for 999 gold**, per
+  player for the current run. Buying it twice is not allowed; uses do not consume it.
+- An unlocked living player stands over a teammate's body for **3 uninterrupted
+  seconds**. Leaving the body's footprint resets the interaction. Multiple
+  helpers do not stack progress. After completion, the teammate respawns at the
+  castle **5 seconds later with 5 HP** and no shield.
+- **All three players downed ends the run immediately**, canceling any pending
+  castle returns. A single death does not end co-op.
+- See `docs/MULTIPLAYER.md` for the connection prototype, deployment requirements,
+  and implementation milestones.
+- Co-op menus block only the local player's controls; the shared simulation continues.
+- Open: enemy target selection beyond the existing chase order, shared gold mine
+  upgrade behavior, and disconnect/rejoin rules for a survival run.
 
 1. **Spell upgrade cost:** what does level 1→2 cost, and how fast does it grow? (That line was cut off in the manuscript.)
 2. **Spell Mods list:** the Magic Missile entry was cut off ("2 tiles/sec, 3…"). What are its full stats, and what other mods exist?

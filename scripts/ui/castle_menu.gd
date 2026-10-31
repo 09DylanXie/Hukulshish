@@ -28,12 +28,16 @@ func open() -> void:
 		return
 	_refresh()
 	_root.show()
-	get_tree().paused = true
+	GameState.castle_menu_open = true
+	if not GameState.coop_mode:
+		get_tree().paused = true
 
 
 func close() -> void:
 	_root.hide()
-	get_tree().paused = false
+	GameState.castle_menu_open = false
+	if not GameState.coop_mode:
+		get_tree().paused = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -312,6 +316,21 @@ func _refresh() -> void:
 		mhp_btn.custom_minimum_size = Vector2(0, 38)
 		mhp_btn.disabled = (not free) and GameState.gold < mhp_cost
 		_gold_shop_box.add_child(mhp_btn)
+
+	if GameState.coop_mode:
+		var revival_cost: int = Config.COOP_RULES.revival_unlock_cost
+		var revival_text: String = "Revival - UNLOCKED (permanent)" if GameState.revival_unlocked else "Unlock Revival - %d gold" % revival_cost
+		var revival_button: Button = UIKit.make_button(
+			revival_text, func() -> void: GameState.try_buy_revival_unlock(), 16)
+		revival_button.custom_minimum_size = Vector2(0, 38)
+		revival_button.disabled = GameState.revival_unlocked or ((not free) and GameState.gold < revival_cost)
+		_gold_shop_box.add_child(revival_button)
+		_gold_shop_box.add_child(UIKit.make_label(
+			"Stand over a teammate for %ss; they return to the castle %ss later with %d HP." % [
+				Config.COOP_RULES.revival_interaction_seconds,
+				Config.COOP_RULES.revival_respawn_seconds,
+				Config.COOP_RULES.revival_restored_hp,
+			], 12))
 
 	# 1. Spell Scroll (100 gold first, +100 each up to 10)
 	var bought: int = GameState.mod_parts_bought_with_gold

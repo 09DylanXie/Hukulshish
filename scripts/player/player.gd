@@ -1,11 +1,12 @@
 class_name Player
 extends CharacterBody2D
 ## The mage Hukulshish. WASD movement; click to shoot (or auto-aim once unlocked in the Gold Shop).
-## Starts with 5 max HP (upgradable in the shop to 6 → 7 → 10 without instant heal); castle heals up to 3 HP.
+## Starts with 7 max HP (upgradable in the shop to 8 → 9 → 12 without instant heal); castle heals up to 3 HP.
 
 signal hp_changed(hp: int, max_hp: int)
 signal shield_changed(shield: int, max_shield: int)
 signal died
+signal revived
 
 const SpellCasterScript: GDScript = preload("res://scripts/spells/spell_caster.gd")
 
@@ -15,6 +16,13 @@ var max_shield: int = Config.PLAYER_MAX_SHIELD
 var shield: int = 0
 ## Map area the player is kept inside. Set by Game; empty = unlimited.
 var bounds: Rect2 = Rect2()
+## Assigned before entering the tree. Null keeps the single-player GameState behavior.
+var progress: RunState
+var accepts_local_input: bool = true
+var respawn_pending: bool = false
+var remote_move_direction: Vector2 = Vector2.ZERO
+var remote_aim_position: Vector2 = Vector2.ZERO
+var remote_fire_pressed: bool = false
 
 var _iframes: float = 0.0
 var _regen_timer: float = 0.0
@@ -30,6 +38,8 @@ var _shake_timer: float = 0.0
 
 
 func _ready() -> void:
+	if progress == null:
+		progress = GameState
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group("player")
 	collision_layer = Config.LAYER_PLAYER
@@ -43,6 +53,7 @@ func _ready() -> void:
 	add_child(shape)
 
 	_camera = Camera2D.new()
+	_camera.enabled = accepts_local_input
 	_camera.zoom = Vector2(2, 2)
 	_camera.position_smoothing_enabled = true
 	if bounds.has_area():
@@ -56,10 +67,10 @@ func _ready() -> void:
 	caster.name = "SpellCaster"
 	add_child(caster)
 
-	max_hp = GameState.player_max_hp()
+	max_hp = progress.player_max_hp()
 	hp = max_hp
-	GameState.changed.connect(_on_game_state_changed)
-	GameState.screen_shake_requested.connect(_on_screen_shake_requested)
+	progress.changed.connect(_on_game_state_changed)
+	progress.screen_shake_requested.connect(_on_screen_shake_requested)
 	hp_changed.emit(hp, max_hp)
 	shield_changed.emit(shield, max_shield)
 
@@ -70,9 +81,9 @@ func _on_screen_shake_requested(intensity: float, duration: float) -> void:
 
 
 func _on_game_state_changed() -> void:
-	var new_max: int = GameState.player_max_hp()
+	var new_max: int = progress.player_max_hp()
 	if new_max != max_hp:
-		# Buying Max HP increases the cap (5 → 6 → 7 → 10) without instantly healing current HP.
+		# Buying Max HP increases the cap (7 → 8 → 9 → 12) without instantly healing current HP.
 		max_hp = new_max
 		hp = mini(hp, max_hp)
 		hp_changed.emit(hp, max_hp)
@@ -81,11 +92,13 @@ func _on_game_state_changed() -> void:
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return
-	var to_mouse: Vector2 = get_global_mouse_position() - global_position
+	var to_mouse: Vector2 = (get_global_mouse_position() if accepts_local_input else remote_aim_position) - global_position
 	if to_mouse.length_squared() > 1.0:
 		_aim_dir = to_mouse.normalized()
 
-	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down") if accepts_local_input else remote_move_direction.limit_length(1.0)
+	if progress.coop_mode and (progress.castle_menu_open or progress.pause_menu_open):
+		input = Vector2.ZERO
 	if input != Vector2.ZERO:
 		_facing = input.normalized()
 		_walk_t += delta * 12.0
@@ -103,13 +116,13 @@ func _physics_process(delta: float) -> void:
 		_slow_timer = maxf(0.0, _slow_timer - delta)
 	var slow_mult: float = Config.UNDEAD_SLOW_SPEED_MULT if _slow_timer > 0.0 else 1.0
 
-	velocity = input * Config.tiles(GameState.player_speed_tiles() * slow_mult)
+	velocity = input * Config.tiles(progress.player_speed_tiles() * slow_mult)
 	move_and_slide()
 	if bounds.has_area():
 		global_position = global_position.clamp(bounds.position + Vector2.ONE * _radius, bounds.end - Vector2.ONE * _radius)
 
 	# Personal Shop Health Regen: +1 HP / 10 secs per upgrade
-	var regen_hp: int = GameState.health_regen_per_10s()
+	var regen_hp: int = progress.health_regen_per_10s()
 	if regen_hp > 0 and hp < max_hp:
 		_regen_timer += delta
 		if _regen_timer >= Config.HEALTH_REGEN_INTERVAL_SEC:
@@ -151,13 +164,36 @@ func take_damage(amount: float) -> void:
 	if dmg > 0:
 		hp = maxi(0, hp - dmg)
 		hp_changed.emit(hp, max_hp)
-	GameState.request_shake(5.0, 0.2)
+	progress.request_shake(5.0, 0.2)
 	_iframes = Config.PLAYER_IFRAMES_SEC
 	queue_redraw()
 	if hp <= 0:
 		_dead = true
+		velocity = Vector2.ZERO
+		modulate.a = 1.0
 		died.emit()
-		GameState.on_player_died()
+		progress.on_player_died()
+
+
+## Called by the authoritative co-op controller after its castle respawn timer.
+func revive_at_castle(castle_position: Vector2) -> bool:
+	if progress == null or not progress.coop_mode or progress.run_over or not _dead:
+		return false
+	global_position = castle_position
+	velocity = Vector2.ZERO
+	hp = mini(max_hp, int(Config.COOP_RULES.revival_restored_hp))
+	shield = 0
+	_dead = false
+	respawn_pending = false
+	_iframes = 0.0
+	_slow_timer = 0.0
+	_regen_timer = 0.0
+	modulate.a = 1.0
+	hp_changed.emit(hp, max_hp)
+	shield_changed.emit(shield, max_shield)
+	revived.emit()
+	queue_redraw()
+	return true
 
 
 ## Adds shield points up to `max_shield` (5). Returns false if already full.
@@ -194,7 +230,23 @@ func is_dead() -> bool:
 	return _dead
 
 
+## Preserve the current chase order, skipping bodies until a teammate returns.
+static func first_living_player(tree: SceneTree) -> Player:
+	for node: Node in tree.get_nodes_in_group("player"):
+		var player: Player = node as Player
+		if player != null and not player.is_dead():
+			return player
+	return null
+
+
 func _draw() -> void:
+	if _dead and progress != null and progress.coop_mode:
+		draw_circle(Vector2.ZERO, _radius, Color(0.35, 0.18, 0.25, 0.8))
+		draw_line(Vector2(-_radius, -_radius), Vector2(_radius, _radius), Color.LIGHT_CORAL, 3.0)
+		draw_line(Vector2(-_radius, _radius), Vector2(_radius, -_radius), Color.LIGHT_CORAL, 3.0)
+		var caption: String = "Returning to castle" if respawn_pending else "Downed"
+		draw_string(ThemeDB.fallback_font, Vector2(-_radius * 2.0, -_radius * 1.5), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 12)
+		return
 	# Flat elliptical ground shadow right under the mage's feet
 	Config.draw_ground_shadow(self, _radius, _radius * 0.72, 0.34)
 

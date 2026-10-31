@@ -2,11 +2,11 @@ class_name Castle
 extends Area2D
 ## The kingdom castle at the map center (§5). No HP. Walk into it to open the upgrade menu.
 
-signal player_entered
+signal player_entered(player: Player)
 
 var _size: float = Config.tiles(Config.CASTLE_SIZE_TILES)
 ## The player spawns inside the castle; only trigger after they've left once.
-var _armed: bool = false
+var _armed_players: Dictionary = {}
 var _t: float = 0.0
 
 
@@ -31,13 +31,13 @@ func _process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body is Player and _armed:
-		player_entered.emit()
+	if body is Player and _armed_players.has(body.get_instance_id()) and not (body as Player).is_dead():
+		player_entered.emit(body as Player)
 
 
 func _on_body_exited(body: Node) -> void:
 	if body is Player:
-		_armed = true
+		_armed_players[body.get_instance_id()] = true
 
 
 func _draw() -> void:

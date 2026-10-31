@@ -12,12 +12,19 @@ var _manual_cooldowns: Array[float] = []
 var _auto_cooldowns: Array[float] = []
 
 
+func _progress() -> RunState:
+	var player: Player = get_parent() as Player
+	return player.progress if player != null and player.progress != null else GameState
+
+
 func _physics_process(delta: float) -> void:
 	var owner_player := get_parent() as Player
 	if owner_player != null and owner_player.is_dead():
 		return
+	if _progress().coop_mode and (_progress().castle_menu_open or _progress().pause_menu_open):
+		return
 
-	var spells: Array[Dictionary] = GameState.all_spells()
+	var spells: Array[Dictionary] = _progress().all_spells()
 	while _manual_cooldowns.size() < spells.size():
 		_manual_cooldowns.append(0.0)
 	while _auto_cooldowns.size() < spells.size():
@@ -25,6 +32,9 @@ func _physics_process(delta: float) -> void:
 
 	var manual_click: bool = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and get_viewport().gui_get_hovered_control() == null
 	var mouse_world: Vector2 = get_global_mouse_position()
+	if owner_player != null and not owner_player.accepts_local_input:
+		manual_click = owner_player.remote_fire_pressed
+		mouse_world = owner_player.remote_aim_position
 
 	for i in spells.size():
 		_manual_cooldowns[i] = maxf(0.0, _manual_cooldowns[i] - delta)
@@ -38,17 +48,17 @@ func _physics_process(delta: float) -> void:
 		if manual_click:
 			if _manual_cooldowns[i] > 0.0:
 				continue
-			if not GameState.try_spend_mana(mana_cost):
+			if not _progress().try_spend_mana(mana_cost):
 				continue
 			var dir: Vector2 = global_position.direction_to(mouse_world)
 			if dir == Vector2.ZERO:
 				dir = Vector2.RIGHT
 			_fire_dir(spell, dir, max_range)
 			_manual_cooldowns[i] = 1.0 / base_rate
-		elif GameState.is_auto_shoot_active():
+		elif _progress().is_auto_shoot_active():
 			if _auto_cooldowns[i] > 0.0:
 				continue
-			if not GameState.try_spend_mana(mana_cost):
+			if not _progress().try_spend_mana(mana_cost):
 				continue
 			var dir: Vector2 = global_position.direction_to(mouse_world)
 			if dir == Vector2.ZERO:
@@ -75,7 +85,8 @@ func _find_target(max_range: float) -> Node2D:
 
 func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 	var p: Projectile = ProjectileScene.instantiate()
-	var dmg: float = float(spell["damage"]) * GameState.damage_boost_multiplier()
+	p.source_state = _progress()
+	var dmg: float = float(spell["damage"]) * _progress().damage_boost_multiplier()
 	var can_use_aug: bool = bool(spell.get("uses_augments", true))
 	var aug_snap: Dictionary = spell.get("aug_levels", {}) as Dictionary
 	p.setup(
@@ -86,7 +97,7 @@ func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 		spell["color"] as Color,
 		Config.tiles(float(spell["radius_tiles"])),
 		max_range,
-		GameState.is_homing_active(),
+		_progress().is_homing_active(),
 		Projectile.ProjKind.INITIAL,
 		null,
 		can_use_aug,

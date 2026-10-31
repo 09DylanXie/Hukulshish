@@ -117,6 +117,8 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if GameState.run_over:
 		return
+	if GameState.coop_mode and GameState.castle_menu_open:
+		return
 	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_P):
 		if _pause_overlay.visible:
 			_set_paused(false)
@@ -242,7 +244,9 @@ func _build_pause_ui() -> void:
 
 func _set_paused(paused_state: bool) -> void:
 	_pause_overlay.visible = paused_state
-	get_tree().paused = paused_state
+	GameState.pause_menu_open = paused_state
+	if not GameState.coop_mode:
+		get_tree().paused = paused_state
 
 
 func _build_hotbar() -> void:

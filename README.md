@@ -34,7 +34,7 @@ Open Godot → **Import** → select `project.godot`.
 - **Main Menu → Rules & Guide:** Opens an interactive, illustrated 3-tab guide explaining all mechanics and Level 3 Augmentation abilities.
 
 ### Player, Mana & Castle Healing
-- **Starting Max HP:** `5` (upgradable in the Gold Shop to `6 → 7 → 10` via `+1`, `+1`, `+3` without instant healing).
+- **Starting Max HP:** `7` (upgradable in the Gold Shop to `8 → 9 → 12` via `+1`, `+1`, `+3` without instant healing).
 - **Castle Heal:** Walking into the Kingdom Castle restores HP up to **`3 HP`** (never above `3 HP`) and opens the Castle Upgrade & Shop menu.
 - **Mana Bar:** Starts at `10` max mana with `1.0/sec` base regeneration. Casting the **Base Spell** costs `2` mana (`2.0` shots/sec base fire rate); casting each **Boss Spell** costs `3` mana.
 
@@ -57,7 +57,7 @@ Open Godot → **Import** → select `project.godot`.
    - **Rate:** `+15%` Gold Mine generation rate per upgrade (non-cumulative).
    - **Income Multiplier:** `+50%` gold per upgrade from **monsters and bosses only**.
 4. **Gold Shop:**
-   - **Max HP Upgrade (`200 / 400 / 800` gold):** Upgrades Max HP `5 → 6 → 7 → 10` (`+1`, `+1`, `+3` on the final upgrade; no instant heal).
+   - **Max HP Upgrade (`200 / 400 / 800` gold):** Upgrades Max HP `7 → 8 → 9 → 12` (`+1`, `+1`, `+3` on the final upgrade; no instant heal).
    - **Spell Scroll (`100..1000` gold, max 10)**
    - **Magnet (`300` gold):** Pulls all dropped Scrolls, Enhancers, and Boss Spells toward the player.
    - **Auto Gold Collector (`500` gold):** Automatically collects stored gold from all **3 Gold Mines** on the map every `30` seconds.
@@ -71,7 +71,7 @@ Open Godot → **Import** → select `project.godot`.
 - **Demon:** Protected by a **1-hit Cyan Bubble Shield** (`1/5` Augmentation Scroll drop).
 - **Ogre:** High-HP melee bruiser.
 - **3-Minute Enemy HP Scaling:** After 3 minutes, monster HP scales every 30 seconds by `+5 HP` linearly on **Medium**, `×1.2` exponentially on **Hard**, and `×1.5` exponentially on **Extreme** (unchanged on **Easy**).
-- **Nests (`70 HP`) & Nest Bosses (`80 HP`):** Destroying a corner Nest immediately spawns a Nest Boss (`1000` gold + `1/3` chance to drop an **Orange Boss Spell**).
+- **Nests (`70 HP`) & Nest Bosses (`240 HP`):** Destroying a corner Nest immediately spawns a Nest Boss (`1000` gold + `1/3` chance to drop an **Orange Boss Spell**).
 - **Mega Boss (`2000 HP`):** Awakens when all 4 Nests are destroyed. Fires bolts at player base spell speed (`6.0` tiles/sec), spawns bosses and monsters at `2×` rate, and has a **`100 HP` Shield** that regenerates after each `¼` of its max HP is lost (`75%`, `50%`, `25%`).
 - **Endless Mode:** Defeating the Mega Boss drops a guaranteed `1/1` **Red Mega Boss Spell** (combines all current spells `× 1.5` damage and copies & uses your Base Spell's augmentations), spawns **4 new corner spawners**, and multiplies **everything's HP by `2×`**!
 

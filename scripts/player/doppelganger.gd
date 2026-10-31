@@ -11,6 +11,7 @@ const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tsc
 var max_hp: int = Config.DOPPELGANGER_MAX_HP
 var hp: int = Config.DOPPELGANGER_MAX_HP
 var bounds: Rect2 = Rect2()
+var progress: RunState
 
 var _spells: Array[Dictionary] = []
 var _aug_levels: Dictionary = {}
@@ -28,6 +29,8 @@ var _aim_dir: Vector2 = Vector2.RIGHT
 
 
 func setup_from_snapshot(snapshot: Dictionary, map_bounds: Rect2) -> void:
+	if progress == null:
+		progress = GameState
 	bounds = map_bounds
 	max_hp = Config.DOPPELGANGER_MAX_HP
 	hp = max_hp
@@ -46,6 +49,8 @@ func setup_from_snapshot(snapshot: Dictionary, map_bounds: Rect2) -> void:
 
 
 func _ready() -> void:
+	if progress == null:
+		progress = GameState
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group("doppelgangers")
 	collision_layer = Config.LAYER_PLAYER
@@ -63,7 +68,11 @@ func _physics_process(delta: float) -> void:
 	if _dead:
 		return
 
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player: Player
+	for node: Node in get_tree().get_nodes_in_group("player"):
+		if node is Player and (node as Player).progress == progress:
+			player = node as Player
+			break
 	if player != null and not player.is_dead():
 		var follow_offset := Vector2(-Config.tiles(1.6), Config.tiles(1.1))
 		var desired_pos: Vector2 = player.global_position + follow_offset
@@ -165,6 +174,7 @@ func _find_target(max_range: float) -> Node2D:
 
 func _fire_spell(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 	var p: Projectile = ProjectileScene.instantiate()
+	p.source_state = progress
 	var dmg: float = float(spell["damage"])
 	var can_use_aug: bool = bool(spell.get("uses_augments", true))
 	p.setup(
@@ -175,7 +185,7 @@ func _fire_spell(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 		(spell["color"] as Color).lightened(0.15),
 		Config.tiles(float(spell["radius_tiles"])),
 		max_range,
-		_homing_copied and GameState.is_homing_active(),
+		_homing_copied and progress.is_homing_active(),
 		Projectile.ProjKind.INITIAL,
 		null,
 		can_use_aug,
@@ -198,7 +208,7 @@ func take_damage(amount: float) -> void:
 	queue_redraw()
 	if hp <= 0:
 		_dead = true
-		GameState.on_doppelganger_died()
+		progress.on_doppelganger_died()
 		died.emit()
 		queue_free()
 

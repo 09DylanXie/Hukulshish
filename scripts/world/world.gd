@@ -53,7 +53,7 @@ func _physics_process(delta: float) -> void:
 	if _flow_timer > 0.0:
 		return
 	_flow_timer = FLOW_INTERVAL_SEC
-	var player := get_tree().get_first_node_in_group("player") as Node2D
+	var player: Player = Player.first_living_player(get_tree())
 	if player != null:
 		_update_flow(player.global_position)
 
