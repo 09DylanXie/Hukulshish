@@ -7,7 +7,6 @@ script = ExtResource("1")
 name = "Undead"
 hp = 4
 damage = 2
-speed_mult = 0.5
 spawn_interval = 8
 gold = 3
 color = Color(0.75, 0.75, 0.85, 1)

@@ -6,12 +6,31 @@ extends Node
 ## Base unit for distance and speed (AGENTS.md §2 Conventions).
 const TILE_SIZE: int = 32
 
+## Three-player Normal co-op. Player, nest, companion and shield HP are unchanged.
+const COOP_RULES: Resource = preload("res://resources/multiplayer/coop_rules.tres")
+
 # --- Player (§6.1) ---
-const PLAYER_MAX_HP: int = 10
-const PLAYER_SPEED_TILES: float = 1.0
+const PLAYER_MAX_HP: int = 7
+const PLAYER_MAX_HP_BY_LEVEL: Array[int] = [7, 8, 9, 12]
+const PLAYER_MAX_HP_MAX_LEVEL: int = 3
+const PLAYER_MAX_SHIELD: int = 5
+const PLAYER_SPEED_TILES: float = 3.0
 const PLAYER_RADIUS_TILES: float = 0.4
 # TODO(design): invulnerability frames after a hit are undefined (§9 Q7).
 const PLAYER_IFRAMES_SEC: float = 0.5
+## Entering the castle heals the player up to 3 HP, never above it (§5).
+const CASTLE_HEAL_MAX_HP: int = 3
+const CASTLE_HEAL_FRACTION: float = 0.6
+
+# --- Mana (§6.1–6.3) ---
+const BASE_MAX_MANA: int = 10
+const BASE_MANA_REGEN: float = 1.0
+const MANA_REGEN_STEP: float = 0.5
+const MANA_POOL_MAX: int = 29
+const MANA_POOL_MAX_LEVEL: int = 12
+const BASE_SPELL_MANA_COST: float = 2.0
+const BOSS_SPELL_MANA_COST: float = 1.5
+const MEGA_BOSS_SPELL_MANA_COST: float = 2.0
 
 # --- Base spell (§6.2) ---
 const SPELL_MAX_LEVEL: int = 9
@@ -19,39 +38,169 @@ const SPELL_DAMAGE_BY_LEVEL: Array = [1, 3, 5, 7, 9, 11, 13, 18, 23]
 # TODO(design): upgrade cost is undecided (§9 Q1). cost = base * growth ^ (level - 1)
 const SPELL_UPGRADE_BASE_COST: int = 5
 const SPELL_UPGRADE_GROWTH: float = 2.0
-# TODO(design): auto-aim range and projectile lifetime are not in the spec.
-const SPELL_TARGET_RANGE_TILES: float = 10.0
-const SPELL_LIFETIME_SEC: float = 12.0
+
+# --- Spell mods (§6.3) — bought at the castle with Spell Scrolls ---
+## Each level of damage/range adds +0.1× to its stat.
+const MOD_STEP: float = 0.1
+## Mod ids → display names. Each one has its own level and cost.
+const MODS: Dictionary = {
+	"damage": "Damage",
+	"mana_regen": "Mana Regen",
+	"mana_pool": "Mana Pool",
+	"range": "Range",
+}
+## Cost is +1 scroll per upgrade for the first N upgrades (1, 2, 3, 4), then doubles (8, 16, 32 …).
+const MOD_LINEAR_UPGRADES: int = 4
+## Chance for a killed monster to drop a Spell Scroll.
+const MOD_PART_DROP_CHANCE: float = 1.0 / 7.0
+
+# --- Augmentations (§6.3) — bought with Augmentation Scrolls dropped by Demons (1/5 chance) ---
+const AUG_SCROLL_DROP_CHANCE: float = 1.0 / 5.0
+const AUG_MAX_LEVEL: int = 3
+const AUGMENTATIONS: Dictionary = {
+	"split": "Split Spell",
+	"bomb": "Bombspell",
+	"sniper": "Sniper",
+}
+const SPLIT_ANGLE_DEG: float = 45.0
+const SPLIT_PROJECTILES_PER_HIT: int = 2
+const SPLIT_DAMAGE_MULT: float = 0.5
+const CHAIN_LIGHTNING_RANGE_TILES: float = 10.0
+const BOMB_BASE_DPS: float = 3.0
+const BOMB_DPS_STEP: float = 2.0
+const BOMB_DURATION_SEC: float = 3.0
+## 5% smaller than previous 2.2 tiles (2.2 × 0.95 = 2.09).
+const BOMB_RADIUS_TILES: float = 2.09
+const BOMB_TICK_SEC: float = 0.25
+const SNIPER_SPEED_MULT: float = 5.0
+const SNIPER_BASE_DAMAGE_MULT: float = 2.0
+const SNIPER_DAMAGE_STEP: float = 1.0
+
+# --- Gold Shop (§6.3) ---
+const GOLD_SHOP_MOD_PART_BASE_COST: int = 100
+const GOLD_SHOP_MOD_PART_MAX: int = 10
+const GOLD_SHOP_MAX_HP_COSTS: Array[int] = [200, 400, 800]
+const GOLD_SHOP_SHIELD_COST: int = 200
+const GOLD_SHOP_POTION_COST: int = 100
+const GOLD_SHOP_MAGNET_COST: int = 300
+const GOLD_SHOP_AUTO_COLLECTOR_COST: int = 500
+const GOLD_SHOP_WALL_PIERCE_COST: int = 500
+const AUTO_COLLECTOR_INTERVAL_SEC: float = 30.0
+const GOLD_SHOP_AUTO_SHOOT_COST: int = 1000
+const GOLD_SHOP_HOMING_COST: int = 1500
+const GOLD_SHOP_DOPPELGANGER_COST: int = 5000
+const DOPPELGANGER_MAX_HP: int = 5
+const AUTO_SHOOT_FIRE_RATE_MULT: float = 0.5
+const HOMING_TURN_SPEED: float = 16.0
+const MAGNET_PULL_SPEED_TILES: float = 14.0
+const POTION_DURATION_SEC: float = 30.0
+const HEAL_POTION_AMOUNT: int = 3
+const DAMAGE_POTION_MULT: float = 2.0
+const SHIELD_ITEM_AMOUNT: int = 1
+
+# --- Personal Shop (§6.3) — bought with Enhancers dropped by Goblins & Undead (1/4 chance) ---
+const ENHANCER_DROP_CHANCE: float = 1.0 / 4.0
+const PERSONAL_MAX_LEVEL: int = 3
+const PERSONAL_UPGRADE_COSTS: Array[int] = [3, 5, 9]
+const PERSONAL_SHOP: Dictionary = {
+	"luck": "Luck",
+	"move_speed": "Movement Speed",
+	"health_regen": "Health Regen",
+	"mine_capacity": "Capacity",
+	"mine_rate": "Rate",
+	"income": "Income Multiplier",
+}
+const LUCK_STEP: float = 0.20
+const MOVE_SPEED_STEP: float = 0.05
+const HEALTH_REGEN_HP_PER_10S_STEP: int = 1
+const HEALTH_REGEN_INTERVAL_SEC: float = 10.0
+const MINE_CAPACITY_STEP: float = 1.0 / 3.0
+const MINE_RATE_STEP: float = 0.15
+const INCOME_STEP: float = 0.50
+
+# --- Boss & Mega Boss spells (§6.3) ---
+## Chance for a nest boss to drop a new spell.
+const BOSS_SPELL_DROP_CHANCE: float = 1.0 / 3.0
+## Boss spells fire at this fraction of the base spell's rate (reduced by 1/3).
+const BOSS_SPELL_FIRE_RATE_MULT: float = 2.0 / 3.0
+## Mega Boss in Endless Mode drops a guaranteed (1/1) spell combining all current spells × 1.5 damage + base augments.
+const MEGA_BOSS_SPELL_DAMAGE_MULT: float = 1.5
 
 # --- Nests (§6.4) ---
-const NEST_HP: int = 30
+const NEST_HP: int = 70
 const NEST_SPAWN_DELAY_SEC: float = 5.0
-const NEST_MOD_DROP_CHANCE: float = 1.0 / 3.0
-const NEST_BOSS_DELAY_SEC: float = 20.0
+const NEST_BOSS_DELAY_SEC: float = 0.0
 const NEST_RADIUS_TILES: float = 1.0
 # TODO(design): per-nest alive cap, only here to keep the web build fast.
 const NEST_MAX_ALIVE: int = 25
 
-# --- Monsters (§6.5) ---
+# --- Monsters & Time Scaling (§3, §6.5) ---
 # TODO(design): melee attack cooldown is undefined (§9 Q7).
 const MONSTER_ATTACK_COOLDOWN_SEC: float = 1.0
+## Monster speed depends on size: speed = player speed × min(MAX_RATIO, SIZE_K / radius_tiles).
+## Smaller monsters are faster, but never as fast as the player.
+const MONSTER_SIZE_SPEED_K: float = 0.3
+const MONSTER_MAX_SPEED_RATIO: float = 0.9
+## After 3 minutes (180 s), enemy HP scales every 30 s on Medium (+5), Hard (×1.2), and Extreme (×1.5).
+const TIME_SCALE_START_SEC: float = 180.0
+const TIME_SCALE_INTERVAL_SEC: float = 30.0
+const TIME_SCALE_MEDIUM_ADD: float = 5.0
+const TIME_SCALE_HARD_MULT: float = 1.2
+const TIME_SCALE_EXTREME_MULT: float = 1.5
+## Undead slow spell: 0 damage, moves at half the speed of a normal spell (3.0 tiles/sec), slows player on hit.
+const UNDEAD_SLOW_BOLT_SPEED_TILES: float = 3.0
+const UNDEAD_SLOW_FIRE_INTERVAL_SEC: float = 3.5
+const UNDEAD_SLOW_RANGE_TILES: float = 9.0
+const UNDEAD_SLOW_SPEED_MULT: float = 0.5
+const UNDEAD_SLOW_DURATION_SEC: float = 2.5
 
-# --- Nest boss (§6.6) ---
-const BOSS_HP: int = 20
+# --- Nest boss (§6.6) — buffed 3× (80 → 240 HP) ---
+const BOSS_HP: int = 240
 const BOSS_MELEE_DAMAGE: int = 5
 const BOSS_BOLT_DAMAGE: int = 1
 const BOSS_BOLT_SPEED_TILES: float = 1.0
 const BOSS_RADIUS_TILES: float = 0.8
-# TODO(design): boss speed, fire rate, aim and drops are undefined (§9 Q8).
+const BOSS_GOLD: int = 1000
+# TODO(design): boss speed, fire rate and aim are undefined (§9 Q8).
 const BOSS_SPEED_MULT: float = 0.5
 const BOSS_FIRE_INTERVAL_SEC: float = 2.0
-const BOSS_GOLD: int = 10
+const BOSS_FIRE_RANGE_TILES: float = 12.0
+
+# --- Mega boss (§6.7) — 2× previous HP (1000 → 2000) ---
+const MEGA_BOSS_HP: int = 2000
+const MEGA_BOSS_SHIELD_HP: float = 100.0
+const MEGA_BOSS_BOLT_SPEED_TILES: float = 6.0
+const MEGA_BOSS_RADIUS_TILES: float = 1.5
+const MEGA_BOSS_SPAWN_RATE_MULT: float = 2.0
+const MEGA_BOSS_SPAWN_BOSS_SEC: float = 25.0
+# TODO(design): cap on monsters the mega boss keeps alive (performance).
+const MEGA_BOSS_MAX_MINIONS: int = 40
+
+# --- Endless Mode (§3) ---
+const ENDLESS_WAVE_HP_MULT: float = 2.0
 
 # TODO(design): does the difficulty HP multiplier also scale nests + bosses? (§9 Q4). Assumed no.
 const DIFFICULTY_SCALES_NESTS_AND_BOSSES: bool = false
 
 # --- Castle (§5) ---
 const CASTLE_SIZE_TILES: float = 4.0
+
+# --- Gold mines (§6.8) ---
+const GOLD_MINE_COUNT: int = 3
+## Reduced by 1/4 from 10.0 → 7.5 gold/sec.
+const GOLD_MINE_RATE: float = 7.5
+## Reduced by 1/3 from 500 → 333 gold.
+const GOLD_MINE_CAP: int = 333
+
+# --- Maze walls (§6.9) ---
+## Maze grid cell size in tiles (corridor width ≈ this minus wall thickness).
+const MAZE_CELL_TILES: int = 5
+const MAZE_WALL_THICKNESS_TILES: float = 0.5
+## Walls only exist outside this fraction of the center→edge distance
+## (i.e. they start 2/3 of the way in from the edge toward the castle).
+const MAZE_CLEAR_CENTER_FRACTION: float = 1.0 / 3.0
+## Chance to knock out each extra wall after carving, so the maze feels spacious with loops.
+const MAZE_EXTRA_OPENING_CHANCE: float = 0.35
 
 # --- Physics layers (bit values; names are set in project.godot) ---
 const LAYER_WORLD: int = 1
@@ -82,10 +231,8 @@ const MAP_SIZES: Array = [
 	preload("res://resources/maps/large.tres"),
 ]
 const BASE_SPELL: SpellData = preload("res://resources/spells/base_spell.tres")
-## Mods that can drop from nests.
-const SPELL_MODS: Array = [
-	preload("res://resources/spells/magic_missile.tres"),
-]
+## Visual template for spells dropped by bosses (stats are computed when picked up).
+const BOSS_SPELL: SpellData = preload("res://resources/spells/boss_spell.tres")
 
 
 ## Converts tiles to pixels.
@@ -93,7 +240,7 @@ func tiles(amount: float) -> float:
 	return amount * TILE_SIZE
 
 
-## Base spell damage at a level (1..SPELL_MAX_LEVEL).
+## Base spell damage at a level (1..SPELL_MAX_LEVEL), before mods.
 func spell_damage(level: int) -> int:
 	var i: int = clampi(level, 1, SPELL_MAX_LEVEL) - 1
 	return SPELL_DAMAGE_BY_LEVEL[i]
@@ -104,6 +251,230 @@ func upgrade_cost(level: int) -> int:
 	return int(round(SPELL_UPGRADE_BASE_COST * pow(SPELL_UPGRADE_GROWTH, level - 1)))
 
 
+## Spell Scrolls needed to buy the next level of a mod that is currently at `level` (0-based).
+## 1, 2, 3, 4, then 8, 16, 32 …
+func mod_cost(level: int) -> int:
+	var n: int = level + 1
+	if n <= MOD_LINEAR_UPGRADES:
+		return n
+	var exp_steps: int = mini(n - MOD_LINEAR_UPGRADES, 50)
+	return MOD_LINEAR_UPGRADES * (1 << exp_steps)
+
+
+## Max mana for a given `mana_pool` upgrade level (0..12):
+## +1 per level from 10 up to 15 (levels 1..5), then +2 per level from 15 up to 29 (levels 6..12).
+func max_mana_for_level(pool_level: int) -> int:
+	var lvl: int = clampi(pool_level, 0, MANA_POOL_MAX_LEVEL)
+	if lvl <= 5:
+		return BASE_MAX_MANA + lvl
+	return 15 + (lvl - 5) * 2
+
+
+## Augmentation Scroll cost for the next level of an augmentation currently at `level` (0..2): 1, 2, 3.
+func aug_cost(level: int) -> int:
+	return level + 1
+
+
+## Enhancer cost for the next level of a Personal Shop upgrade currently at `level` (0..2): 3, 5, 9.
+func personal_cost(level: int) -> int:
+	var idx: int = clampi(level, 0, PERSONAL_UPGRADE_COSTS.size() - 1)
+	return PERSONAL_UPGRADE_COSTS[idx]
+
+
+## Player max HP for a given `max_hp_level` (0..3): 5 → 6 → 7 → 10 (+1, +1, +3).
+func player_max_hp_for_level(level: int) -> int:
+	var idx: int = clampi(level, 0, PLAYER_MAX_HP_MAX_LEVEL)
+	return PLAYER_MAX_HP_BY_LEVEL[idx]
+
+
+## Gold cost for the next Max HP upgrade in the Gold Shop (200, 400, 800).
+func gold_max_hp_cost(level: int) -> int:
+	var idx: int = clampi(level, 0, GOLD_SHOP_MAX_HP_COSTS.size() - 1)
+	return GOLD_SHOP_MAX_HP_COSTS[idx]
+
+
+## Gold cost for the next Spell Scroll in the Gold Shop (100, 200, ..., 1000).
+func gold_mod_part_cost(bought_so_far: int) -> int:
+	return (bought_so_far + 1) * GOLD_SHOP_MOD_PART_BASE_COST
+
+
+## Monster speed in tiles/sec from its size.
+func monster_speed_tiles(radius_tiles: float) -> float:
+	return PLAYER_SPEED_TILES * minf(MONSTER_MAX_SPEED_RATIO, MONSTER_SIZE_SPEED_K / radius_tiles)
+
+
 ## Applies a difficulty multiplier to a base HP, rounding up (§9 Q4 assumption), minimum 1.
 func scale_hp(base_hp: int, mult: float) -> int:
 	return maxi(1, ceili(base_hp * mult))
+
+
+# --- Sprite / Texture helpers ---
+var _tex_cache: Dictionary = {}
+
+
+## Loads and caches a Texture2D from `res://assets/...` (works both with imported resources and raw files in dev).
+func get_tex(res_path: String) -> Texture2D:
+	if _tex_cache.has(res_path):
+		return _tex_cache[res_path] as Texture2D
+	var tex: Texture2D = null
+	if ResourceLoader.exists(res_path):
+		tex = ResourceLoader.load(res_path) as Texture2D
+	if tex == null:
+		var abs_path: String = ProjectSettings.globalize_path(res_path)
+		if FileAccess.file_exists(abs_path):
+			var img: Image = Image.load_from_file(abs_path)
+			if img != null and not img.is_empty():
+				tex = ImageTexture.create_from_image(img)
+	_tex_cache[res_path] = tex
+	return tex
+
+
+## Draws `tex` centered at `pos` fitting inside `max_size` (preserving aspect ratio), with optional horizontal flip.
+func draw_sprite_centered(
+	canvas: CanvasItem,
+	tex: Texture2D,
+	pos: Vector2,
+	max_size: Vector2,
+	modulate_col: Color = Color.WHITE,
+	flip_h: bool = false
+) -> void:
+	if tex == null:
+		return
+	var ts: Vector2 = tex.get_size()
+	if ts.x <= 0.0 or ts.y <= 0.0:
+		return
+	var scale_f: float = minf(max_size.x / ts.x, max_size.y / ts.y)
+	var draw_sz: Vector2 = ts * scale_f
+	# In Godot 4, negative rect.size.x flips horizontally in-place within [rect.position.x, rect.position.x + draw_sz.x].
+	var rect := Rect2(pos - draw_sz * 0.5, Vector2(-draw_sz.x if flip_h else draw_sz.x, draw_sz.y))
+	canvas.draw_texture_rect(tex, rect, false, modulate_col)
+
+
+## Draws a flat elliptical ground shadow directly beneath an entity's feet so it never looks like a separate target.
+func draw_ground_shadow(
+	canvas: CanvasItem,
+	radius: float,
+	y_offset: float,
+	alpha: float = 0.32,
+	tint: Color = Color.BLACK
+) -> void:
+	canvas.draw_set_transform(Vector2(0.0, y_offset), 0.0, Vector2(1.0, 0.42))
+	canvas.draw_circle(Vector2.ZERO, radius * 0.88, Color(tint.r, tint.g, tint.b, alpha))
+	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Returns the local offset of the sapphire rhombus gem at the tip of the mage's staff.
+func get_staff_gem_offset(radius: float, aim_dir: Vector2) -> Vector2:
+	var dir: Vector2 = aim_dir.normalized() if aim_dir != Vector2.ZERO else Vector2.RIGHT
+	var facing_sign: float = -1.0 if dir.x < -0.05 else 1.0
+	var s: float = radius / 12.8
+	var main_hand := Vector2(facing_sign * radius * 0.62, radius * 0.08)
+	return main_hand + dir * (radius * 1.18 + 3.6 * s)
+
+
+## Draws the mage's offhand small open magic tome/book and main-hand staff with a small sapphire rhombus gem tip.
+func draw_mage_loadout(
+	canvas: CanvasItem,
+	center: Vector2,
+	radius: float,
+	aim_dir: Vector2,
+	bob: float = 0.0,
+	spectral: bool = false,
+	alpha: float = 1.0
+) -> void:
+	var dir: Vector2 = aim_dir.normalized() if aim_dir != Vector2.ZERO else Vector2.RIGHT
+	var perp := Vector2(-dir.y, dir.x)
+	var facing_sign: float = -1.0 if dir.x < -0.05 else 1.0
+	var s: float = radius / 12.8
+
+	# 1. Offhand: Small Open Magic Tome / Book
+	var b: Vector2 = center + Vector2(-facing_sign * radius * 0.64, radius * 0.14 + bob * 0.65)
+	var aura_col := Color(0.55, 0.30, 1.0, 0.22 * alpha) if spectral else Color(0.18, 0.55, 1.0, 0.20 * alpha)
+	var cover_col := Color(0.32, 0.14, 0.52, alpha) if spectral else Color(0.20, 0.14, 0.36, alpha)
+	var trim_col := Color(0.82, 0.62, 1.0, alpha) if spectral else Color(0.90, 0.74, 0.28, alpha)
+	var page_left := Color(0.88, 0.80, 1.0, alpha) if spectral else Color(0.96, 0.92, 0.80, alpha)
+	var page_right := Color(0.80, 0.70, 0.96, alpha) if spectral else Color(0.89, 0.84, 0.71, alpha)
+	var rune_col := Color(0.62, 0.28, 1.0, 0.92 * alpha) if spectral else Color(0.14, 0.50, 0.95, 0.92 * alpha)
+
+	canvas.draw_circle(b, 5.2 * s, aura_col)
+	# Leather cover with 1px dark outline
+	var cover_out := PackedVector2Array([
+		b + Vector2(-5.3 * s, -3.0 * s),
+		b + Vector2(0.0, -1.9 * s),
+		b + Vector2(5.3 * s, -3.0 * s),
+		b + Vector2(5.3 * s, 3.4 * s),
+		b + Vector2(0.0, 4.4 * s),
+		b + Vector2(-5.3 * s, 3.4 * s),
+	])
+	canvas.draw_colored_polygon(cover_out, Color(0.07, 0.04, 0.10, 0.95 * alpha))
+	var cover_pts := PackedVector2Array([
+		b + Vector2(-4.6 * s, -2.4 * s),
+		b + Vector2(0.0, -1.4 * s),
+		b + Vector2(4.6 * s, -2.4 * s),
+		b + Vector2(4.6 * s, 2.8 * s),
+		b + Vector2(0.0, 3.8 * s),
+		b + Vector2(-4.6 * s, 2.8 * s),
+	])
+	canvas.draw_colored_polygon(cover_pts, cover_col)
+	# Open left & right parchment pages
+	canvas.draw_colored_polygon(PackedVector2Array([
+		b + Vector2(-3.8 * s, -1.9 * s),
+		b + Vector2(-0.35 * s, -1.0 * s),
+		b + Vector2(-0.35 * s, 3.0 * s),
+		b + Vector2(-3.8 * s, 2.1 * s),
+	]), page_left)
+	canvas.draw_colored_polygon(PackedVector2Array([
+		b + Vector2(0.35 * s, -1.0 * s),
+		b + Vector2(3.8 * s, -1.9 * s),
+		b + Vector2(3.8 * s, 2.1 * s),
+		b + Vector2(0.35 * s, 3.0 * s),
+	]), page_right)
+	# Center spine & glowing arcane rune lines on the pages
+	canvas.draw_line(b + Vector2(0.0, -1.3 * s), b + Vector2(0.0, 3.6 * s), trim_col, maxf(1.0, 1.1 * s))
+	canvas.draw_line(b + Vector2(-3.1 * s, -0.5 * s), b + Vector2(-1.0 * s, 0.0), rune_col, maxf(1.0, 0.95 * s))
+	canvas.draw_line(b + Vector2(-3.1 * s, 1.0 * s), b + Vector2(-1.0 * s, 1.5 * s), rune_col, maxf(1.0, 0.95 * s))
+	canvas.draw_line(b + Vector2(1.0 * s, 0.0), b + Vector2(3.1 * s, -0.5 * s), rune_col, maxf(1.0, 0.95 * s))
+	canvas.draw_line(b + Vector2(1.0 * s, 1.5 * s), b + Vector2(3.1 * s, 1.0 * s), rune_col, maxf(1.0, 0.95 * s))
+
+	# 2. Main Hand: Staff with Small Sapphire Rhombus Gem at the Tip
+	var main_hand: Vector2 = center + Vector2(facing_sign * radius * 0.62, radius * 0.08 + bob * 0.85)
+	var staff_butt: Vector2 = main_hand - dir * (radius * 0.62)
+	var staff_head: Vector2 = main_hand + dir * (radius * 1.18)
+	var shaft_col := Color(0.38, 0.22, 0.54, alpha) if spectral else Color(0.42, 0.25, 0.13, alpha)
+
+	# Dark pixel outline + sleek carved wooden shaft + gold ferrule & butt cap
+	canvas.draw_line(staff_butt, staff_head, Color(0.07, 0.04, 0.10, 0.92 * alpha), 3.8 * s)
+	canvas.draw_line(staff_butt, staff_head, shaft_col, 2.2 * s)
+	canvas.draw_line(staff_butt, staff_butt + dir * (1.8 * s), trim_col, 2.6 * s)
+	canvas.draw_line(staff_head - dir * (2.2 * s), staff_head + dir * (0.6 * s), trim_col, 3.2 * s)
+
+	# Small Sapphire Rhombus Gem at the tip
+	var gem_pos: Vector2 = staff_head + dir * (3.6 * s)
+	var gem_glow := Color(0.58, 0.28, 1.0, 0.30 * alpha) if spectral else Color(0.10, 0.50, 1.0, 0.30 * alpha)
+	var gem_body := Color(0.56, 0.28, 0.98, alpha) if spectral else Color(0.08, 0.42, 0.96, alpha)
+	var gem_core := Color(0.90, 0.78, 1.0, alpha) if spectral else Color(0.68, 0.92, 1.0, alpha)
+
+	canvas.draw_circle(gem_pos, 4.2 * s, gem_glow)
+	# Outer dark border rhombus
+	canvas.draw_colored_polygon(PackedVector2Array([
+		gem_pos + dir * (3.9 * s),
+		gem_pos + perp * (2.4 * s),
+		gem_pos - dir * (3.7 * s),
+		gem_pos - perp * (2.4 * s),
+	]), Color(0.05, 0.08, 0.20, 0.95 * alpha))
+	# Sapphire rhombus body
+	canvas.draw_colored_polygon(PackedVector2Array([
+		gem_pos + dir * (3.1 * s),
+		gem_pos + perp * (1.75 * s),
+		gem_pos - dir * (2.9 * s),
+		gem_pos - perp * (1.75 * s),
+	]), gem_body)
+	# Bright inner sapphire facet
+	canvas.draw_colored_polygon(PackedVector2Array([
+		gem_pos + dir * (1.6 * s),
+		gem_pos + perp * (0.85 * s),
+		gem_pos - dir * (1.3 * s),
+		gem_pos - perp * (0.85 * s),
+	]), gem_core)
+
+

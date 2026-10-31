@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CoopRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/coop_rules.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+player_count = 3
+monster_hp_multiplier = 2.0
+boss_hp_multiplier = 5.0
+revival_unlock_cost = 999
+revival_interaction_seconds = 3.0
+revival_respawn_seconds = 5.0
+revival_restored_hp = 5
