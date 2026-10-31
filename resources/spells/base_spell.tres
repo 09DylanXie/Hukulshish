@@ -5,7 +5,8 @@
 [resource]
 script = ExtResource("1")
 name = "Base Spell"
-speed_tiles = 1
-fire_rate = 1
+speed_tiles = 6
+range_tiles = 10
+fire_rate = 2
 color = Color(0.4, 0.7, 1, 1)
 radius_tiles = 0.2

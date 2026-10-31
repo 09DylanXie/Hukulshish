@@ -74,18 +74,18 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
           └─► [Quit Game] (on web, hide this or show a "thanks for playing" screen; get_tree().quit() does nothing in a browser)
 ```
 
-1. **Main Menu:** `Start`, `Quit Game`
+1. **Main Menu:** `Start`, `Rules & Guide` (interactive tabbed guide with visual diagrams for new players), `Quit Game`
 2. **Map Size:** `Small`, `Medium`, `Large`
-3. **Difficulty:** `Easy`, `Medium`, `Hard`, `Extreme`
+3. **Difficulty:** `Easy`, `Medium`, `Hard`, `Extreme`, plus **Endless Mode** (either chosen directly or toggled on for any difficulty; when the Mega Boss dies, 4 new spawners appear and everything's HP goes up by `2×`).
 4. **Game:** the run starts. Show the Victory or Game Over screen at the end.
 
-### Difficulty (monster HP multiplier)
-| Difficulty | Monster HP |
-|---|---|
-| Easy | ×0.5 |
-| Medium | ×1 |
-| Hard | ×2 |
-| Extreme | ×5 |
+### Difficulty (monster HP multiplier & 3-minute time scaling)
+| Difficulty | Base Monster HP | After 3 Minutes (every 30s) |
+|---|---|---|
+| Easy | ×0.5 | No additional scaling |
+| Medium | ×1 | `+5 HP` linearly every 30s |
+| Hard | ×2 | `×1.2` exponentially every 30s |
+| Extreme | ×5 | `×1.5` exponentially every 30s |
 
 > Open: does the multiplier also apply to **nests and bosses**? Should HP be rounded up (e.g. Goblin 3 × 0.5 = 1.5 → 2)? See §9.
 
@@ -108,9 +108,9 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 - The player is a mage named **Hukulshish**.
 - The player spawns in the **center of a preset map**, inside a **kingdom castle**.
 - Goal: defend the castle from monsters.
-- **Victory:** all 4 nests destroyed **and** all nest bosses defeated.
+- **Victory:** all 4 nests destroyed **and** the Mega Boss defeated.
 - **Defeat:** the player dies. *(The castle is only a plot point. It has no HP and can't be destroyed.)*
-- The castle is where you **upgrade the base spell** and **add new spells** (mods).
+- Entering the castle **heals the player up to 3 HP** (never above 3 HP) and opens the upgrade menu for **base spell levels**, **spell mods**, **augmentations**, **personal shop**, and **gold shop**.
 
 ---
 
@@ -119,12 +119,16 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 ### 6.1 Player
 | Stat | Value |
 |---|---|
-| Starting HP | 10 |
-| Move speed | 1 tile/sec |
-| Starting spell | Base spell, level 1: auto-aims at the nearest monster, 1 damage |
+| Starting HP | 5 (upgradable in the Gold Shop to `6 → 7 → 10` Max HP via `+1`, `+1`, `+3` without instant healing) |
+| Max Shield | 5 (absorbs damage before HP) |
+| Starting Mana | 10 max (regenerates at 1.0/sec base) |
+| Move speed | 3.0 tiles/sec |
+| Weapon / Cursor | Holds an arcane wand/staff in the main hand and a floating magic catalyst in the offhand; cursor is a crosshair while in game |
+| Starting spell | Base spell, level 1: left-click to shoot toward cursor (or auto-aim once unlocked for 1000 gold), 1 damage, fires at 2.0 shots/sec, costs 2 mana per cast |
 
-### 6.2 Spells
-- Every player spell moves at **1 tile/sec** unless its definition says otherwise.
+### 6.2 Spells & Mana
+- Every player spell moves at **2× player speed (6.0 tiles/sec)** unless modified (e.g., 5× speed Sniper shot).
+- **Fire Rate & Mana Consumption:** player spells fire **2× faster** (`2.0/sec` base for Base Spell). Casting the **Base Spell** costs **2 mana**; casting each **Boss Spell** costs **3 mana** (+1 mana per cast across all spells).
 - **Base spell levels:** 1 (base) up to 9 (max). You upgrade it **at the castle** with gold.
 - **Damage per level:** +2 per level until level 7, then +5 per level after that.
 
@@ -134,46 +138,89 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 
 > Assumption: level 7 is still a +2 step and levels 8–9 are +5. Confirm with the user (§9).
 
-- **Upgrade cost:** grows exponentially with each level. **The level 1→2 cost and the growth rate haven't been decided yet** (§9). Keep the formula in data: `cost = base_cost * growth ^ (level - 1)`.
+- **Upgrade cost:** grows exponentially with each level (`cost = base_cost * growth ^ (level - 1)`).
 
-### 6.3 Spell Mods
-- A spell mod **copies the base spell's damage at the moment you apply it**. That value is frozen; later base-spell upgrades don't change it.
-- The mod becomes a **new spell that fires alongside** the base spell.
-- Spell mods **only drop from nests**.
-- Known mods:
-  - **Magic Missile:** 2 tiles/sec, *(the rest of this line was cut off in the manuscript; see §9)*
-  - *More TBD*
+### 6.3 Spell Mods ("Spell Scrolls"), Augmentations, Personal Shop, Gold Shop & Boss Spells
+- **Spell Scrolls (formerly Mod Parts):** killing any monster has a **1 in 7 chance** (scaled by Luck) to drop a Spell Scroll pickup.
+- **Spell Mods (at the castle):** Spell Scrolls can be spent on 4 independent upgrades for the base spell:
+  - **Damage:** `+0.1×` (+10%) damage multiplier per level.
+  - **Mana Regen** (replaces Fire Rate): starts at `1.0/sec` and increases by **`+0.5/sec`** each upgrade.
+  - **Mana Pool** (replaces Spell Speed): increases max mana from `10` by **`+1` per level until `15`** (levels 1–5), then by **`+2` per level until `29`** (levels 6–12), maxing out at a mana bar of **29**.
+  - **Range:** `+0.1×` (+10%) range multiplier per level.
+- **Spell Mod cost:** costs `+1` Spell Scroll per upgrade for the first 4 upgrades (`1, 2, 3, 4`), then grows exponentially (`8, 16, 32, …`).
+- **Augmentations & Augmentation Scrolls (at the bottom of the Spell Mod menu):**
+  - **Augmentation Scrolls** drop **only from Demons** with a **1 in 5 chance** (scaled by Luck).
+  - Each of the 3 Augmentations can be upgraded a maximum of **3 times**, costing **1**, then **2**, then **3** Augmentation Scrolls:
+    1. **Split Spell:** splits the player's spell into **2** (Lv 1), **3** (Lv 2), or **4** (Lv 3) projectiles (+1 split per upgrade) upon contact with an enemy. Splits travel in straight lines separated by **45°** angles from the point of splitting (**Homing does not work on Split Shots**), and each split deals **1/2** the damage of the original spell. **Lv 3 Unique Ability:** chains lightning across its hits so the enemy hit is connected with another enemy and both get zapped alongside each other for the same damage as the split shot.
+    2. **Bombspell:** creates a medium-sized fire explosion (`2.09` tiles radius, 5% smaller) upon hitting a target that lasts **3 seconds** and deals **3 dmg/sec** (Lv 1), **5 dmg/sec** (Lv 2), or **7 dmg/sec** (Lv 3) (+2 dmg/sec per upgrade). Normally applies on final split spells (not initial split impact when Split Spell is active), and **1 tick of fire damage breaks a Demon's bubble shield**. **Lv 3 Unique Ability:** explodes on **every hit** regardless of whether the spell splits or not, **and** explodes when the spell runs out of range.
+    3. **Sniper:** upon initial player spell contact with an enemy, fires a super-accurate **5× speed** shot that directly homes to the nearest **monster or boss (never targets nests)** and deals **2×** (Lv 1), **3×** (Lv 2), or **4×** (Lv 3) damage (+1× per upgrade). Does not repeat, and sniper shot count does not change with split upgrades (only initial first impact of player spell on an enemy). **Lv 3 Unique Ability:** the sniper shell explodes with the Bombspell explosion augmentation upon impact.
+- **Personal Shop & Enhancers (Goblin & Undead Drops):**
+  - **Enhancers** drop from **Goblins and Undead** with a **1 in 4 chance** (scaled by Luck).
+  - All 6 Personal Shop upgrades max out at **Level 3** and cost **3** Enhancers for the 1st upgrade, **5** for the 2nd, and **9** for the 3rd:
+    1. **Luck:** increases drop rate by **+20% per upgrade** (non-cumulative: `+20%`, `+40%`, `+60%`).
+    2. **Movement Speed:** increases player movement speed by **+5% per upgrade** (non-cumulative: `+5%`, `+10%`, `+15%`).
+    3. **Health Regen:** regenerates **+1 HP / 10 secs per upgrade** (`+1`, `+2`, `+3` HP every 10 seconds).
+    4. **Capacity:** increases Gold Mine capacity by **+1/3 per upgrade** (non-cumulative: `+1/3`, `+2/3`, `+3/3`).
+    5. **Rate:** increases Gold Mine gold generation rate by **+15% per upgrade** (non-cumulative: `+15%`, `+30%`, `+45%`).
+    6. **Income Multiplier:** increases gold received from **monsters and bosses only** by **+50% per upgrade** (non-cumulative: `+50%`, `+100%`, `+150%`).
+- **Gold Shop (at the castle):**
+  - **Max HP Upgrade:** increases Max HP from `5 → 6 → 7 → 10` (`+1` for 1st and 2nd, `+3` on the final 3rd upgrade; does not instantly heal the player).
+  - **Spell Scroll:** `100` gold for the 1st, then `+100` gold for each additional scroll up to 10 (`100, 200, …, 1000`).
+  - **Magic Shield (`200` gold):** adds 1 shield item to the bottom circular hotbar; using it adds `+1` shield point (up to the 5-shield cap).
+  - **3 HP Healing Potion (`100` gold):** adds 1 healing potion to the bottom circular hotbar; using it heals `+3 HP` (30 s effect timer).
+  - **2× Damage Boost Potion (`100` gold):** adds 1 damage potion to the bottom circular hotbar; using it grants `2×` spell damage for **30 seconds**.
+  - **Magnet (`300` gold):** automatically pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups on the map toward the player.
+  - **Auto-Shooting Unlock (`1000` gold):** unlocks automatic targeting and firing at **1/2 of the spell's fire rate** so players can still manually fire; press **`E`** to toggle auto-fire on/off once unlocked.
+  - **Homing Unlock (`1500` gold):** makes player spells (excluding Split Shots) home toward the closest enemy; press **`F`** to toggle homing on/off once unlocked.
+  - **Doppelganger (`5000` gold):** spawns a companion that copies the player's current abilities at purchase time, follows the player around until it dies, has a max HP of **5**, and can never have a shield.
+- **Boss & Mega Boss Spells:**
+  - **Nest Boss Spells (1/3 drop):** costs **3 mana** per cast and cannot be upgraded once acquired (stats are frozen on pickup). First boss spell copies the base spell's stats, **doubles its damage**, and **reduces fire rate by 1/3** (`× 2/3`); subsequent boss spells add the damage of all existing player spells together without reducing fire rate by 1/3 again.
+  - **Mega Boss Spell (guaranteed 1/1 drop in Endless Mode):** every time the Mega Boss is defeated in Endless Mode, it drops a guaranteed bright-red Mega Boss Spell (`Color(1.0, 0.15, 0.15)`) that **combines all current spells together and multiplies damage by 1.5×**, and **copies the base spell's augments and uses them**.
 
 ### 6.4 Nests
 - There are **4 nests**, one hidden in each **corner** of the map.
-- Each nest spawns its own monster type (suggested: one class per nest, i.e. Goblin / Undead / Ogre / Demon; confirm).
+- Each nest spawns its own monster type (Goblin / Undead / Ogre / Demon) directly from its center hole.
 - Spawning starts **5 seconds** after the run begins.
-- Nest HP: **30**
-- When destroyed: **1 in 3 chance** to drop a spell mod.
-- When destroyed: a **boss spawns 20 seconds later** (at the nest's spot unless the user says otherwise).
-- Open: does a destroyed nest stop spawning? (Almost certainly yes.)
+- Nest HP: **70** (damaged by player spells via swept-segment hit detection).
+- When destroyed: a **nest boss spawns immediately** at the nest's spot.
+- Once **all 4 nests are destroyed**, the **Mega Boss** spawns.
 
 ### 6.5 Monsters (all melee)
-| Class | HP | Damage | Speed (× player) | Spawn interval | Gold drop |
-|---|---|---|---|---|---|
-| Goblin | 3 | 1 | 1.5× | every 5 s | 1 |
-| Undead | 4 | 2 | 0.5× | every 8 s | 3 |
-| Ogre | 10 | 1 | 0.5× | every 7 s | 4 |
-| Demon | 7 | 2 | 1.0× | every 16 s | 5 |
+| Class | HP | Damage | Radius (tiles) | Speed (from size) | Spawn interval | Gold drop | Special |
+|---|---|---|---|---|---|---|---|
+| Goblin | 3 | 1 | 0.35 | ~2.57 tiles/s | every 5 s | 1 | 1/4 chance to drop an Enhancer |
+| Undead | 4 | 2 | 0.40 | ~2.25 tiles/s | every 8 s | 3 | Fires a white 0-damage slow spell at half normal spell speed (3.0 tiles/s); 1/4 chance to drop an Enhancer |
+| Demon | 7 | 2 | 0.45 | ~2.00 tiles/s | every 16 s | 5 | Bubble shield (breaks after 1 spell hit or 1 Bombspell fire tick); 1/5 chance to drop an Augmentation Scroll |
+| Ogre | 10 | 1 | 0.60 | ~1.50 tiles/s | every 7 s | 4 | — |
 
-- HP is multiplied by the difficulty multiplier (§3).
-- Monsters chase the player.
-- Open: the melee attack cooldown and the player's invulnerability frames after taking a hit aren't defined yet (§9).
+- Monster speed varies inversely with theoretical size (`PLAYER_SPEED_TILES * min(0.9, 0.3 / radius_tiles)`), and is never faster than the player.
+- HP is multiplied by the difficulty multiplier and scales over time after 3 minutes (§3).
+- Monsters chase the player around maze walls and have a **1 in 7 chance** to drop a Spell Scroll on death (Demons also roll a **1 in 5 chance** to drop an Augmentation Scroll).
 
 ### 6.6 Nest Bosses
 | Stat | Value |
 |---|---|
-| HP | 20 |
+| HP | 80 (increased 4× from 20) |
 | Melee damage | 5 |
 | Ranged attack | Fires a 1-damage projectile at 1 tile/sec in a straight line |
-| Spawn | 20 s after its nest is destroyed |
+| Spawn | Immediately after its nest is destroyed |
+| Drops | **1000 gold** + **1 in 3 chance** to drop a new Boss Spell |
 
-- Open: the boss's move speed, fire rate, aim (at the player or a fixed pattern), gold/mod drops, and whether difficulty scales it (§9).
+### 6.7 Mega Boss
+- Spawns once all 4 nests are destroyed.
+- **HP:** 2000 (increased 2× from 1000; same melee/ranged damage and movement speed stats as a Nest Boss).
+- **Spell Speed:** Fires projectiles at the **same speed as the player's base spell (`6.0` tiles/sec)**.
+- **Regenerating Shield:** Starts with a **100 HP shield** that **regenerates to 100 HP after each 1/4 of its max HP is lost** (at 75%, 50%, and 25% HP).
+- **Spawn Rates (2×):** Spawns a **Nest Boss every 25 seconds** (2× rate from 50 s) and spawns **normal monsters at 2× their normal rate**.
+- **Defeating the Mega Boss** ends the game in Victory in Normal mode, or in **Endless Mode** spawns **4 new spawners** and increases **everything's HP by 2×**.
+
+### 6.8 Gold Mines
+- **2 gold mines** spawn in random regions of the map each run.
+- Each mine produces **7.5 gold/sec** (reduced by 1/4 from 10), capped at **333 gold** (reduced by 1/3 from 500).
+- Walk over a gold mine to collect its stored gold.
+
+### 6.9 Random Maze Walls
+- Every new run generates a **spacious random maze** of walls across the outer map, starting **2/3 of the way in from the edge toward the castle** (leaving the inner 1/3 around the castle open).
 
 ---
 

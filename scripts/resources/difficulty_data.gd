@@ -4,3 +4,4 @@ extends Resource
 
 @export var name: String = ""
 @export var hp_mult: float = 1.0
+

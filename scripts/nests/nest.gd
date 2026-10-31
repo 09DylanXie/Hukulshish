@@ -10,8 +10,8 @@ const MonsterScene: PackedScene = preload("res://scenes/monsters/Monster.tscn")
 
 var stats: MonsterStats
 var hp_mult: float = 1.0
-var max_hp: int = Config.NEST_HP
-var hp: int = Config.NEST_HP
+var max_hp: float = Config.NEST_HP
+var hp: float = Config.NEST_HP
 
 var _radius: float = Config.tiles(Config.NEST_RADIUS_TILES)
 var _spawn_timer: float = Config.NEST_SPAWN_DELAY_SEC
@@ -25,14 +25,17 @@ func _ready() -> void:
 	add_to_group("nests")
 	collision_layer = Config.LAYER_NESTS
 	collision_mask = 0
-	if Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES:
-		max_hp = Config.scale_hp(Config.NEST_HP, hp_mult)
-		hp = max_hp
+	max_hp = GameState.scaled_nest_hp()
+	hp = max_hp
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = _radius
 	shape.shape = circle
 	add_child(shape)
+
+
+func get_hit_radius() -> float:
+	return _radius
 
 
 func _physics_process(delta: float) -> void:
@@ -53,20 +56,21 @@ func _spawn() -> void:
 	var m: Monster = scene.instantiate()
 	m.setup(stats, hp_mult)
 	var angle: float = randf() * TAU
-	m.position = position + Vector2.from_angle(angle) * (_radius + Config.tiles(0.8))
+	# Spawn right on the nest's center hole (tiny offset so multiple monsters don't stack at 0,0).
+	m.position = position + Vector2.from_angle(angle) * Config.tiles(0.1)
 	_alive += 1
 	m.tree_exited.connect(func() -> void: _alive -= 1)
 	get_parent().add_child(m)
 	monster_spawned.emit(m)
 
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: float) -> void:
 	if _dead:
 		return
 	hp -= amount
-	_flash = 0.1
+	_flash = 0.12
 	queue_redraw()
-	if hp <= 0:
+	if hp <= 0.0:
 		_dead = true
 		destroyed.emit(self)
 		queue_free()
@@ -84,4 +88,4 @@ func _draw() -> void:
 	var w: float = _radius * 2.0
 	var top: Vector2 = Vector2(-_radius, -_radius - 8.0)
 	draw_rect(Rect2(top, Vector2(w, 4)), Color(0, 0, 0, 0.6))
-	draw_rect(Rect2(top, Vector2(w * float(hp) / max_hp, 4)), Color(0.95, 0.6, 0.1))
+	draw_rect(Rect2(top, Vector2(w * maxf(hp, 0.0) / max_hp, 4)), Color(0.95, 0.6, 0.1))

@@ -4,8 +4,9 @@
 
 [resource]
 script = ExtResource("1")
-name = "Magic Missile"
-speed_tiles = 2
-fire_rate = 1
-color = Color(0.9, 0.4, 1, 1)
-radius_tiles = 0.15
+name = "Boss Spell"
+speed_tiles = 6
+range_tiles = 10
+fire_rate = 2
+color = Color(1, 0.55, 0.15, 1)
+radius_tiles = 0.28

@@ -1,11 +1,13 @@
 class_name SpellData
 extends Resource
-## One player spell or spell mod (AGENTS.md §6.2–6.3).
+## Base stats + look for a player spell (AGENTS.md §6.2–6.3).
+## Mods multiply these at runtime; boss spells copy the base spell when picked up.
 
 @export var name: String = ""
-@export var speed_tiles: float = 1.0
-## Only used for spells with fixed damage. The base spell uses Config.SPELL_DAMAGE_BY_LEVEL,
-## and mods copy the base damage when applied.
+@export var speed_tiles: float = 6.0
+## Max travel distance (also the auto-aim range).
+@export var range_tiles: float = 10.0
+## Only used for spells with fixed damage. The base spell uses Config.SPELL_DAMAGE_BY_LEVEL.
 @export var damage: int = 1
 ## Shots per second.
 @export var fire_rate: float = 1.0
