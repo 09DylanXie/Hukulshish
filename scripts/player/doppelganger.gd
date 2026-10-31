@@ -196,6 +196,7 @@ func _fire_spell(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 	if container == null:
 		container = get_tree().current_scene
 	container.add_child(p)
+	AudioManager.play_cast(spell, p.global_position)
 
 
 ## Doppelganger has 5 max HP and can never have a shield.

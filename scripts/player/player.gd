@@ -71,13 +71,25 @@ func _ready() -> void:
 	hp = max_hp
 	progress.changed.connect(_on_game_state_changed)
 	progress.screen_shake_requested.connect(_on_screen_shake_requested)
+	Config.preferences_changed.connect(_on_preferences_changed)
 	hp_changed.emit(hp, max_hp)
 	shield_changed.emit(shield, max_shield)
 
 
 func _on_screen_shake_requested(intensity: float, duration: float) -> void:
+	if Config.screen_shake_strength <= 0.0:
+		return
 	_shake_intensity = maxf(_shake_intensity, intensity)
 	_shake_timer = maxf(_shake_timer, duration)
+
+
+func _on_preferences_changed() -> void:
+	# Clearing the offset here also works while the simulation is paused.
+	if Config.screen_shake_strength <= 0.0:
+		_shake_intensity = 0.0
+		_shake_timer = 0.0
+		if _camera != null:
+			_camera.offset = Vector2.ZERO
 
 
 func _on_game_state_changed() -> void:
@@ -107,7 +119,7 @@ func _physics_process(delta: float) -> void:
 
 	if _shake_timer > 0.0 and _camera != null:
 		_shake_timer = maxf(0.0, _shake_timer - delta)
-		_camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake_intensity
+		_camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake_intensity * Config.screen_shake_strength
 		if _shake_timer <= 0.0:
 			_shake_intensity = 0.0
 			_camera.offset = Vector2.ZERO
@@ -164,6 +176,9 @@ func take_damage(amount: float) -> void:
 	if dmg > 0:
 		hp = maxi(0, hp - dmg)
 		hp_changed.emit(hp, max_hp)
+		AudioManager.play_at("player_hurt", global_position)
+	else:
+		AudioManager.play_at("shield_hit", global_position)
 	progress.request_shake(5.0, 0.2)
 	_iframes = Config.PLAYER_IFRAMES_SEC
 	queue_redraw()
@@ -171,6 +186,7 @@ func take_damage(amount: float) -> void:
 		_dead = true
 		velocity = Vector2.ZERO
 		modulate.a = 1.0
+		AudioManager.play_at("player_death", global_position)
 		died.emit()
 		progress.on_player_died()
 
@@ -191,6 +207,7 @@ func revive_at_castle(castle_position: Vector2) -> bool:
 	modulate.a = 1.0
 	hp_changed.emit(hp, max_hp)
 	shield_changed.emit(shield, max_shield)
+	AudioManager.play_at("revive", global_position)
 	revived.emit()
 	queue_redraw()
 	return true
@@ -212,6 +229,7 @@ func heal_amount(amount: int) -> bool:
 		return false
 	hp = mini(max_hp, hp + amount)
 	hp_changed.emit(hp, max_hp)
+	AudioManager.play_at("heal", global_position)
 	return true
 
 
@@ -224,6 +242,7 @@ func heal_at_castle() -> void:
 	if hp < cap:
 		hp = cap
 		hp_changed.emit(hp, max_hp)
+		AudioManager.play_at("heal", global_position)
 
 
 func is_dead() -> bool:

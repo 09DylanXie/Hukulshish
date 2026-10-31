@@ -77,6 +77,8 @@ func _collect(progress: RunState) -> void:
 		_:
 			progress.add_mod_parts(1)
 			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Spell Scroll", Color(0.45, 0.92, 1.0))
+	var is_spell: bool = kind == Kind.BOSS_SPELL or kind == Kind.MEGA_BOSS_SPELL
+	AudioManager.play_at("boss_spell_pickup" if is_spell else "scroll_pickup", global_position)
 	queue_free()
 
 

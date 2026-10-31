@@ -22,9 +22,15 @@ func setup(fire_dps: float, dur: float = Config.BOMB_DURATION_SEC, rad_px: float
 func _ready() -> void:
 	z_index = -2
 	GameState.request_shake(3.5, 0.14)
+	AudioManager.play_at("bomb_explosion", global_position)
+	AudioManager.start_loop("fire_loop")
 	# Apply first tick immediately on impact so enemies in the blast take an instant tick (breaking Demon shields).
 	_apply_tick(Config.BOMB_TICK_SEC)
 	_tick_timer = Config.BOMB_TICK_SEC
+
+
+func _exit_tree() -> void:
+	AudioManager.stop_loop("fire_loop")
 
 
 func _physics_process(delta: float) -> void:

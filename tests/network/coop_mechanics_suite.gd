@@ -27,6 +27,7 @@ func _check(condition: bool, message: String) -> void:
 func _run() -> void:
 	GameState.set_process(false)
 	_check_scaling()
+	await _check_boss_protection()
 	_make_team()
 	_check_purchases()
 	_check_revival()
@@ -45,12 +46,12 @@ func _check_scaling() -> void:
 	GameState.set_process(false)
 	_check(GameState.player_max_hp() == 7, "Single-player starting HP must remain 7")
 	_check(GameState.scaled_monster_hp(3) == 3.0, "Single-player monster HP changed")
-	_check(GameState.scaled_boss_hp() == 240.0, "Single-player boss HP changed")
+	_check(GameState.scaled_boss_hp() == 480.0, "Single-player nest boss must have 480 base HP")
 	GameState.coop_mode = true
 	_check(GameState.player_max_hp() == 7, "Co-op must not double player HP")
 	_check(GameState.scaled_monster_hp(3) == 6.0, "Co-op Goblin must have 6 base HP")
 	_check(GameState.scaled_nest_hp() == 70.0, "Co-op must not double nest HP")
-	_check(GameState.scaled_boss_hp() == 1200.0, "Boss multiplier must be 5 total, not 10")
+	_check(GameState.scaled_boss_hp() == 2400.0, "Boss multiplier must be 5 total, not 10")
 	_check(GameState.scaled_mega_boss_hp() == 10000.0, "Mega Boss must have 10000 base HP")
 	GameState.run_time = Config.TIME_SCALE_START_SEC
 	_check(GameState.scaled_monster_hp(3) == 11.0, "Double base HP before the Medium +5 time step")
@@ -62,6 +63,46 @@ func _check_scaling() -> void:
 	GameState.difficulty = Config.DIFFICULTIES[0]
 	_check(GameState.scaled_monster_hp(3) == 3.0, "Easy difficulty must apply after doubling base HP")
 	GameState.difficulty = Config.DIFFICULTIES[1]
+
+
+func _check_boss_protection() -> void:
+	GameState.coop_mode = false
+	var boss: NestBoss = BossScene.instantiate()
+	boss.setup(Color.WHITE, 1.0)
+	get_tree().root.add_child(boss)
+	boss.set_physics_process(false)
+	_check(boss.max_hp == 480.0, "Nest boss scene did not use its increased HP")
+	boss.take_damage(100.0)
+	_check(is_equal_approx(boss.hp, 410.0), "Newly spawned nest boss must take only 70% of direct damage")
+	var fire: FireZone = FireZone.new()
+	fire.dps = 100.0 / Config.BOMB_TICK_SEC
+	get_tree().root.add_child(fire)
+	fire.set_physics_process(false)
+	_check(is_equal_approx(boss.hp, 340.0), "Spawn protection must also reduce lingering fire damage")
+	fire.queue_free()
+	boss.call("_physics_process", 4.99)
+	boss.take_damage(10.0)
+	_check(is_equal_approx(boss.hp, 333.0), "Spawn protection expired before five seconds")
+	boss.call("_physics_process", 0.02)
+	boss.take_damage(10.0)
+	_check(is_equal_approx(boss.hp, 323.0), "Boss must take full incoming damage after five seconds")
+	var fresh: NestBoss = BossScene.instantiate()
+	fresh.setup(Color.WHITE, 1.0)
+	get_tree().root.add_child(fresh)
+	fresh.set_physics_process(false)
+	fresh.take_damage(100.0)
+	_check(is_equal_approx(fresh.hp, 410.0), "Each newly summoned nest boss needs its own protection timer")
+	var mega: MegaBoss = MegaScene.instantiate()
+	mega.setup(Color.WHITE, 1.0)
+	get_tree().root.add_child(mega)
+	mega.set_physics_process(false)
+	mega.take_damage(100.0)
+	_check(mega.max_hp == 2000.0 and mega.hp == 2000.0 and mega.shield == 0.0, "Nest-boss changes must not add resistance or HP to Mega Bosses")
+	boss.queue_free()
+	fresh.queue_free()
+	mega.queue_free()
+	await get_tree().process_frame
+	GameState.coop_mode = true
 
 
 func _make_team() -> void:

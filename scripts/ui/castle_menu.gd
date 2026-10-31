@@ -312,7 +312,7 @@ func _refresh() -> void:
 		var mhp_cost: int = GameState.next_gold_max_hp_cost()
 		var mhp_btn: Button = UIKit.make_button(
 			"Max HP +%d (%d → %d Max HP)  —  %d gold" % [next_mhp - cur_mhp, cur_mhp, next_mhp, mhp_cost],
-			func() -> void: GameState.try_buy_max_hp_gold(), 16)
+			func() -> void: _purchase_sound(GameState.try_buy_max_hp_gold()), 16)
 		mhp_btn.custom_minimum_size = Vector2(0, 38)
 		mhp_btn.disabled = (not free) and GameState.gold < mhp_cost
 		_gold_shop_box.add_child(mhp_btn)
@@ -321,7 +321,7 @@ func _refresh() -> void:
 		var revival_cost: int = Config.COOP_RULES.revival_unlock_cost
 		var revival_text: String = "Revival - UNLOCKED (permanent)" if GameState.revival_unlocked else "Unlock Revival - %d gold" % revival_cost
 		var revival_button: Button = UIKit.make_button(
-			revival_text, func() -> void: GameState.try_buy_revival_unlock(), 16)
+			revival_text, func() -> void: _purchase_sound(GameState.try_buy_revival_unlock()), 16)
 		revival_button.custom_minimum_size = Vector2(0, 38)
 		revival_button.disabled = GameState.revival_unlocked or ((not free) and GameState.gold < revival_cost)
 		_gold_shop_box.add_child(revival_button)
@@ -338,7 +338,7 @@ func _refresh() -> void:
 		var mp_cost: int = GameState.next_gold_mod_part_cost()
 		var mp_btn: Button = UIKit.make_button(
 			"Spell Scroll (%d/%d)  —  %d gold" % [bought, Config.GOLD_SHOP_MOD_PART_MAX, mp_cost],
-			func() -> void: GameState.try_buy_gold_mod_part(), 16)
+			func() -> void: _purchase_sound(GameState.try_buy_gold_mod_part()), 16)
 		mp_btn.custom_minimum_size = Vector2(0, 38)
 		mp_btn.disabled = (not free) and GameState.gold < mp_cost
 		_gold_shop_box.add_child(mp_btn)
@@ -357,7 +357,7 @@ func _refresh() -> void:
 	else:
 		var mag_btn: Button = UIKit.make_button(
 			"Magnet (pulls dropped scrolls)  —  %d gold" % Config.GOLD_SHOP_MAGNET_COST,
-			func() -> void: GameState.try_buy_magnet(), 16)
+			func() -> void: _purchase_sound(GameState.try_buy_magnet()), 16)
 		mag_btn.custom_minimum_size = Vector2(0, 35)
 		mag_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_MAGNET_COST
 		_gold_shop_box.add_child(mag_btn)
@@ -371,7 +371,7 @@ func _refresh() -> void:
 	else:
 		var col_btn: Button = UIKit.make_button(
 			"Auto Gold Collector (mines every 30s)  —  %d gold" % Config.GOLD_SHOP_AUTO_COLLECTOR_COST,
-			func() -> void: GameState.try_buy_auto_collector(), 16)
+			func() -> void: _purchase_sound(GameState.try_buy_auto_collector()), 16)
 		col_btn.custom_minimum_size = Vector2(0, 35)
 		col_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_AUTO_COLLECTOR_COST
 		_gold_shop_box.add_child(col_btn)
@@ -385,7 +385,7 @@ func _refresh() -> void:
 	else:
 		var wp_btn: Button = UIKit.make_button(
 			"Shoot Through Walls  —  %d gold" % Config.GOLD_SHOP_WALL_PIERCE_COST,
-			func() -> void: GameState.try_buy_wall_pierce(), 16)
+			func() -> void: _purchase_sound(GameState.try_buy_wall_pierce()), 16)
 		wp_btn.custom_minimum_size = Vector2(0, 35)
 		wp_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_WALL_PIERCE_COST
 		_gold_shop_box.add_child(wp_btn)
@@ -394,7 +394,7 @@ func _refresh() -> void:
 	var owned_sh: String = "∞" if free else str(GameState.shield_items)
 	var sh_btn: Button = UIKit.make_button(
 		"Magic Shield (+1 Shield) [Owned: %s]  —  %d gold" % [owned_sh, Config.GOLD_SHOP_SHIELD_COST],
-		func() -> void: GameState.try_buy_shield_item(), 16)
+		func() -> void: _purchase_sound(GameState.try_buy_shield_item()), 16)
 	sh_btn.custom_minimum_size = Vector2(0, 38)
 	sh_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_SHIELD_COST
 	_gold_shop_box.add_child(sh_btn)
@@ -403,7 +403,7 @@ func _refresh() -> void:
 	var owned_hp: String = "∞" if free else str(GameState.heal_potions)
 	var hp_btn: Button = UIKit.make_button(
 		"3 HP Healing Potion [Owned: %s]  —  %d gold" % [owned_hp, Config.GOLD_SHOP_POTION_COST],
-		func() -> void: GameState.try_buy_heal_potion(), 16)
+		func() -> void: _purchase_sound(GameState.try_buy_heal_potion()), 16)
 	hp_btn.custom_minimum_size = Vector2(0, 38)
 	hp_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_POTION_COST
 	_gold_shop_box.add_child(hp_btn)
@@ -412,7 +412,7 @@ func _refresh() -> void:
 	var owned_dmg: String = "∞" if free else str(GameState.damage_potions)
 	var dmg_btn: Button = UIKit.make_button(
 		"2× Damage Boost Potion (30s) [Owned: %s]  —  %d gold" % [owned_dmg, Config.GOLD_SHOP_POTION_COST],
-		func() -> void: GameState.try_buy_damage_potion(), 16)
+		func() -> void: _purchase_sound(GameState.try_buy_damage_potion()), 16)
 	dmg_btn.custom_minimum_size = Vector2(0, 38)
 	dmg_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_POTION_COST
 	_gold_shop_box.add_child(dmg_btn)
@@ -426,7 +426,7 @@ func _refresh() -> void:
 	else:
 		var auto_btn: Button = UIKit.make_button(
 			"Unlock Auto-Shooting (toggle with E)  —  %d gold" % Config.GOLD_SHOP_AUTO_SHOOT_COST,
-			func() -> void: GameState.try_buy_auto_shoot(), 16)
+			func() -> void: _purchase_sound(GameState.try_buy_auto_shoot()), 16)
 		auto_btn.custom_minimum_size = Vector2(0, 38)
 		auto_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_AUTO_SHOOT_COST
 		_gold_shop_box.add_child(auto_btn)
@@ -440,7 +440,7 @@ func _refresh() -> void:
 	else:
 		var homing_btn: Button = UIKit.make_button(
 			"Unlock Homing (toggle with F)  —  %d gold" % Config.GOLD_SHOP_HOMING_COST,
-			func() -> void: GameState.try_buy_homing(), 16)
+			func() -> void: _purchase_sound(GameState.try_buy_homing()), 16)
 		homing_btn.custom_minimum_size = Vector2(0, 38)
 		homing_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_HOMING_COST
 		_gold_shop_box.add_child(homing_btn)
@@ -454,23 +454,27 @@ func _refresh() -> void:
 	else:
 		var dop_btn: Button = UIKit.make_button(
 			"Doppelganger (5 HP, copies abilities)  —  %d gold" % Config.GOLD_SHOP_DOPPELGANGER_COST,
-			func() -> void: GameState.try_buy_doppelganger(), 16)
+			func() -> void: _purchase_sound(GameState.try_buy_doppelganger()), 16)
 		dop_btn.custom_minimum_size = Vector2(0, 38)
 		dop_btn.disabled = (not free) and GameState.gold < Config.GOLD_SHOP_DOPPELGANGER_COST
 		_gold_shop_box.add_child(dop_btn)
 
 
 func _on_upgrade_pressed() -> void:
-	GameState.try_upgrade_spell()
+	_purchase_sound(GameState.try_upgrade_spell())
 
 
 func _on_buy_mod(id: String) -> void:
-	GameState.try_buy_mod(id)
+	_purchase_sound(GameState.try_buy_mod(id))
 
 
 func _on_buy_aug(id: String) -> void:
-	GameState.try_buy_aug(id)
+	_purchase_sound(GameState.try_buy_aug(id))
 
 
 func _on_buy_personal(id: String) -> void:
-	GameState.try_buy_personal(id)
+	_purchase_sound(GameState.try_buy_personal(id))
+
+
+func _purchase_sound(bought: bool) -> void:
+	AudioManager.play("shop_buy" if bought else "shop_deny")

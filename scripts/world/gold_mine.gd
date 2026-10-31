@@ -2,6 +2,9 @@ class_name GoldMine
 extends Area2D
 ## Produces 10 gold/sec up to a 500-gold cap (§6.8). Walk over it to collect stored gold.
 
+## Standing on a mine collects every frame, and that trickle should stay silent.
+const MIN_GOLD_FOR_SOUND: int = 10
+
 var _stored: float = 0.0
 var _radius: float = Config.tiles(1.1)
 var _player_inside: bool = false
@@ -54,6 +57,8 @@ func collect() -> int:
 		_stored -= whole
 		GameState.add_gold(whole)
 		GameState.spawn_floating_text(global_position + Vector2(0, -_radius), "+%d Gold" % whole, Color(1.0, 0.88, 0.25))
+		if whole >= MIN_GOLD_FOR_SOUND:
+			AudioManager.play_at("gold_mine_collect", global_position)
 		queue_redraw()
 	return whole
 

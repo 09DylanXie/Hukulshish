@@ -3,6 +3,46 @@ extends Node
 ## Numbers that come straight from AGENTS.md are marked with the section they come from.
 ## Numbers that are NOT in the design doc are marked `# TODO(design)` — see AGENTS.md §9.
 
+signal preferences_changed
+
+## Local presentation settings, independent of run progress and multiplayer state.
+var sfx_volume: float = 1.0:
+	set(value):
+		if not is_finite(value):
+			return
+		sfx_volume = clampf(value, 0.0, 1.0)
+		preferences_changed.emit()
+var screen_shake_strength: float = 1.0:
+	set(value):
+		if not is_finite(value):
+			return
+		screen_shake_strength = clampf(value, 0.0, 1.0)
+		preferences_changed.emit()
+var _preferences_path: String = "user://preferences.cfg"
+
+
+func _ready() -> void:
+	load_preferences()
+
+
+func load_preferences() -> void:
+	var settings: ConfigFile = ConfigFile.new()
+	if settings.load(_preferences_path) != OK:
+		return
+	var volume: Variant = settings.get_value("effects", "sfx_volume", 1.0)
+	var shake: Variant = settings.get_value("effects", "screen_shake_strength", 1.0)
+	if volume is float or volume is int:
+		sfx_volume = float(volume)
+	if shake is float or shake is int:
+		screen_shake_strength = float(shake)
+
+
+func save_preferences() -> Error:
+	var settings: ConfigFile = ConfigFile.new()
+	settings.set_value("effects", "sfx_volume", sfx_volume)
+	settings.set_value("effects", "screen_shake_strength", screen_shake_strength)
+	return settings.save(_preferences_path)
+
 ## Base unit for distance and speed (AGENTS.md §2 Conventions).
 const TILE_SIZE: int = 32
 
@@ -154,8 +194,10 @@ const UNDEAD_SLOW_RANGE_TILES: float = 9.0
 const UNDEAD_SLOW_SPEED_MULT: float = 0.5
 const UNDEAD_SLOW_DURATION_SEC: float = 2.5
 
-# --- Nest boss (§6.6) — buffed 3× (80 → 240 HP) ---
-const BOSS_HP: int = 240
+# --- Nest boss (§6.6) ---
+const BOSS_HP: int = 480
+const BOSS_SPAWN_PROTECTION_SEC: float = 5.0
+const BOSS_SPAWN_DAMAGE_REDUCTION: float = 0.30
 const BOSS_MELEE_DAMAGE: int = 5
 const BOSS_BOLT_DAMAGE: int = 1
 const BOSS_BOLT_SPEED_TILES: float = 1.0

@@ -53,7 +53,8 @@ hukulshish/
 │   ├── spells/            # SpellData per spell/mod
 │   ├── difficulty/        # Difficulty multipliers
 │   └── maps/              # Map size definitions
-├── docs/                  # Extra design notes
+├── docs/                  # Extra design notes (AUDIO.md covers sound effects)
+├── tools/                 # generate_sfx.py synthesizes assets/audio/sfx/
 └── export/web/            # itch.io HTML5 export output (git-ignored)
 ```
 
@@ -92,6 +93,10 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 ---
 
 ## 4. Controls
+
+- The pause menu offers **SFX volume** and **Screen shake** sliders from 0–100%.
+  At 0%, SFX is muted and camera shake is disabled respectively. Both preferences
+  apply immediately, are saved locally, and persist across runs and relaunches.
 
 | Platform | Movement |
 |---|---|
@@ -201,10 +206,11 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 ### 6.6 Nest Bosses
 | Stat | Value |
 |---|---|
-| HP | 240 |
+| HP | 480 |
 | Melee damage | 5 |
 | Ranged attack | Fires a 1-damage projectile at 1 tile/sec in a straight line |
 | Spawn | Immediately after its nest is destroyed |
+| Spawn protection | Takes 30% less incoming damage for the first 5 seconds after spawning, including fire/augmentation damage; applies to all Nest Boss summons |
 | Drops | **1000 gold** + **1 in 3 chance** to drop a new Boss Spell |
 
 ### 6.7 Mega Boss
@@ -231,6 +237,7 @@ Main Menu ──► [Start] ──► Map Size Select ──► Difficulty Selec
 - `Config`: constants (TILE_SIZE, base stats) and loaders for the resource files.
 - `GameState`: the current run's settings (map size, difficulty), gold, spell level, owned mods, nests left, bosses left. Emits `victory` / `defeat`.
 - `SceneRouter` (optional): handles menu → game → end-screen transitions.
+- `AudioManager`: plays sound effects. See `docs/AUDIO.md`.
 
 ### Suggested resources
 - `MonsterStats` (`hp`, `damage`, `speed_mult`, `spawn_interval`, `gold`, `scene`)
@@ -288,7 +295,7 @@ Full workflow is in [`CONTRIBUTING.md`](CONTRIBUTING.md). Agents MUST follow the
 - Player starting HP is **7** in both modes. Normal enemies have **2× base HP**
   in co-op; all boss types have **5× base HP total**, including the Mega Boss.
   Nest, player, doppelganger and shield HP are not multiplied.
-- Nest boss base HP is **240**, giving **1200 HP** in co-op before difficulty.
+- Nest boss base HP is **480**, giving **2400 HP** in co-op before difficulty.
 - The castle Gold Shop sells a **permanent Revival unlock for 999 gold**, per
   player for the current run. Buying it twice is not allowed; uses do not consume it.
 - An unlocked living player stands over a teammate's body for **3 uninterrupted

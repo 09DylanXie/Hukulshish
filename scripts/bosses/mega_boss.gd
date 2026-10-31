@@ -37,6 +37,10 @@ func _init() -> void:
 	color = Color(0.35, 0.05, 0.4)
 
 
+func _spawn_protection_duration() -> float:
+	return 0.0
+
+
 func setup(tint: Color, mult: float) -> void:
 	_base_tint = tint
 	hp_mult = mult
@@ -92,6 +96,7 @@ func take_damage(amount: float) -> void:
 	if _dead or amount <= 0.0:
 		return
 	_flash = 0.1
+	AudioManager.play_at("boss_hit", global_position)
 	GameState.spawn_floating_text(
 		global_position + Vector2(randf_range(-16, 16), -_radius),
 		"-%d" % maxi(1, int(round(amount))),
@@ -113,6 +118,7 @@ func take_damage(amount: float) -> void:
 		if hp > 0.0:
 			hp = maxf(hp, threshold_hp)
 			shield = max_shield
+			AudioManager.play("mega_boss_shield_regen")
 			GameState.spawn_floating_text(global_position + Vector2(0, -_radius - 18.0), "SHIELD REGENERATED!", Color(0.35, 0.92, 1.0))
 			GameState.request_shake(8.0, 0.25)
 			break
@@ -129,6 +135,7 @@ func take_damage(amount: float) -> void:
 		_dead = true
 		killing_player = _damage_owner
 		GameState.request_shake(14.0, 0.45)
+		AudioManager.play("mega_boss_death")
 		_on_killed()
 		died.emit(gold, global_position)
 		queue_free()

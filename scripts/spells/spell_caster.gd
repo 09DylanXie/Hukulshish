@@ -109,3 +109,4 @@ func _fire_dir(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 	if container == null:
 		container = get_tree().current_scene
 	container.add_child(p)
+	AudioManager.play_cast(spell, p.global_position)

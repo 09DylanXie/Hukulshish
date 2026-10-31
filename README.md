@@ -71,7 +71,7 @@ Open Godot → **Import** → select `project.godot`.
 - **Demon:** Protected by a **1-hit Cyan Bubble Shield** (`1/5` Augmentation Scroll drop).
 - **Ogre:** High-HP melee bruiser.
 - **3-Minute Enemy HP Scaling:** After 3 minutes, monster HP scales every 30 seconds by `+5 HP` linearly on **Medium**, `×1.2` exponentially on **Hard**, and `×1.5` exponentially on **Extreme** (unchanged on **Easy**).
-- **Nests (`70 HP`) & Nest Bosses (`240 HP`):** Destroying a corner Nest immediately spawns a Nest Boss (`1000` gold + `1/3` chance to drop an **Orange Boss Spell**).
+- **Nests (`70 HP`) & Nest Bosses (`480 HP`, 30% incoming damage reduction for their first 5 seconds):** Destroying a corner Nest immediately spawns a Nest Boss (`1000` gold + `1/3` chance to drop an **Orange Boss Spell**).
 - **Mega Boss (`2000 HP`):** Awakens when all 4 Nests are destroyed. Fires bolts at player base spell speed (`6.0` tiles/sec), spawns bosses and monsters at `2×` rate, and has a **`100 HP` Shield** that regenerates after each `¼` of its max HP is lost (`75%`, `50%`, `25%`).
 - **Endless Mode:** Defeating the Mega Boss drops a guaranteed `1/1` **Red Mega Boss Spell** (combines all current spells `× 1.5` damage and copies & uses your Base Spell's augmentations), spawns **4 new corner spawners**, and multiplies **everything's HP by `2×`**!
 

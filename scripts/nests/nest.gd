@@ -72,11 +72,13 @@ func take_damage(amount: float) -> void:
 		return
 	hp -= amount
 	_flash = 0.12
+	AudioManager.play_at("nest_hit", global_position)
 	GameState.spawn_floating_text(global_position + Vector2(randf_range(-10, 10), -_radius), "-%d" % maxi(1, int(round(amount))), Color(1.0, 0.78, 0.32))
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true
 		GameState.request_shake(7.0, 0.28)
+		AudioManager.play("nest_destroyed")
 		destroyed.emit(self)
 		queue_free()
 

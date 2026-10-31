@@ -10,7 +10,8 @@
 - Players start with 7 HP in both modes. Normal enemy base HP is doubled in
   co-op; all boss base HP is multiplied by 5 total. Player, nest, companion and
   shield HP are unchanged. Difficulty and monster time scaling still apply.
-- Nest bosses retain the current 240-HP base: 1200 in co-op. Mega Boss base HP
+- Nest bosses have 480 base HP: 2400 in co-op. They take 30% less incoming
+  damage for the first 5 seconds after spawning, including fire damage. Mega Boss base HP
   becomes 10000. The Mega Boss shield remains 100.
 - Each player can buy a permanent Revival unlock for 999 gold in the castle
   Gold Shop. It lasts for the run, permits repeated revivals, and cannot be

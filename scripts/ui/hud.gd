@@ -237,9 +237,35 @@ func _build_pause_ui() -> void:
 	margin.add_child(box)
 
 	box.add_child(UIKit.make_label("Game Paused", 36, Color(0.95, 0.8, 0.3)))
+	_add_effect_slider(box, "SFX volume", Config.sfx_volume, func(value: float) -> void:
+		Config.sfx_volume = value
+		Config.save_preferences()
+	)
+	_add_effect_slider(box, "Screen shake", Config.screen_shake_strength, func(value: float) -> void:
+		Config.screen_shake_strength = value
+		Config.save_preferences()
+	)
 	box.add_child(UIKit.make_button("Resume", func() -> void: _set_paused(false), 22))
 	box.add_child(UIKit.make_button("Restart Run", func() -> void: SceneRouter.goto(SceneRouter.GAME), 22))
 	box.add_child(UIKit.make_button("Main Menu", func() -> void: SceneRouter.goto(SceneRouter.MAIN_MENU), 22))
+
+
+func _add_effect_slider(box: VBoxContainer, title: String, initial: float, apply: Callable) -> void:
+	var label: Label = UIKit.make_label("%s: %d%%" % [title, roundi(initial * 100.0)], 20)
+	box.add_child(label)
+	var slider: HSlider = HSlider.new()
+	slider.name = "SFXVolume" if title == "SFX volume" else "ScreenShake"
+	slider.min_value = 0.0
+	slider.max_value = 100.0
+	slider.step = 1.0
+	slider.value = initial * 100.0
+	slider.custom_minimum_size = Vector2(280, 36)
+	slider.accessibility_name = title
+	slider.value_changed.connect(func(value: float) -> void:
+		label.text = "%s: %d%%" % [title, roundi(value)]
+		apply.call(value / 100.0)
+	)
+	box.add_child(slider)
 
 
 func _set_paused(paused_state: bool) -> void:
@@ -334,13 +360,16 @@ func _draw_slot(idx: int, slot: Control) -> void:
 func _use_slot(index: int) -> void:
 	if get_tree().paused or GameState.run_over:
 		return
+	var used: bool = false
 	match index:
 		0:
-			GameState.try_use_shield_item(_player)
+			used = GameState.try_use_shield_item(_player)
 		1:
-			GameState.try_use_heal_potion(_player)
+			used = GameState.try_use_heal_potion(_player)
 		2:
-			GameState.try_use_damage_potion()
+			used = GameState.try_use_damage_potion()
+	if used:
+		AudioManager.play("potion_use")
 	_refresh()
 
 

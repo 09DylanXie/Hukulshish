@@ -104,6 +104,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _fire_slow_spell(target_pos: Vector2) -> void:
+	AudioManager.play_at("undead_slow_cast", global_position)
 	var p: Projectile = ProjectileScene.instantiate()
 	var speed_px: float = Config.tiles(Config.UNDEAD_SLOW_BOLT_SPEED_TILES)
 	p.setup(
@@ -148,6 +149,7 @@ func take_damage(amount: float) -> void:
 	if _has_bubble_shield:
 		_has_bubble_shield = false
 		_flash = 0.15
+		AudioManager.play_at("demon_shield_break", global_position)
 		GameState.spawn_floating_text(global_position + Vector2(0, -_radius), "SHIELD BREAK", Color(0.45, 0.95, 1.0))
 		queue_redraw()
 		return
@@ -162,6 +164,7 @@ func take_damage(amount: float) -> void:
 	if hp <= 0.0:
 		_dead = true
 		killing_player = _damage_owner
+		AudioManager.play_at(stats.name.to_lower() + "_death", global_position)
 		var is_demon: bool = stats != null and (stats.has_bubble_shield or stats.name == "Demon")
 		var drops_enhancer: bool = stats != null and (stats.name == "Goblin" or stats.name == "Undead")
 		died.emit(stats.gold, global_position, is_demon, drops_enhancer)

@@ -23,6 +23,7 @@ var _dead: bool = false
 var _world: World
 var _anim_t: float = 0.0
 var _facing_left: bool = false
+var _spawn_protection_remaining: float = 0.0
 
 
 ## `tint` = colour of the nest it came from. `hp_mult` only applies if Config says so (§9 Q4).
@@ -30,9 +31,11 @@ func setup(tint: Color, _hp_mult: float) -> void:
 	color = tint.darkened(0.3)
 	max_hp = GameState.scaled_boss_hp()
 	hp = max_hp
+	_spawn_protection_remaining = _spawn_protection_duration()
 
 
 func _ready() -> void:
+	_spawn_protection_remaining = _spawn_protection_duration()
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group("targets")
 	add_to_group("bosses")
@@ -48,6 +51,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_spawn_protection_remaining = maxf(0.0, _spawn_protection_remaining - delta)
 	_attack_cooldown -= delta
 	_fire_cooldown -= delta
 	_anim_t += delta * 7.0
@@ -82,6 +86,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _fire_at(target_pos: Vector2) -> void:
+	AudioManager.play_at("boss_shot", global_position)
 	var p: Projectile = ProjectileScene.instantiate()
 	var speed: float = Config.tiles(bolt_speed_tiles)
 	p.setup(global_position.direction_to(target_pos), speed, Config.BOSS_BOLT_DAMAGE, false,
@@ -104,10 +109,13 @@ func take_player_damage(amount: float, source: RunState) -> void:
 
 
 func take_damage(amount: float) -> void:
-	if _dead:
+	if _dead or amount <= 0.0:
 		return
+	if _spawn_protection_remaining > 0.0:
+		amount *= 1.0 - Config.BOSS_SPAWN_DAMAGE_REDUCTION
 	hp -= amount
 	_flash = 0.1
+	AudioManager.play_at("boss_hit", global_position)
 	GameState.spawn_floating_text(
 		global_position + Vector2(randf_range(-12, 12), -_radius),
 		"-%d" % maxi(1, int(round(amount))),
@@ -117,6 +125,7 @@ func take_damage(amount: float) -> void:
 		_dead = true
 		killing_player = _damage_owner
 		GameState.request_shake(9.0, 0.32)
+		AudioManager.play_at("boss_death", global_position)
 		_on_killed()
 		died.emit(gold, global_position)
 		queue_free()
@@ -125,6 +134,11 @@ func take_damage(amount: float) -> void:
 ## Hook for subclasses.
 func _on_killed() -> void:
 	pass
+
+
+## Mega Bosses use their own shield mechanic instead of nest-boss spawn protection.
+func _spawn_protection_duration() -> float:
+	return Config.BOSS_SPAWN_PROTECTION_SEC
 
 
 func _draw() -> void:
@@ -151,4 +165,12 @@ func _draw() -> void:
 	var top: Vector2 = Vector2(-w * 0.5, -_radius - 13.0)
 	draw_rect(Rect2(top - Vector2(1, 1), Vector2(w + 2, 7)), Color(0, 0, 0, 0.75))
 	draw_rect(Rect2(top, Vector2(w * maxf(hp, 0.0) / max_hp, 5)), Color(0.92, 0.22, 0.92))
+	if _spawn_protection_remaining > 0.0:
+		var guard_color: Color = Color(0.35, 0.88, 1.0)
+		draw_arc(Vector2.ZERO, _radius * 1.35, 0.0, TAU, 40, guard_color, 2.0)
+		var ratio: float = clampf(_spawn_protection_remaining / Config.BOSS_SPAWN_PROTECTION_SEC, 0.0, 1.0)
+		draw_rect(Rect2(top + Vector2(0, -5), Vector2(w * ratio, 3)), guard_color)
+		draw_string(ThemeDB.fallback_font, top + Vector2(0, -9),
+			"%d%% resist" % roundi(Config.BOSS_SPAWN_DAMAGE_REDUCTION * 100.0),
+			HORIZONTAL_ALIGNMENT_CENTER, w, 10, guard_color)
 

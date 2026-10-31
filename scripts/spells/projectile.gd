@@ -350,6 +350,8 @@ func _on_body_entered(body: Node) -> void:
 		_spent = true
 		if damage > 0.0:
 			_deal_damage(body)
+		if from_player:
+			AudioManager.play_at("spell_hit", global_position)
 		if from_player and body is Node2D and uses_augments:
 			_apply_augmentations(body as Node2D)
 		_retire_with_trail()
@@ -413,12 +415,14 @@ func _trigger_chain_lightning(container: Node, hit_target: Node2D) -> void:
 		_deal_damage(hit_target)
 	if not best.is_queued_for_deletion() and best.has_method("take_damage"):
 		_deal_damage(best)
+	AudioManager.play_at("chain_lightning", hit_target.global_position)
 	var arc: Node2D = ChainLightningScript.new()
 	arc.call("setup", start_pos, end_pos)
 	container.call_deferred("add_child", arc)
 
 
 func _spawn_split_shots(container: Node, hit_target: Node2D) -> void:
+	AudioManager.play_at("split_spell", global_position)
 	var count: int = Config.SPLIT_PROJECTILES_PER_HIT
 	var step_rad: float = deg_to_rad(Config.SPLIT_ANGLE_DEG)
 	var base_angle: float = direction.angle()
@@ -481,6 +485,7 @@ func _spawn_sniper_shot(container: Node, hit_target: Node2D) -> void:
 	)
 	p.global_position = global_position
 	container.call_deferred("add_child", p)
+	AudioManager.play_at("sniper_shot", global_position)
 
 
 func _spawn_bomb_zone(container: Node) -> void:

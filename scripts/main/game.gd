@@ -135,6 +135,7 @@ func _on_castle_entered(player: Player) -> void:
 		return
 	player.heal_at_castle()
 	if player == _player:
+		AudioManager.play("castle_enter")
 		_castle_menu.open()
 	elif GameState.coop_mode:
 		for id: int in _coop_players:
@@ -252,6 +253,8 @@ func _on_monster_spawned(monster: Monster) -> void:
 func _on_monster_died(gold: int, pos: Vector2, is_demon: bool, drops_enhancer: bool, monster: Monster) -> void:
 	GameState.award_kill_gold(gold, monster.killing_player)
 	var killer: RunState = monster.killing_player if GameState.coop_mode else GameState
+	if killer == GameState:
+		AudioManager.play("gold_pickup")
 	var luck: float = killer.luck_multiplier() if is_instance_valid(killer) else 1.0
 	if randf() < Config.MOD_PART_DROP_CHANCE * luck:
 		var pickup: ModPickup = ModPickupScene.instantiate()
@@ -286,10 +289,12 @@ func _on_nest_destroyed(nest: Nest) -> void:
 	boss.position = pos
 	boss.died.connect(_on_boss_died.bind(boss))
 	_entities.call_deferred("add_child", boss)
+	AudioManager.play("boss_spawn")
 
 
 func _spawn_mega_boss(pos: Vector2, tint: Color) -> void:
 	GameState.on_mega_boss_spawned()
+	AudioManager.play("mega_boss_spawn")
 	var mega: MegaBoss = MegaBossScene.instantiate()
 	mega.setup(tint, GameState.difficulty.hp_mult)
 	mega.position = pos
@@ -300,6 +305,7 @@ func _spawn_mega_boss(pos: Vector2, tint: Color) -> void:
 
 
 func _on_mega_boss_duplicated(pos: Vector2, tint: Color, mult: float) -> void:
+	AudioManager.play("mega_boss_spawn")
 	if not is_inside_tree() or GameState.run_over or _entities == null:
 		return
 	var clone: MegaBoss = MegaBossScene.instantiate()
@@ -325,6 +331,8 @@ func _on_boss_died(gold: int, pos: Vector2, boss: NestBoss) -> void:
 	GameState.award_kill_gold(gold, boss.killing_player)
 	GameState.on_boss_defeated()
 	var killer: RunState = boss.killing_player if GameState.coop_mode else GameState
+	if killer == GameState:
+		AudioManager.play("gold_mine_collect")
 	var luck: float = killer.luck_multiplier() if is_instance_valid(killer) else 1.0
 	if randf() < Config.BOSS_SPELL_DROP_CHANCE * luck:
 		var pickup: ModPickup = ModPickupScene.instantiate()
@@ -364,6 +372,7 @@ func _on_mega_boss_died(_gold: int, pos: Vector2) -> void:
 func _on_endless_wave_started(_wave: int) -> void:
 	if not is_inside_tree() or GameState.run_over:
 		return
+	AudioManager.play("endless_wave")
 	# Double the HP of any already-active monsters and bosses on the map.
 	for node in get_tree().get_nodes_in_group("monsters"):
 		var m := node as Monster
@@ -380,10 +389,12 @@ func _on_endless_wave_started(_wave: int) -> void:
 
 
 func _on_victory() -> void:
+	AudioManager.play("victory")
 	SceneRouter.goto(SceneRouter.VICTORY)
 
 
 func _on_defeat() -> void:
 	# Short pause so the player sees what happened.
 	await get_tree().create_timer(1.0).timeout
+	AudioManager.play("defeat")
 	SceneRouter.goto(SceneRouter.GAME_OVER)
