@@ -240,7 +240,7 @@ Unique spells replace Boss Spells. Bosses never drop them. One is **hidden on ea
 - **Stun:** bosses are immune. A stunned monster can't be stunned again for 2 seconds after it recovers. Without this, Earth's fire rate would freeze monsters permanently.
 
 ### 6.5 Hidden Spell: Abyssal Corruption
-- Appears only if `Nothing` was bought, at the **top of the Abyss map**, from the moment the player arrives. There are no hints.
+- Appears only if `Nothing` was bought, at the **top of the Abyss map**, once the crystal breaks. There are no hints.
 - Selected with `7` and fired at 1 mana, like a unique spell.
 - Moves at **1/2 the speed** of other spells (3.0 tiles/sec). It never homes, and it has no augments or effects.
 - **One-shots anything** except the Mega Boss and the hidden boss, including nests and floor bosses.
@@ -368,7 +368,7 @@ Each of layers 1–4 has one boss matching its monster: **Goblin, Ogre, Undead, 
 - **Underworld:** rigid walls.
 - **Catacombs:** a tighter maze.
 - **Pandemonium:** black iron-bar walls, with lava cracks across the floor.
-- **Abyss:** a fixed shape rather than random terrain. A 5-tile-wide corridor of jagged rock runs from the bottom edge to a circular arena around the crystal, with a radius of 35% of the map size. A second corridor runs from the top of the arena to the top of the map, where the hidden spell sits. The crystal only breaks when touched, so a player who bought `Nothing` can collect the spell before starting the fight.
+- **Abyss:** a fixed shape rather than random terrain. A 5-tile-wide corridor of jagged rock runs from the bottom edge to a circular arena around the crystal, with a radius of 35% of the map size. A second corridor runs from the top of the arena to the top of the map, where the hidden spell sits. The hidden spell appears when the crystal breaks, so reaching it means crossing the fight.
 - Nests, unique spells and the path to them must always be reachable.
 
 ### 6.13 Endless Mode

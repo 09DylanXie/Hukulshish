@@ -415,8 +415,6 @@ func _build_layer() -> void:
 		_add_darkness()
 	if layer.is_final:
 		_place_crystal()
-		if _anyone_bought_nothing():
-			_place_unique_spell(Config.ABYSSAL_CORRUPTION, Vector2(0.0, _bounds.position.y + Config.tiles(Config.FINAL_LAYER_SPAWN_INSET_TILES)))
 
 
 ## What a guest draws for a layer, built from the same rules as the host's.
@@ -452,8 +450,15 @@ func _place_crystal() -> void:
 	_crystal = crystal
 	if Coop.is_guest():
 		crystal.monitoring = false
-	crystal.shattered.connect(_spawn_mega_boss.bind(Vector2.ZERO, MEGA_BOSS_TINT), CONNECT_DEFERRED)
+	crystal.shattered.connect(_on_crystal_shattered, CONNECT_DEFERRED)
 	_entities.add_child(crystal)
+
+
+## The hidden spell only appears now, so reaching it still means crossing the fight.
+func _on_crystal_shattered() -> void:
+	_spawn_mega_boss(Vector2.ZERO, MEGA_BOSS_TINT)
+	if _anyone_bought_nothing():
+		_place_unique_spell(Config.ABYSSAL_CORRUPTION, Vector2(0.0, _bounds.position.y + Config.tiles(Config.FINAL_LAYER_SPAWN_INSET_TILES)))
 
 
 func _hide_unique_spell(spell: SpellData, spawn: Vector2) -> void:

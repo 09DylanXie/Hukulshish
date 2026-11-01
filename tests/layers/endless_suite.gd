@@ -62,9 +62,14 @@ func _go_to_abyss() -> void:
 func _check_hidden_spell_placement() -> void:
 	GameState.nothing_unlocked = false
 	await _go_to_abyss()
+	_game._on_crystal_shattered()
+	await get_tree().physics_frame
 	_check(_spell_pickups().is_empty(), "No key means no hidden spell")
 	GameState.nothing_unlocked = true
 	await _go_to_abyss()
+	_check(_spell_pickups().is_empty(), "The hidden spell must wait for the crystal")
+	_game._on_crystal_shattered()
+	await get_tree().physics_frame
 	var pickups: Array[ModPickup] = _spell_pickups()
 	_check(pickups.size() == 1, "The key must reveal the hidden spell")
 	var world: World = get_tree().get_first_node_in_group("world")
