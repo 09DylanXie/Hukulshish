@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LayerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/layer_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+name = "Abyss"
+terrain = 2
+floor_crack_color = Color(0.3, 0.16, 0.42, 0.7)
+has_shop = false
+is_final = true
+floor_texture = "res://assets/tilesets/abyss_tile.png"
+wall_textures = Array[String](["res://assets/tilesets/wall_rock.png"])
+backdrop_color = Color(0.03, 0.02, 0.05, 1)

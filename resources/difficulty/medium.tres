@@ -6,3 +6,4 @@
 script = ExtResource("1")
 name = "Medium"
 hp_mult = 1
+hp_growth_per_layer = 1.5

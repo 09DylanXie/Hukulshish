@@ -8,5 +8,5 @@ name = "Base Spell"
 speed_tiles = 6.3
 range_tiles = 10
 fire_rate = 2
-color = Color(0.4, 0.7, 1, 1)
+color = Color(1, 1, 1, 1)
 radius_tiles = 0.2

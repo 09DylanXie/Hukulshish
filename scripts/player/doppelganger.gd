@@ -1,12 +1,11 @@
 class_name Doppelganger
 extends CharacterBody2D
-## Spectral twin of the player bought in the Gold Shop for 5000 gold.
-## Copies the player's current abilities at purchase time, follows the player around,
-## has 5 max HP, and can never have a shield.
+## Spectral twin of the player, bought in the Gold Shop for 5000 gold and summoned from the hotbar.
+## Copies the player's abilities at the moment it's summoned, follows the player around, shoots
+## where the player shoots, has 5 max HP, and can never have a shield.
 
 signal died
 
-const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tscn")
 
 var max_hp: int = Config.DOPPELGANGER_MAX_HP
 var hp: int = Config.DOPPELGANGER_MAX_HP
@@ -19,7 +18,6 @@ var _homing_copied: bool = false
 var _speed_tiles: float = Config.PLAYER_SPEED_TILES
 var _regen_per_10s: int = 0
 var _regen_timer: float = 0.0
-var _cooldowns: Array[float] = []
 
 var _iframes: float = 0.0
 var _melee_hurt_cooldown: float = 0.0
@@ -43,9 +41,6 @@ func setup_from_snapshot(snapshot: Dictionary, map_bounds: Rect2) -> void:
 	_homing_copied = bool(snapshot.get("homing", false))
 	_speed_tiles = float(snapshot.get("speed_tiles", Config.PLAYER_SPEED_TILES))
 	_regen_per_10s = int(snapshot.get("health_regen", 0))
-	_cooldowns.clear()
-	for _i in _spells.size():
-		_cooldowns.append(0.0)
 
 
 func _ready() -> void:
@@ -80,7 +75,7 @@ func _physics_process(delta: float) -> void:
 		var dist: float = to_desired.length()
 		if dist > Config.tiles(0.25):
 			var speed_factor: float = clampf(dist / Config.tiles(1.5), 0.35, 1.25)
-			velocity = to_desired.normalized() * Config.tiles(_speed_tiles) * speed_factor
+			velocity = to_desired.normalized() * Config.tiles(_speed_tiles) * speed_factor * World.terrain_speed_mult(self)
 		else:
 			velocity = Vector2.ZERO
 		move_and_slide()
@@ -106,7 +101,6 @@ func _physics_process(delta: float) -> void:
 	else:
 		_check_enemy_contact_damage()
 
-	_update_weapons(delta)
 	queue_redraw()
 
 
@@ -133,48 +127,23 @@ func _check_enemy_contact_damage() -> void:
 			return
 
 
-func _update_weapons(delta: float) -> void:
-	var manual_click: bool = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and get_viewport().gui_get_hovered_control() == null
-	var mouse_world: Vector2 = get_global_mouse_position()
-
-	for i in _spells.size():
-		_cooldowns[i] = maxf(0.0, _cooldowns[i] - delta)
-		if _cooldowns[i] > 0.0:
-			continue
-		var spell: Dictionary = _spells[i]
-		var max_range: float = Config.tiles(float(spell["range_tiles"]))
-		var base_rate: float = maxf(0.05, float(spell["fire_rate"]))
-
-		var dir: Vector2 = global_position.direction_to(mouse_world)
-		if dir == Vector2.ZERO:
-			dir = Vector2.RIGHT
-		_aim_dir = dir
-		if manual_click:
-			_fire_spell(spell, dir, max_range)
-			_cooldowns[i] = 1.0 / base_rate
-		else:
-			_fire_spell(spell, dir, max_range)
-			var auto_rate: float = maxf(0.05, base_rate * Config.AUTO_SHOOT_FIRE_RATE_MULT)
-			_cooldowns[i] = 1.0 / auto_rate
-
-
-func _find_target(max_range: float) -> Node2D:
-	var best: Node2D = null
-	var best_dist: float = max_range
-	for node in get_tree().get_nodes_in_group("targets"):
-		var n := node as Node2D
-		if n == null or n.is_queued_for_deletion():
-			continue
-		var d: float = global_position.distance_to(n.global_position)
-		if d <= best_dist:
-			best_dist = d
-			best = n
-	return best
+## Called as the player fires: the same spell, or every spell, at the point they aimed at.
+func mirror_shot(effect: int, fire_all: bool, point: Vector2) -> void:
+	if _dead:
+		return
+	var dir: Vector2 = global_position.direction_to(point)
+	if dir == Vector2.ZERO:
+		dir = Vector2.RIGHT
+	_aim_dir = dir
+	for spell: Dictionary in _spells:
+		if fire_all or int(spell.get("effect", SpellData.Effect.NONE)) == effect:
+			_fire_spell(spell, dir, Config.tiles(float(spell["range_tiles"])))
 
 
 func _fire_spell(spell: Dictionary, dir: Vector2, max_range: float) -> void:
-	var p: Projectile = ProjectileScene.instantiate()
+	var p: Projectile = Config.projectile_scene().instantiate()
 	p.source_state = progress
+	p.effect = int(spell.get("effect", SpellData.Effect.NONE)) as SpellData.Effect
 	var dmg: float = float(spell["damage"])
 	var can_use_aug: bool = bool(spell.get("uses_augments", true))
 	p.setup(
@@ -185,7 +154,7 @@ func _fire_spell(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 		(spell["color"] as Color).lightened(0.15),
 		Config.tiles(float(spell["radius_tiles"])),
 		max_range,
-		_homing_copied and progress.is_homing_active(),
+		_homing_copied and progress.is_homing_active() and bool(spell.get("can_home", true)),
 		Projectile.ProjKind.INITIAL,
 		null,
 		can_use_aug,
@@ -196,6 +165,7 @@ func _fire_spell(spell: Dictionary, dir: Vector2, max_range: float) -> void:
 	if container == null:
 		container = get_tree().current_scene
 	container.add_child(p)
+	AudioManager.play_cast(spell, p.global_position)
 
 
 ## Doppelganger has 5 max HP and can never have a shield.

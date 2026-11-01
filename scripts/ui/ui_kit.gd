@@ -103,5 +103,6 @@ static func make_button(text: String, on_pressed: Callable, size: int = 26) -> B
 	b.add_theme_stylebox_override("pressed", pressed)
 	b.add_theme_stylebox_override("disabled", disabled)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.pressed.connect(func() -> void: AudioManager.play("ui_click"))
 	b.pressed.connect(on_pressed)
 	return b

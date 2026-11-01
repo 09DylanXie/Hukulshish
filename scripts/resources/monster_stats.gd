@@ -10,6 +10,14 @@ extends Resource
 @export var gold: int = 1
 ## Size in tiles. Bigger = slower.
 @export var radius_tiles: float = 0.4
+## Chance per kill to drop an Enhancer or a Spell Scroll. Luck multiplies the amount, not the chance.
+@export var enhancer_chance: float = 0.0
+@export var scroll_chance: float = 0.0
+## Every kill drops 1-3 of Enhancers or Spell Scrolls instead, ignoring the chances above and Luck.
+@export var guaranteed_drop: bool = false
+## How many of this class the Mega Boss spawns at a time, and how often.
+@export var mega_spawn_count: int = 1
+@export var mega_spawn_interval: float = 5.0
 ## True for Demons (possess a bubble shield that breaks after 1 hit).
 @export var has_bubble_shield: bool = false
 ## Prototype visuals (placeholder until real art exists).

@@ -2,9 +2,12 @@ class_name GoldMine
 extends Area2D
 ## Produces 10 gold/sec up to a 500-gold cap (§6.8). Walk over it to collect stored gold.
 
+## Standing on a mine collects every frame, and that trickle should stay silent.
+const MIN_GOLD_FOR_SOUND: int = 10
+
 var _stored: float = 0.0
 var _radius: float = Config.tiles(1.1)
-var _player_inside: bool = false
+var _collector: RunState
 var _t: float = 0.0
 
 
@@ -28,34 +31,43 @@ func _physics_process(delta: float) -> void:
 	var cap: float = float(GameState.gold_mine_cap())
 	var rate: float = GameState.gold_mine_rate()
 	_stored = minf(cap, _stored + rate * delta)
-	if _player_inside:
-		_collect()
+	if _collector != null:
+		collect(_collector)
 	queue_redraw()
 
 
 func _on_body_entered(body: Node) -> void:
 	if body is Player:
-		_player_inside = true
-		_collect()
+		_collector = (body as Player).progress
+		collect(_collector)
 
 
 func _on_body_exited(body: Node) -> void:
-	if body is Player:
-		_player_inside = false
+	if body is Player and (body as Player).progress == _collector:
+		_collector = null
 
 
-func _collect() -> void:
-	collect()
-
-
-func collect() -> int:
+## Pays whoever walked over the mine. Everything else counts as the host's.
+func collect(collector: RunState = null) -> int:
+	var payee: RunState = collector if collector != null else GameState
 	var whole: int = int(floor(_stored))
 	if whole > 0:
 		_stored -= whole
-		GameState.add_gold(whole)
+		payee.add_gold(whole)
 		GameState.spawn_floating_text(global_position + Vector2(0, -_radius), "+%d Gold" % whole, Color(1.0, 0.88, 0.25))
+		if whole >= MIN_GOLD_FOR_SOUND:
+			AudioManager.play_at("gold_mine_collect", global_position)
 		queue_redraw()
 	return whole
+
+
+func add_stored(amount: float) -> void:
+	_stored = minf(float(GameState.gold_mine_cap()), _stored + amount)
+
+
+func set_stored(amount: float) -> void:
+	_stored = amount
+	queue_redraw()
 
 
 func stored_gold() -> int:

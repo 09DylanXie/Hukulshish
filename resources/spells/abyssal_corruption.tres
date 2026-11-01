@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SpellData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/spell_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+name = "Abyssal Corruption"
+speed_tiles = 3
+range_tiles = 10
+fire_rate = 2
+color = Color(0.72, 0.2, 0.55, 1)
+radius_tiles = 0.2
+damage_mult = 0
+effect = 5
+can_home = false
+cast_sound = "cast_boss_spell"
+pickup_texture = "res://assets/sprites/spells/unique_abyssal.png"

@@ -12,6 +12,8 @@ signal team_defeated
 
 var castle_position: Vector2 = Vector2.ZERO
 var running: bool = false
+## Players expected in this run. Co-op can start with two.
+var team_size: int = Config.COOP_RULES.player_count
 var ended: bool = false
 var _players: Dictionary = {}
 var _channels: Dictionary = {}
@@ -31,7 +33,7 @@ func register_player(peer_id: int, player: Player) -> bool:
 
 
 func start() -> bool:
-	if running or ended or _players.size() != int(Config.COOP_RULES.player_count):
+	if running or ended or _players.size() != team_size:
 		return false
 	for player: Player in _players.values():
 		if not is_instance_valid(player) or player.is_dead() or player.progress.run_over:
@@ -91,6 +93,19 @@ func advance(delta: float) -> void:
 			target.respawn_pending = true
 			target.queue_redraw()
 			respawn_scheduled.emit(target_id, delay)
+
+
+## A disconnected player leaves the team, and may have been the last one standing.
+func unregister_player(peer_id: int) -> void:
+	_interrupt(peer_id)
+	for reviver_id: int in _channels.keys():
+		if int(_channels[reviver_id]["target"]) == peer_id:
+			_interrupt(reviver_id)
+	_respawns.erase(peer_id)
+	_players.erase(peer_id)
+	team_size = maxi(1, team_size - 1)
+	if running:
+		_check_team_defeat()
 
 
 func respawn_seconds(peer_id: int) -> float:

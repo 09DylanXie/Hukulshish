@@ -6,43 +6,65 @@ extends Node
 ## Emitted whenever anything the HUD / castle menu shows changes.
 signal changed
 signal mana_changed(mana: float, max_mana: int, regen: float)
-signal endless_wave_started(wave: int)
+signal endless_started
+signal layer_entered(layer: LayerData)
 signal doppelganger_spawn_requested(snapshot: Dictionary)
 signal screen_shake_requested(intensity: float, duration: float)
 signal floating_text_requested(world_pos: Vector2, text: String, col: Color)
 signal victory
 signal defeat
 
-const TOTAL_NESTS: int = 4
-const TOTAL_MEGA_BOSSES: int = 2
+## What a guest's copy of the run receives from the host.
+const NET_FIELDS: Array[String] = [
+	"gold", "spell_level", "mod_parts", "mod_parts_bought_with_gold", "mod_levels", "aug_scrolls", "aug_levels",
+	"enhancers", "personal_levels", "max_hp_level", "doppelganger_alive", "revival_unlocked", "magnet_unlocked",
+	"auto_collector_unlocked", "mine_gold_estimate", "mines_left_behind", "wall_pierce_unlocked",
+	"nothing_unlocked", "doppelganger_items", "homing_unlocked", "homing_enabled", "shield_items", "heal_potions",
+	"damage_potions", "damage_boost_timer",
+]
+
+## What the player has to do next on the current layer.
+enum LayerStage {
+	NEST,
+	BOSS,
+	PORTAL,
+}
+
 
 var map_size: MapSizeData
 var difficulty: DifficultyData
 var endless_mode: bool = false
 var sandbox_mode: bool = false
 var coop_mode: bool = false
+## True on a guest, whose GameState only mirrors what the host says.
+var is_mirror: bool = false
 var revival_unlocked: bool = false
 var castle_menu_open: bool = false
 var pause_menu_open: bool = false
-var endless_wave: int = 0
-var endless_hp_mult: float = 1.0
+## True once the dragon has fallen and Endless Mode has taken over.
+var endless_active: bool = false
+var endless_megas_defeated: int = 0
+var endless_next_boss_sec: float = 0.0
 
-var run_time: float = 0.0
+## Index into Config.LAYERS, which is also how many times the player has descended.
+var layer_index: int = 0
+var layer_stage: LayerStage = LayerStage.NEST
+
 var gold: int = 0
 var spell_level: int = 1
-## Spell Scrolls (formerly Mod Parts) dropped by monsters (1/7) or bought in the Gold Shop.
+## Spell Scrolls (formerly Mod Parts) dropped by monsters or bought in the Gold Shop.
 var mod_parts: int = 0
 ## How many Spell Scrolls have been purchased with gold in the Gold Shop (max 10).
 var mod_parts_bought_with_gold: int = 0
 ## Mod id → level (see Config.MODS).
 var mod_levels: Dictionary = {}
 
-## Augmentation Scrolls dropped only by Demons (1/5 chance).
+## Augmentation Scrolls dropped only by floor bosses.
 var aug_scrolls: int = 0
 ## Augmentation id → level (0..3, see Config.AUGMENTATIONS).
 var aug_levels: Dictionary = {}
 
-## Enhancers dropped only by Goblins (1/3 chance), spent in the Personal Shop.
+## Enhancers dropped by monsters, spent in the Personal Shop.
 var enhancers: int = 0
 ## Personal Shop id → level (0..3, see Config.PERSONAL_SHOP).
 var personal_levels: Dictionary = {}
@@ -50,31 +72,38 @@ var personal_levels: Dictionary = {}
 ## Mana state
 var mana: float = Config.BASE_MAX_MANA
 
-## Spells dropped by bosses. Each is a frozen stat Dictionary (see make_spell_stats()).
-var boss_spells: Array[Dictionary] = []
+## Spells found on the layers. Each is a frozen stat Dictionary (see make_spell_stats()).
+var unique_spells: Array[Dictionary] = []
+## The spell left-click fires, by SpellData.Effect. Each player's own, so it isn't sent to guests.
+var selected_effect: int = SpellData.Effect.NONE
 
 # --- Gold Shop unlocks & hotbar consumables ---
 var max_hp_level: int = 0
 var doppelganger_alive: bool = false
+var doppelganger_items: int = 0
 var magnet_unlocked: bool = false
 var auto_collector_unlocked: bool = false
 var auto_collector_timer: float = 0.0
+## Below the Overworld there are no mine nodes, so their total stored gold is estimated here.
+var mines_left_behind: bool = false
+var mine_gold_estimate: float = 0.0
+## This player's share of the mines while below them, since co-op teams split the gold.
+var mine_share: float = 1.0
 var wall_pierce_unlocked: bool = false
-var auto_shoot_unlocked: bool = false
-var auto_shoot_enabled: bool = false
+var nothing_unlocked: bool = false
 var homing_unlocked: bool = false
 var homing_enabled: bool = false
 var shield_items: int = 0
 var heal_potions: int = 0
 var damage_potions: int = 0
-var heal_potion_timer: float = 0.0
 var damage_boost_timer: float = 0.0
 
 var nests_destroyed: int = 0
+## Nests still standing on this layer. The boss comes when this reaches 0.
+var layer_nests_left: int = 0
 var bosses_defeated: int = 0
 var mega_boss_spawned: bool = false
 var mega_boss_defeated: bool = false
-var mega_bosses_defeated: int = 0
 var run_over: bool = false
 
 
@@ -85,7 +114,8 @@ func start_run() -> void:
 		map_size = Config.MAP_SIZES[1]
 	if difficulty == null:
 		difficulty = Config.DIFFICULTIES[1]
-	run_time = 0.0
+	layer_index = 0
+	layer_stage = LayerStage.NEST
 	gold = 0
 	spell_level = 1
 	mod_parts = 0
@@ -102,32 +132,35 @@ func start_run() -> void:
 	for id in Config.PERSONAL_SHOP:
 		personal_levels[id] = 0
 	mana = float(max_mana())
-	boss_spells.clear()
+	unique_spells.clear()
+	selected_effect = SpellData.Effect.NONE
 	max_hp_level = 0
 	doppelganger_alive = false
+	doppelganger_items = 0
 	revival_unlocked = false
 	castle_menu_open = false
 	pause_menu_open = false
 	magnet_unlocked = false
 	auto_collector_unlocked = false
 	auto_collector_timer = 0.0
+	mines_left_behind = false
+	mine_gold_estimate = 0.0
 	wall_pierce_unlocked = false
-	auto_shoot_unlocked = false
-	auto_shoot_enabled = false
+	nothing_unlocked = false
 	homing_unlocked = false
 	homing_enabled = false
 	shield_items = 0
 	heal_potions = 0
 	damage_potions = 0
-	heal_potion_timer = 0.0
 	damage_boost_timer = 0.0
 	nests_destroyed = 0
+	layer_nests_left = 0
 	bosses_defeated = 0
 	mega_boss_spawned = false
 	mega_boss_defeated = false
-	mega_bosses_defeated = 0
-	endless_wave = 0
-	endless_hp_mult = 1.0
+	endless_active = false
+	endless_megas_defeated = 0
+	endless_next_boss_sec = 0.0
 	run_over = false
 	if sandbox_mode:
 		_refill_sandbox_resources()
@@ -146,12 +179,12 @@ func _refill_sandbox_resources() -> void:
 	shield_items = maxi(shield_items, 99)
 	heal_potions = maxi(heal_potions, 99)
 	damage_potions = maxi(damage_potions, 99)
+	doppelganger_items = maxi(doppelganger_items, 99)
 
 
 func _process(delta: float) -> void:
-	if get_tree().paused or run_over:
+	if get_tree().paused or run_over or is_mirror:
 		return
-	run_time += delta
 
 	# Mana regeneration
 	var cap: float = float(max_mana())
@@ -163,7 +196,10 @@ func _process(delta: float) -> void:
 		mana = minf(cap, mana + mana_regen() * delta)
 		mana_changed.emit(mana, max_mana(), mana_regen())
 
-	# Auto Gold Collector: collects stored gold from all mines every 30 seconds
+	if mines_left_behind:
+		mine_gold_estimate = minf(mine_gold_capacity(), mine_gold_estimate + gold_mine_rate() * Config.GOLD_MINE_COUNT * mine_share * delta)
+
+	# Auto Gold Collector: collects stored gold from all mines on a timer
 	if auto_collector_unlocked:
 		auto_collector_timer -= delta
 		if auto_collector_timer <= 0.0:
@@ -171,53 +207,85 @@ func _process(delta: float) -> void:
 			collect_all_gold_mines()
 
 	var prev_dmg_active: bool = damage_boost_timer > 0.0
-	var prev_heal_active: bool = heal_potion_timer > 0.0
 	if damage_boost_timer > 0.0:
 		damage_boost_timer = maxf(0.0, damage_boost_timer - delta)
-	if heal_potion_timer > 0.0:
-		heal_potion_timer = maxf(0.0, heal_potion_timer - delta)
-	if (prev_dmg_active and damage_boost_timer <= 0.0) or (prev_heal_active and heal_potion_timer <= 0.0):
+	if prev_dmg_active and damage_boost_timer <= 0.0:
 		changed.emit()
 
 
-# --- Enemy HP scaling (difficulty + time after 3 minutes) ---
+# --- Layers (§6.6) ---
 
-## Scales monster base HP by difficulty, 3-minute time scaling, and Endless Mode wave multiplier:
-## - Easy: no time scaling
-## - Medium: +5 HP per 30 s
-## - Hard: ×1.2 per 30 s
-## - Extreme: ×1.5 per 30 s
+func current_layer() -> LayerData:
+	return Config.LAYERS[layer_index]
+
+
+## How much faster this layer's nests spawn (§6.7).
+func spawn_rate_mult() -> float:
+	return 1.0 + Config.SPAWN_RATE_STEP_PER_LAYER * layer_index
+
+
+## The slow walk down to the crystal, before the fight starts.
+func in_abyss_approach() -> bool:
+	return current_layer().is_final and not mega_boss_spawned and not endless_active
+
+
+## Moves to the next layer. Portals are one-way, so there is no way back up.
+func descend() -> bool:
+	if layer_index >= Config.LAYERS.size() - 1:
+		return false
+	layer_index += 1
+	layer_stage = LayerStage.NEST
+	changed.emit()
+	layer_entered.emit(current_layer())
+	return true
+
+
+# --- Enemy HP scaling (§3) ---
+
+## How deep monsters scale. Endless returns to the Overworld but keeps the Abyss's strength.
+func _hp_depth() -> int:
+	return Config.LAYERS.size() - 1 if endless_active else layer_index
+
+
+func _coop_descent_mult() -> float:
+	return pow(Config.COOP_HP_MULT_PER_DESCENT, _hp_depth())
+
+
+func _difficulty_hp_mult() -> float:
+	return difficulty.hp_mult * pow(difficulty.hp_growth_per_layer, _hp_depth())
+
+
+## Base HP × difficulty × compounding growth per descent.
 func scaled_monster_hp(base_hp: int) -> float:
-	var mult: float = difficulty.hp_mult if difficulty != null else 1.0
-	var coop_mult: float = Config.COOP_RULES.monster_hp_multiplier if coop_mode else 1.0
-	var hp: float = float(Config.scale_hp(int(round(base_hp * coop_mult)), mult))
-	if run_time >= Config.TIME_SCALE_START_SEC and difficulty != null:
-		var steps: int = int(floor((run_time - Config.TIME_SCALE_START_SEC) / Config.TIME_SCALE_INTERVAL_SEC)) + 1
-		match difficulty.name:
-			"Medium":
-				hp += Config.TIME_SCALE_MEDIUM_ADD * steps
-			"Hard":
-				hp *= pow(Config.TIME_SCALE_HARD_MULT, steps)
-			"Extreme":
-				hp *= pow(Config.TIME_SCALE_EXTREME_MULT, steps)
-	return hp * endless_hp_mult
+	var coop_mult: float = Config.COOP_RULES.monster_hp_multiplier * _coop_descent_mult() if coop_mode else 1.0
+	return float(Config.scale_hp(int(round(base_hp * coop_mult)), _difficulty_hp_mult()))
 
 
+## Nests scale like monsters, but co-op doesn't multiply them.
 func scaled_nest_hp() -> float:
-	var mult: float = difficulty.hp_mult if (Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES and difficulty != null) else 1.0
-	return float(Config.scale_hp(Config.NEST_HP, mult)) * endless_hp_mult
+	return float(Config.scale_hp(Config.NEST_HP, _difficulty_hp_mult()))
 
 
+## Floor bosses ignore difficulty and grow by a fixed step per descent.
 func scaled_boss_hp() -> float:
-	var mult: float = difficulty.hp_mult if (Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES and difficulty != null) else 1.0
-	var coop_mult: float = Config.COOP_RULES.boss_hp_multiplier if coop_mode else 1.0
-	return float(Config.scale_hp(int(round(Config.BOSS_HP * coop_mult)), mult)) * endless_hp_mult
+	return boss_hp_on_layer(layer_index)
 
 
+func boss_hp_on_layer(index: int) -> float:
+	var coop_mult: float = Config.COOP_RULES.boss_hp_multiplier * pow(Config.COOP_HP_MULT_PER_DESCENT, index) if coop_mode else 1.0
+	var growth: float = pow(Config.BOSS_HP_GROWTH_PER_LAYER, index)
+	return float(Config.scale_hp(int(round(Config.BOSS_HP * coop_mult)), growth))
+
+
+## The Mega Boss ignores difficulty and depth.
 func scaled_mega_boss_hp() -> float:
-	var mult: float = difficulty.hp_mult if (Config.DIFFICULTY_SCALES_NESTS_AND_BOSSES and difficulty != null) else 1.0
 	var coop_mult: float = Config.COOP_RULES.boss_hp_multiplier if coop_mode else 1.0
-	return float(Config.scale_hp(int(round(Config.MEGA_BOSS_HP * coop_mult)), mult)) * endless_hp_mult
+	return float(Config.scale_hp(Config.MEGA_BOSS_HP, coop_mult))
+
+
+## The next Endless Mega Boss's HP multiplier: 1.5×, 2×, 2.5× …
+func endless_mega_hp_mult() -> float:
+	return Config.ENDLESS_MEGA_HP_BASE_MULT + Config.ENDLESS_MEGA_HP_STEP * endless_megas_defeated
 
 
 # --- Mana & Spell Mods ---
@@ -248,7 +316,7 @@ func try_spend_mana(cost: float) -> bool:
 
 # --- Spell stats ---
 
-## Builds a spell stat Dictionary: { name, damage, fire_rate, speed_tiles, range_tiles, color, radius_tiles, mana_cost, uses_augments, aug_levels }.
+## Builds a spell stat Dictionary: { name, damage, fire_rate, speed_tiles, range_tiles, color, radius_tiles, mana_cost, uses_augments, aug_levels, effect, cast_sound }.
 static func make_spell_stats(
 	data: SpellData,
 	damage: float,
@@ -270,11 +338,15 @@ static func make_spell_stats(
 		"mana_cost": mana_cost,
 		"uses_augments": uses_augments,
 		"aug_levels": aug_snapshot,
+		"effect": data.effect,
+		"cast_sound": data.cast_sound,
+		"can_home": data.can_home,
 	}
 
 
 func mod_multiplier(id: String) -> float:
-	return 1.0 + Config.MOD_STEP * int(mod_levels.get(id, 0))
+	var step: float = Config.RANGE_MOD_STEP if id == "range" else Config.MOD_STEP
+	return 1.0 + step * int(mod_levels.get(id, 0))
 
 
 func damage_boost_multiplier() -> float:
@@ -293,11 +365,39 @@ func base_spell_stats() -> Dictionary:
 		true)
 
 
-## Every spell the player fires: the base spell first, then boss spells.
+## What Abyssal Corruption deals to the Mega Boss: every spell's damage added together.
+func combined_spell_damage() -> float:
+	var total: float = 0.0
+	for spell: Dictionary in all_spells():
+		total += float(spell["damage"])
+	return total * damage_boost_multiplier()
+
+
+## Every spell the player fires: the base spell first, then the spells that fire alongside it.
 func all_spells() -> Array[Dictionary]:
 	var list: Array[Dictionary] = [base_spell_stats()]
-	list.append_array(boss_spells)
+	list.append_array(unique_spells)
 	return list
+
+
+## Picks what left-click fires. Spells the player doesn't have are ignored.
+func select_spell(effect: int) -> bool:
+	if effect == selected_effect:
+		return true
+	for spell: Dictionary in all_spells():
+		if int(spell["effect"]) == effect:
+			selected_effect = effect
+			changed.emit()
+			return true
+	return false
+
+
+func selected_spell() -> Dictionary:
+	var spells: Array[Dictionary] = all_spells()
+	for spell: Dictionary in spells:
+		if int(spell["effect"]) == selected_effect:
+			return spell
+	return spells[0]
 
 
 # --- Gold / base spell level ---
@@ -368,7 +468,7 @@ func next_mod_cost(id: String) -> int:
 
 
 func is_mod_maxed(id: String) -> bool:
-	return id == "mana_pool" and is_mana_pool_maxed()
+	return int(mod_levels.get(id, 0)) >= Config.mod_max_level(id)
 
 
 func try_buy_mod(id: String) -> bool:
@@ -478,12 +578,12 @@ func try_buy_personal(id: String) -> bool:
 	return true
 
 
-## Luck: +20% drop rate per upgrade (non-cumulative: 1.0, 1.2, 1.4, 1.6).
-func luck_multiplier() -> float:
-	return 1.0 + Config.LUCK_STEP * personal_level("luck")
+## Luck multiplies how many items a drop gives (levels 0..3: ×1, ×1, ×2, ×3).
+func luck_multiplier() -> int:
+	return Config.LUCK_DROP_MULT_BY_LEVEL[personal_level("luck")]
 
 
-## Movement Speed: +5% player movement speed per upgrade (non-cumulative: 1.0, 1.05, 1.10, 1.15).
+## Movement Speed: +10% player movement speed per upgrade (non-cumulative: 1.0, 1.1, 1.2, 1.3).
 func player_speed_tiles() -> float:
 	return Config.PLAYER_SPEED_TILES * (1.0 + Config.MOVE_SPEED_STEP * personal_level("move_speed"))
 
@@ -634,7 +734,31 @@ func try_buy_auto_collector() -> bool:
 func collect_all_gold_mines() -> void:
 	for node in get_tree().get_nodes_in_group("gold_mines"):
 		if node != null and not node.is_queued_for_deletion() and node.has_method("collect"):
-			node.call("collect")
+			node.call("collect", self)
+	var whole: int = floori(mine_gold_estimate)
+	if whole > 0:
+		mine_gold_estimate -= whole
+		add_gold(whole)
+		if whole >= GoldMine.MIN_GOLD_FOR_SOUND:
+			AudioManager.play("gold_mine_collect")
+
+
+## The mines stay on the Overworld and keep filling after the player descends.
+func leave_mines_behind(stored_gold: int) -> void:
+	mines_left_behind = true
+	mine_gold_estimate = float(stored_gold) * mine_share
+
+
+## Hands back the estimate when the player returns to the mines.
+func take_mine_gold() -> float:
+	var stored: float = mine_gold_estimate
+	mines_left_behind = false
+	mine_gold_estimate = 0.0
+	return stored
+
+
+func mine_gold_capacity() -> float:
+	return float(gold_mine_cap() * Config.GOLD_MINE_COUNT) * mine_share
 
 
 func try_buy_wall_pierce() -> bool:
@@ -648,13 +772,12 @@ func try_buy_wall_pierce() -> bool:
 	return true
 
 
-func try_buy_auto_shoot() -> bool:
-	if auto_shoot_unlocked or (not sandbox_mode and gold < Config.GOLD_SHOP_AUTO_SHOOT_COST):
+func try_buy_nothing() -> bool:
+	if nothing_unlocked or (not sandbox_mode and gold < Config.GOLD_SHOP_NOTHING_COST):
 		return false
 	if not sandbox_mode:
-		gold -= Config.GOLD_SHOP_AUTO_SHOOT_COST
-	auto_shoot_unlocked = true
-	auto_shoot_enabled = true
+		gold -= Config.GOLD_SHOP_NOTHING_COST
+	nothing_unlocked = true
 	_refill_sandbox_resources()
 	changed.emit()
 	return true
@@ -673,19 +796,11 @@ func try_buy_homing() -> bool:
 
 
 func try_buy_doppelganger() -> bool:
-	if doppelganger_alive or (not sandbox_mode and gold < Config.GOLD_SHOP_DOPPELGANGER_COST):
+	if not sandbox_mode and gold < Config.GOLD_SHOP_DOPPELGANGER_COST:
 		return false
 	if not sandbox_mode:
 		gold -= Config.GOLD_SHOP_DOPPELGANGER_COST
-	doppelganger_alive = true
-	var snapshot: Dictionary = {
-		"spells": all_spells().duplicate(true),
-		"aug_levels": aug_levels.duplicate(),
-		"homing": homing_unlocked,
-		"speed_tiles": player_speed_tiles(),
-		"health_regen": health_regen_per_10s(),
-	}
-	doppelganger_spawn_requested.emit(snapshot)
+	doppelganger_items += 1
 	_refill_sandbox_resources()
 	changed.emit()
 	return true
@@ -696,20 +811,8 @@ func on_doppelganger_died() -> void:
 	changed.emit()
 
 
-func is_auto_shoot_active() -> bool:
-	return auto_shoot_unlocked and auto_shoot_enabled
-
-
 func is_homing_active() -> bool:
 	return homing_unlocked and homing_enabled
-
-
-func toggle_auto_shoot() -> bool:
-	if not auto_shoot_unlocked:
-		return false
-	auto_shoot_enabled = not auto_shoot_enabled
-	changed.emit()
-	return true
 
 
 func toggle_homing() -> bool:
@@ -720,7 +823,69 @@ func toggle_homing() -> bool:
 	return true
 
 
+# --- Co-op ---
+
+func to_net() -> Dictionary:
+	var state: Dictionary = {"mana": mana, "spells": unique_spells}
+	for field: String in NET_FIELDS:
+		state[field] = get(field)
+	return state
+
+
+## Mana changes constantly, so only the rest refreshes the shop, which rebuilds its buttons.
+func apply_net(state: Dictionary) -> void:
+	var before: Dictionary = to_net()
+	before.erase("mana")
+	for field: String in NET_FIELDS:
+		set(field, state[field])
+	unique_spells.assign(state["spells"])
+	mana = float(state["mana"])
+	mana_changed.emit(mana, max_mana(), mana_regen())
+	var after: Dictionary = to_net()
+	after.erase("mana")
+	if after.hash() != before.hash():
+		changed.emit()
+
+
+## A guest follows the host down.
+func enter_net_layer(index: int, endless: bool) -> void:
+	var arrived: bool = index != layer_index
+	layer_index = index
+	endless_active = endless
+	layer_stage = LayerStage.NEST
+	mega_boss_spawned = false
+	changed.emit()
+	if arrived:
+		layer_entered.emit(current_layer())
+
+
+func finish_mirrored_run(won: bool) -> void:
+	if run_over:
+		return
+	run_over = true
+	if won:
+		mega_boss_defeated = true
+		victory.emit()
+	else:
+		defeat.emit()
+
+
 # --- Using hotbar items ---
+
+## Uses a hotbar slot: 0 shield, 1 healing potion, 2 damage potion, 3 doppelganger.
+func use_slot(index: int, player: Node) -> bool:
+	match index:
+		0:
+			return try_use_shield_item(player)
+		1:
+			return try_use_heal_potion(player)
+		2:
+			return try_use_damage_potion()
+		3:
+			return try_use_doppelganger()
+	return false
+
+
 
 func try_use_shield_item(player: Node) -> bool:
 	if (not sandbox_mode and shield_items <= 0) or player == null or not player.has_method("add_shield"):
@@ -741,7 +906,6 @@ func try_use_heal_potion(player: Node) -> bool:
 		return false
 	if not sandbox_mode:
 		heal_potions -= 1
-	heal_potion_timer = Config.POTION_DURATION_SEC
 	_refill_sandbox_resources()
 	changed.emit()
 	return true
@@ -758,67 +922,56 @@ func try_use_damage_potion() -> bool:
 	return true
 
 
-# --- Boss & Mega Boss spells ---
-
-## A boss spell copies the player's spells at pickup time and is frozen after that (can't be upgraded).
-## - First boss spell: 2× the base spell's damage.
-## - Later boss spells: the sum of every spell the player already has.
-## Fire rate is always the base spell's rate × 2/3 (the 1/3 reduction is applied once, not stacked).
-## Costs 3 mana per cast.
-func acquire_boss_spell() -> Dictionary:
-	var base: Dictionary = base_spell_stats()
-	var damage: float
-	if boss_spells.is_empty():
-		damage = base["damage"] * 2.0
-	else:
-		damage = 0.0
-		for s in all_spells():
-			damage += s["damage"]
-	var spell: Dictionary = make_spell_stats(
-		Config.BOSS_SPELL,
-		damage,
-		base["fire_rate"] * Config.BOSS_SPELL_FIRE_RATE_MULT,
-		base["speed_tiles"],
-		base["range_tiles"],
-		Config.BOSS_SPELL_MANA_COST,
-		false
-	)
-	spell["name"] = "%s %d" % [Config.BOSS_SPELL.name, boss_spells.size() + 1]
-	boss_spells.append(spell)
+## Summons the twin, which copies the player's abilities as they are now. One at a time.
+func try_use_doppelganger() -> bool:
+	if doppelganger_alive or (not sandbox_mode and doppelganger_items <= 0):
+		return false
+	if not sandbox_mode:
+		doppelganger_items -= 1
+	doppelganger_alive = true
+	var snapshot: Dictionary = {
+		"spells": all_spells().duplicate(true),
+		"aug_levels": aug_levels.duplicate(),
+		"homing": homing_unlocked,
+		"speed_tiles": player_speed_tiles(),
+		"health_regen": health_regen_per_10s(),
+	}
+	doppelganger_spawn_requested.emit(snapshot)
+	_refill_sandbox_resources()
 	changed.emit()
-	return spell
+	return true
 
 
-## Guaranteed (1/1) drop from the Mega Boss in Endless Mode:
-## Combines all current spells together and multiplies damage by 1.5×, and copies the base spell's augments and uses them.
-func acquire_mega_boss_spell() -> Dictionary:
+# --- Unique spells ---
+
+## A unique spell copies the base spell at pickup, multiplies its damage, and is frozen after that (§6.4).
+func acquire_unique_spell(data: SpellData) -> Dictionary:
 	var base: Dictionary = base_spell_stats()
-	var total_damage: float = 0.0
-	for s in all_spells():
-		total_damage += float(s["damage"])
-	var damage: float = total_damage * Config.MEGA_BOSS_SPELL_DAMAGE_MULT
 	var spell: Dictionary = make_spell_stats(
-		Config.BOSS_SPELL,
-		damage,
-		base["fire_rate"] * Config.BOSS_SPELL_FIRE_RATE_MULT,
-		base["speed_tiles"],
+		data,
+		float(base["damage"]) * data.damage_mult,
+		base["fire_rate"],
+		data.speed_tiles,
 		base["range_tiles"],
-		Config.MEGA_BOSS_SPELL_MANA_COST,
-		true,
-		aug_levels.duplicate()
+		Config.UNIQUE_SPELL_MANA_COST
 	)
-	spell["color"] = Color(1.0, 0.15, 0.15)
-	spell["radius_tiles"] = 0.34
-	spell["name"] = "Mega Spell %d" % (boss_spells.size() + 1)
-	boss_spells.append(spell)
+	unique_spells.append(spell)
 	changed.emit()
 	return spell
 
 
 # --- Objectives ---
 
+func set_layer_nests(count: int) -> void:
+	layer_nests_left = count
+	changed.emit()
+
+
 func on_nest_destroyed() -> void:
 	nests_destroyed += 1
+	layer_nests_left -= 1
+	if layer_nests_left <= 0:
+		layer_stage = LayerStage.BOSS
 	changed.emit()
 
 
@@ -827,36 +980,38 @@ func on_boss_defeated() -> void:
 	changed.emit()
 
 
-func on_mega_boss_spawned() -> void:
-	mega_boss_spawned = true
-	mega_bosses_defeated = 0
+func on_layer_boss_defeated() -> void:
+	layer_stage = LayerStage.PORTAL
 	changed.emit()
 
 
-## Victory in Normal mode when BOTH Mega Bosses (original + 50% HP duplicate) are defeated;
-## in Endless mode, defeating both spawns 4 new spawners and doubles everything's HP (×2).
-## Returns true when both Mega Bosses have been defeated.
-func on_mega_boss_defeated() -> bool:
-	mega_bosses_defeated += 1
-	if mega_bosses_defeated < TOTAL_MEGA_BOSSES:
+func on_mega_boss_spawned() -> void:
+	mega_boss_spawned = true
+	changed.emit()
+
+
+## Victory, unless Endless Mode is on, which returns the player to the Overworld instead.
+func on_mega_boss_defeated() -> void:
+	mega_boss_spawned = false
+	if endless_active:
+		endless_megas_defeated += 1
 		changed.emit()
-		return false
+		return
 	if endless_mode:
-		endless_wave += 1
-		endless_hp_mult *= Config.ENDLESS_WAVE_HP_MULT
-		nests_destroyed = 0
-		mega_boss_spawned = false
-		mega_boss_defeated = false
-		mega_bosses_defeated = 0
 		changed.emit()
-		endless_wave_started.emit(endless_wave)
-		return true
+		endless_started.emit()
+		return
 	mega_boss_defeated = true
 	changed.emit()
 	if not run_over:
 		run_over = true
 		victory.emit()
-	return true
+
+
+func start_endless() -> void:
+	endless_active = true
+	layer_index = 0
+	changed.emit()
 
 
 func on_player_died() -> void:
@@ -873,6 +1028,8 @@ func end_run_in_defeat() -> void:
 
 
 func request_shake(intensity: float, duration: float = 0.18) -> void:
+	if self == GameState:
+		Coop.share_shake(intensity, duration)
 	screen_shake_requested.emit(intensity, duration)
 
 

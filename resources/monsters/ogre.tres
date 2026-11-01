@@ -11,3 +11,7 @@ spawn_interval = 7
 gold = 4
 color = Color(0.6, 0.45, 0.25, 1)
 radius_tiles = 0.6
+enhancer_chance = 0.25
+scroll_chance = 0.25
+mega_spawn_count = 3
+mega_spawn_interval = 3

@@ -3,6 +3,7 @@ extends Control
 
 
 func _ready() -> void:
+	AudioManager.play_music("menu")
 	var box: VBoxContainer = UIKit.make_centered_menu(self, "Map Size")
 	for map in Config.MAP_SIZES:
 		var data: MapSizeData = map

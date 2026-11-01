@@ -15,8 +15,8 @@ func _run() -> void:
 	menu.call("_open_multiplayer")
 	await process_frame
 	var lobby: Control = menu.get_node("WebRTCLobby")
-	if lobby.get_node_or_null("Session") == null:
-		push_error("Lobby did not create its session.")
+	if root.get_node("Coop").get_node_or_null("Session") == null:
+		push_error("Coop did not create its session.")
 		quit(1)
 		return
 	lobby.call("_on_joined", "LOCAL123", 1)

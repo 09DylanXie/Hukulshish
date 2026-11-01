@@ -1,6 +1,6 @@
 extends Control
 ## Difficulty Select: Easy, Medium, Hard, Extreme, plus Endless Mode & Sandbox Mode (§3).
-## In Endless Mode, defeating the Mega Boss spawns 4 new spawners and multiplies everything's HP by 2×.
+## In Endless Mode, defeating the dragon returns the player to the Overworld, where stronger Mega Bosses keep coming.
 ## In Sandbox Mode, all resources (Gold, Spell Scrolls, Augmentation Scrolls, Enhancers, Mana, Shields & Potions) are infinite.
 
 var _endless_toggle: Button
@@ -12,11 +12,11 @@ func _ready() -> void:
 	var box: VBoxContainer = UIKit.make_centered_menu(self, "Difficulty")
 	for d in Config.DIFFICULTIES:
 		var data: DifficultyData = d
-		var b: Button = UIKit.make_button("%s  (monster HP ×%s)" % [data.name, str(data.hp_mult)], _choose.bind(data, false, false))
+		var b: Button = UIKit.make_button("%s  (monster HP ×%s, ×%s per layer)" % [data.name, str(data.hp_mult), str(data.hp_growth_per_layer)], _choose.bind(data, false, false))
 		box.add_child(b)
 
 	var endless_btn: Button = UIKit.make_button(
-		"Endless  (4 new spawners + ×2 HP per Mega Boss)",
+		"Endless  (the game continues after the final boss)",
 		_choose.bind(Config.DIFFICULTIES[1], true, false)
 	)
 	box.add_child(endless_btn)
@@ -41,7 +41,7 @@ func _toggle_endless() -> void:
 
 func _refresh_toggle_text() -> void:
 	if _endless_toggle != null:
-		var state_str: String = "ON (4 new spawners + ×2 HP after Mega Boss)" if GameState.endless_mode else "OFF"
+		var state_str: String = "ON (the game continues after the final boss)" if GameState.endless_mode else "OFF"
 		_endless_toggle.text = "Endless Mode Modifier: %s" % state_str
 
 

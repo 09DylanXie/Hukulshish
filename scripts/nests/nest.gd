@@ -49,7 +49,7 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 	_spawn_timer -= delta
 	if _spawn_timer <= 0.0:
-		_spawn_timer = stats.spawn_interval
+		_spawn_timer = stats.spawn_interval / GameState.spawn_rate_mult()
 		if _alive < Config.NEST_MAX_ALIVE:
 			_spawn()
 
@@ -67,16 +67,26 @@ func _spawn() -> void:
 	monster_spawned.emit(m)
 
 
+## A guest's copy takes its state from the host.
+func apply_net(new_hp: float, new_max_hp: float) -> void:
+	_flash = 0.12 if new_hp < hp else 0.0
+	hp = new_hp
+	max_hp = new_max_hp
+	queue_redraw()
+
+
 func take_damage(amount: float) -> void:
 	if _dead:
 		return
 	hp -= amount
 	_flash = 0.12
+	AudioManager.play_at("nest_hit", global_position)
 	GameState.spawn_floating_text(global_position + Vector2(randf_range(-10, 10), -_radius), "-%d" % maxi(1, int(round(amount))), Color(1.0, 0.78, 0.32))
 	queue_redraw()
 	if hp <= 0.0:
 		_dead = true
 		GameState.request_shake(7.0, 0.28)
+		AudioManager.play("nest_destroyed")
 		destroyed.emit(self)
 		queue_free()
 

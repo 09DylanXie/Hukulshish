@@ -1,5 +1,5 @@
 extends Node2D
-## Brief visual lightning bolt drawn between two positions when Split Spell Lv 3 triggers Chain Lightning.
+## Brief visual lightning bolt from a Split Spell Lv 3 arc to the enemy it zapped.
 
 var from_pos: Vector2 = Vector2.ZERO
 var to_pos: Vector2 = Vector2.ZERO

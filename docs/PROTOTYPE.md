@@ -1,50 +1,42 @@
-# Prototype Notes
+# Playtest Notes
 
-Playable prototype of Normal mode (built for **Godot 4.7.2** at **1920×1080**).
-All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets are needed yet.
+How to try the game quickly. `AGENTS.md` has the full rules.
 
-## How to play
+## Running it
 
-- **Start → Map Size → Difficulty (with optional Endless Mode)**, or open **Rules & Guide** on the Main Menu for a tabbed visual guide with illustrated diagrams.
-- **WASD / arrow keys** to move (`3.0` tiles/sec). Your mage wields an arcane wand/staff in the main hand and a floating magic catalyst in the offhand.
-- **Left-click** in the world to shoot toward your cursor (respecting each spell's cooldown — `2.0/sec` base, 2× faster — and mana cost: **2 mana** for Base Spell, **3 mana** per Boss Spell). Spells move at **2× player speed (`6.0` tiles/sec)**.
-- **Pause:** click the **⏸ Pause** button in the top-right corner (or press `Esc` / `P`).
-- **HP, Shield & Mana Bars + Bottom Hotbar:**
-  - Your blue **Shield Bar** (capped at `5`) absorbs incoming damage before your HP.
-  - Your purple **Mana Bar** starts at `10` max mana (upgradable up to `29` via Mana Pool) and regenerates at `1.0/sec` base (+`0.5/sec` per Mana Regen level).
-  - Click the circular hotbar icons at the bottom of the screen (or press `1`, `2`, `3`) to use:
-    1. **Magic Shield (`[1]`):** adds `+1` shield point (up to 5).
-    2. **Healing Potion (`[2]`):** restores `+3 HP` (30 s timer).
-    3. **2× Damage Boost Potion (`[3]`):** doubles spell damage for **30 seconds**.
-- **Gold Mines:** 3 gold mines spawn in random regions of the map, each generating **7.5 gold/sec** up to **333 gold**. Walk over a mine to collect its stored gold (or buy the **Auto Gold Collector** for `500` gold to collect all mines every 30s).
-- **Castle Shop & Heal:** walk out of and back into the castle to heal up to **3 HP** (never above 3 HP) and open the upgrade & shop menu (pauses the game):
-  - **Base Spell Upgrade:** spend Gold to level up the Base Spell (Lv 1–9).
-  - **Spell Mods:** spend **Spell Scrolls** (1/7 drop from monsters, or bought in the Gold Shop) to upgrade **Damage** (`+0.1×`/lv), **Mana Regen** (`+0.5/s`/lv), **Mana Pool** (`+1` max mana until 15, then `+2` until 29), or **Range** (`+0.1×`/lv). Costs `1, 2, 3, 4`, then `8, 16, 32, …` Spell Scrolls.
-  - **Augmentations (Demon Drops):** Demons have a **1/5 chance** to drop an **Augmentation Scroll** (and possess a 1-hit bubble shield). Each augmentation can be upgraded up to **3 times** (costing `1`, `2`, `3` Augmentation Scrolls):
-	- **Split Spell:** splits player spell on enemy contact into `2` shots at `45°` angles (Homing does not apply to Split Shots), each dealing `1/2` damage; upgrading lets split shots re-split into `2` again on hit up to `1 / 2 / 3` sequential splits. **Lv 3 Unique:** chains lightning across hits, connecting the hit enemy with another enemy and zapping both for the split shot's damage.
-	- **Bombspell:** creates a medium fire zone (`5%` smaller) on target impact for `3s` dealing `3 / 5 / 7` dmg/s (1 fire tick breaks a Demon's bubble shield). **Lv 3 Unique:** explodes on every hit whether split or not, and also explodes when the spell runs out of range.
-	- **Sniper:** on initial player spell impact with an enemy, fires a `5×` speed homing shot at the nearest **monster or boss (never nests)** for `2× / 3× / 4×` damage. **Lv 3 Unique:** sniper shell explodes with the Bombspell explosion on hit.
-  - **Personal Shop (Goblin & Undead Enhancers):** Goblins and Undead have a **1/4 chance** to drop an **Enhancer** (Undead also cast a white 0-damage slow spell at half normal spell speed). All 6 upgrades max at **Level 3** and cost `3`, `5`, `9` Enhancers:
-	- **Luck:** `+20%` drop rate per upgrade (non-cumulative).
-	- **Movement Speed:** `+5%` player movement speed per upgrade (non-cumulative).
-	- **Health Regen:** `+1 HP / 10 secs` per upgrade.
-	- **Capacity:** `+1/3` gold mine capacity per upgrade (non-cumulative).
-	- **Rate:** `+15%` gold mine gold generation per upgrade (non-cumulative).
-	- **Income Multiplier:** `+50%` gold per upgrade from monsters and bosses only.
-  - **Gold Shop:**
-	- **Max HP Upgrade:** upgrades Max HP from `7 → 8 → 9 → 12` (`+1`, `+1`, `+3` on the final upgrade; does not instantly heal).
-	- **Spell Scroll:** `100` gold for the 1st, then `+100` per scroll up to 10 (`100..1000`).
-	- **Magic Shield (+1 Shield):** `200` gold.
-	- **3 HP Healing Potion (30s):** `100` gold.
-	- **2× Damage Boost Potion (30s):** `100` gold.
-	- **Magnet:** `300` gold (pulls dropped Spell Scrolls, Augmentation Scrolls, Enhancers, and Boss Spell pickups toward the player).
-	- **Auto Gold Collector:** `500` gold (auto-collects stored gold from all 3 Gold Mines every 30 seconds).
-	- **Unlock Auto-Shooting:** `1000` gold (auto-fires at `1/2` fire rate so you can still manually fire; press **`E`** to toggle on/off).
-	- **Unlock Homing:** `1500` gold (curves spells toward the closest enemy; press **`F`** to toggle on/off).
-	- **Doppelganger:** `5000` gold (copies current abilities, follows you until it dies, has `5` max HP and cannot have a shield).
-- **Enemy Scaling, Nests & Bosses:**
-  - After **3 minutes**, enemy HP scales every **30 seconds**: unchanged on **Easy**, `+5 HP` linearly on **Medium**, `×1.2` exponentially on **Hard**, and `×1.5` exponentially on **Extreme**.
-  - All 4 corner nests have **70 HP**, spawn monsters directly from their center hole, and take damage from player spells via swept-segment hit detection.
-  - Each destroyed nest immediately spawns a **Nest Boss** (**240 HP**, **1000 gold** + **1/3 chance** to drop a **Boss Spell**).
-  - Destroying all 4 nests awakens the **Mega Boss** (**2000 HP**, **100 HP shield** that regenerates at each 1/4 of HP lost, fires spells at **player base spell speed (`6.0` tiles/sec)**, and spawns bosses every 25 s and normal monsters at **2× their regular rate**).
-  - Defeating the Mega Boss wins the run in Normal mode, or in **Endless Mode** drops a **guaranteed 1/1 red Mega Boss Spell** (combines all current spells + `1.5×` damage and copies the base spell's augments), spawns **4 new spawners**, and multiplies **everything's HP by 2×**.
+Open the project in **Godot 4.7.2** and press Play, or press F6 on `scenes/main/Game.tscn` to skip the menus (Medium map, Medium difficulty).
+
+**Sandbox** on the Difficulty screen gives infinite gold, scrolls, Enhancers, mana and hotbar items, which is the fastest way to reach later layers.
+
+## What to look at
+
+- **Balance:** every number is a first pass. The most useful feedback is how much gold a full run earns against the `37,400` the Base Spell costs, and how far Augmentation Scrolls stretch.
+- **Fire lines:** three burn ticks deal `9 HP`, enough to kill a player without a shield or Max HP upgrades.
+- **Lava and darkness:** check that lava isn't too dense and that the Catacombs' vision radius (`7.5` tiles) feels fair.
+- **Sound:** every effect is generated, so listen for anything harsh, especially full spell volleys and the fire lines.
+
+## Automated tests
+
+Run any of these headless. Each suite prints its failure count and exits non-zero on failure.
+
+```powershell
+& 'C:\path\Godot.exe' --headless --path . --script res://tests/layers/layer_flow_test.gd
+```
+
+| Script | Covers |
+|---|---|
+| `tests/load_order_test.gd` | Every preloaded scene loads when the game starts from the Main Menu |
+| `tests/layers/layer_flow_test.gd` | The descent: nest, boss, drops, portal, next layer |
+| `tests/layers/overworld_terrain_test.gd` | Overworld generation, rivers, spell blocking |
+| `tests/layers/lower_layers_test.gd` | Maze layers, darkness, lava, demon shields |
+| `tests/layers/abyss_test.gd` | The final fight, from crystal to white flash |
+| `tests/layers/endless_test.gd` | Endless Mode |
+| `tests/economy/economy_test.gd` | Upgrades, drops, shops, mines, spell selection, the Doppelganger, homing |
+| `tests/spells/unique_spells_test.gd` | Unique spells and status effects |
+| `tests/audio/audio_manager_test.gd` | Sound files and call sites |
+| `tests/audio/effects_preferences_test.gd` | SFX and Screen Shake sliders |
+| `tests/network/coop_mechanics_test.gd` | Co-op rules |
+| `tests/network/lobby_smoke_test.gd` | The multiplayer lobby |
+| `tests/network/run_coop_live.sh` | A real three-player game across three processes (run it with `bash`, passing the path to Godot) |
+
+The audio and co-op suites can print `ObjectDB instances were leaked` at exit. That only means a sound was still playing when the test quit.

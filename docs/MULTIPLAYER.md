@@ -1,5 +1,9 @@
 # Three-player WebRTC co-op
 
+> **Status:** co-op works over LAN, tested with three real game processes. The WebRTC path is written
+> but hasn't been tested end to end, because that needs a browser build. Internet play also needs
+> a signaling server and TURN, which nobody has deployed yet.
+
 ## Approved design
 
 - Three players total: one host and two guests.
@@ -9,11 +13,13 @@
   collector owns each ground pickup.
 - Players start with 7 HP in both modes. Normal enemy base HP is doubled in
   co-op; all boss base HP is multiplied by 5 total. Player, nest, companion and
-  shield HP are unchanged. Difficulty and monster time scaling still apply.
-- Nest bosses retain the current 240-HP base: 1200 in co-op. Mega Boss base HP
+  shield HP are unchanged. Difficulty still applies, and each descent multiplies
+  HP by 2× on top of everything else.
+- Nest bosses have 480 base HP: 2400 in co-op. They take 30% less incoming
+  damage for the first 5 seconds after spawning, including fire damage. Mega Boss base HP
   becomes 10000. The Mega Boss shield remains 100.
-- Each player can buy a permanent Revival unlock for 999 gold in the castle
-  Gold Shop. It lasts for the run, permits repeated revivals, and cannot be
+- Each player can buy a permanent Revival unlock for 999 gold at the Gold
+  stall. It lasts for the run, permits repeated revivals, and cannot be
   purchased twice. It is not a consumable or a shared team unlock.
 - Stand over a downed teammate for 3 uninterrupted seconds. Leaving resets
   progress; multiple helpers cannot combine their progress. Damage alone does
@@ -22,47 +28,41 @@
 - All three downed ends the run immediately, even if a castle return was already
   scheduled. Team defeat cancels those returns.
 - Co-op shop and pause menus block local movement/casting without pausing the team.
+- Every player must enter a portal to descend. Anyone who enters early waits in a
+  purgatory void layer until the rest arrive. The same applies to a two-player game.
+- Catacombs darkness applies to each player separately.
 - Normal mode is the first multiplayer target.
 
-Shared gold mine upgrades and survival-run disconnect/rejoin rules still need
-design decisions. Enemies retain their existing chase order but skip downed
-players, allowing surviving teammates to continue the run.
+Mines, disconnects and enemy targeting are covered in `AGENTS.md` §9.
 
-## Current milestone: connection and movement test
+## How co-op works
 
-The main menu's **Multiplayer (connection test)** button opens an isolated lobby.
-The host creates an eight-character room code. Two guests can join; a fourth
-connection is rejected. Players move colored markers with WASD or arrow keys.
-The host simulates movement from bounded input vectors and broadcasts positions.
-Guests cannot submit authoritative positions. Lost input expires instead of
-leaving a character moving indefinitely.
+The host runs the only real game. Guests send their input and shop requests to the host, and draw
+the world snapshots it sends back 20 times a second. A guest's own movement is predicted locally,
+so it responds immediately, and is corrected if the host disagrees.
 
-This is not a multiplayer survival run yet. Enemies, projectiles, inventory,
-revives, mobile movement controls, and late-join game snapshots are not connected.
-The existing single-player run remains available through **Start**.
+`scripts/autoload/coop.gd` owns the connection and network messages,
+`scripts/multiplayer/coop_host_sync.gd` packs snapshots, and
+`scripts/multiplayer/coop_guest_view.gd` draws them. LAN and WebRTC only differ in how the
+connection is created, so everything above that layer is shared.
 
-## Implemented game-side mechanics
+## Trying it
 
-`GameState` now uses the `RunState` class so each co-op player can have a separate
-progress instance. `Game.add_coop_player()` creates the two guest actors and
-their inventories. Once all three are registered, the host-owned
-`CoopRevivalController` runs their interaction and respawn timers. The player
-scene keeps a downed body at the death location, stops its movement/casting,
-and exposes castle revival. The shop exposes the permanent unlock only in co-op.
+**LAN (desktop):** works from the editor with nothing extra installed.
 
-Player spells, split/sniper shots, chain hits, fire zones and companions carry
-their originating player's state. The host can therefore credit the final blow
-to that inventory, including when delayed fire damage kills an enemy. Shared
-pickups reject bodies and credit their first living collector.
+1. In Godot, open **Debug → Customize Run Instances**, enable it, and set 3 instances.
+2. Press Play. In one window choose **Multiplayer → Host LAN game**.
+3. In the others choose **Join LAN game**, leaving the address as `127.0.0.1`.
+4. On the host, pick the settings and press **Start game**. Two players is enough.
 
-These game-side hooks are tested locally; the connection-test lobby does not
-yet launch and replicate this survival scene. A session driver must connect
-guest inputs, actor/world snapshots, per-player HUDs, shop requests and end
-screens before this becomes playable online co-op.
+To play on real computers, the guests enter the host's local IP address. The host may need to allow
+UDP port 9081 through their firewall.
 
-Balance values live in `resources/multiplayer/coop_rules.tres`.
+**WebRTC (browser):** this is what an itch.io build uses. It needs a Web export, and Godot's Web export
+templates aren't installed yet. Native desktop builds can't use WebRTC without the webrtc-native
+extension, so LAN is the way to test on desktop.
 
-## Local setup
+## WebRTC setup
 
 Use the project's pinned Godot version from README.md. In PowerShell, replace
 `C:\path\Godot.exe` with the installed executable:
@@ -79,16 +79,15 @@ the matching [Godot webrtc-native extension](https://github.com/godotengine/webr
 for native editor/desktop testing. WebRTC is built into Godot's browser export.
 No native extension has been added to this repository.
 
-1. Open three browser windows running the game and select the connection test.
+1. Open three browser windows running the game and choose **Multiplayer**.
 2. Use the same signaling URL in all windows. Leave ICE servers as `[]` for an
    initial same-machine test. Browser/network restrictions may still require ICE servers.
 3. Select **Host room** in the first window and copy the assigned code.
 4. Enter the code in each other window and select **Join room**.
-5. Click outside text fields and move with WASD. All windows should show the same
-   three markers, with only the focused window controlling its own marker.
+5. On the host, press **Start game** and play.
 6. Try joining with a fourth window: expect a full-room error.
-7. Leave as a guest: the host should remove that marker and permit a replacement.
-8. Leave as the host: both guests should return to a disconnected state.
+7. Leave as a guest: the run should continue for everyone else.
+8. Leave as the host: both guests should return to the Main Menu with a message.
 
 Keep the signaling service running for the lifetime of the room. This prototype
 closes the room when the signaling connection or host is lost. It has no host
@@ -136,6 +135,13 @@ No public service or hosting account has been provisioned by this change.
 
 ## Automated checks
 
+Run a real three-player game across three processes, which covers connecting, movement, shop
+purchases, drops, the portal and void, layer changes, a guest leaving, and a team wipe:
+
+```bash
+bash tests/network/run_coop_live.sh '/path/to/Godot_console.exe'
+```
+
 With the signaling service running, run its room protocol integration checks:
 
 ```powershell
@@ -169,22 +175,8 @@ run. This machine's `4.7.2.stable` export templates directory was empty, and the
 project currently has desktop export presets only. Install matching Web templates
 and add a Web export preset before running the browser test.
 
-## Following milestones
+## What's left
 
-1. Connect the independent player states to the WebRTC session's peer IDs.
-2. Create the shared map on the host and send the maze layout, mine positions,
-   and initial state to guests before starting simulation.
-3. Connect the player input/casting ownership hooks to guest messages and bind
-   each guest's HUD to its own authoritative state.
-4. Run spawning, enemy targeting, damage, drop rolls, and pickup claims on the host.
-5. Validate upgrade purchases against each player's authoritative inventory.
-6. Replicate revive progress, body/respawn state, team defeat and victory; add
-   the agreed disconnect handling.
-7. Test three real browser devices, latency, TURN-only connectivity, mobile input,
-   and dense combat before enabling a public multiplayer run.
-
-## References
-
-- [Godot WebRTC tutorial](https://docs.godotengine.org/en/stable/tutorials/networking/webrtc.html)
-- [WebRTCMultiplayerPeer API](https://docs.godotengine.org/en/stable/classes/class_webrtcmultiplayerpeer.html)
-- [WebRTCPeerConnection API](https://docs.godotengine.org/en/stable/classes/class_webrtcpeerconnection.html)
+1. Install the Web export templates, add a Web export preset, and run the WebRTC steps above.
+2. Deploy the signaling service behind `wss://`, and provide STUN and TURN.
+3. Test on real networks, including latency and TURN-only connections.

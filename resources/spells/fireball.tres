@@ -4,9 +4,13 @@
 
 [resource]
 script = ExtResource("1")
-name = "Boss Spell"
-speed_tiles = 6.3
+name = "Fireball"
+speed_tiles = 6
 range_tiles = 10
 fire_rate = 2
-color = Color(1, 0.55, 0.15, 1)
-radius_tiles = 0.28
+color = Color(1, 0.48, 0.12, 1)
+radius_tiles = 0.2
+damage_mult = 4
+effect = 4
+cast_sound = "cast_fireball"
+pickup_texture = "res://assets/sprites/spells/unique_fireball.png"

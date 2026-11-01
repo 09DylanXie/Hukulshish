@@ -1,43 +1,23 @@
 class_name Castle
 extends Area2D
-## The kingdom castle at the map center (§5). No HP. Walk into it to open the upgrade menu.
-
-signal player_entered(player: Player)
+## The kingdom castle at the Overworld's center (§5). A landmark with no HP. Shops stand beside it.
 
 var _size: float = Config.tiles(Config.CASTLE_SIZE_TILES)
-## The player spawns inside the castle; only trigger after they've left once.
-var _armed_players: Dictionary = {}
 var _t: float = 0.0
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	collision_layer = 0
-	collision_mask = Config.LAYER_PLAYER
+	collision_mask = 0
+	monitoring = false
 	monitorable = false
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(_size, _size)
-	shape.shape = rect
-	add_child(shape)
-	body_entered.connect(_on_body_entered)
-	body_exited.connect(_on_body_exited)
 	z_index = -1
 
 
 func _process(delta: float) -> void:
 	_t += delta
 	queue_redraw()
-
-
-func _on_body_entered(body: Node) -> void:
-	if body is Player and _armed_players.has(body.get_instance_id()) and not (body as Player).is_dead():
-		player_entered.emit(body as Player)
-
-
-func _on_body_exited(body: Node) -> void:
-	if body is Player:
-		_armed_players[body.get_instance_id()] = true
 
 
 func _draw() -> void:
@@ -68,5 +48,3 @@ func _draw() -> void:
 		draw_circle(c, tower * 0.6, stone)
 	draw_line(Vector2(0, -h * 0.2), Vector2(0, -h * 0.75), Color(0.3, 0.2, 0.1), 2.0)
 	draw_colored_polygon(PackedVector2Array([Vector2(0, -h * 0.75), Vector2(h * 0.35, -h * 0.62), Vector2(0, -h * 0.5)]), Color(0.9, 0.75, 0.15))
-
-

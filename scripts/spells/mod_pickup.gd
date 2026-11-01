@@ -3,18 +3,19 @@ extends Area2D
 ## Ground pickup for:
 ## - a Spell Scroll (1/7 drop from monsters, spent at the castle to upgrade Spell Mods),
 ## - an Augmentation Scroll (1/5 drop from Demons only, spent at the castle on Augmentations), or
-## - a Boss Spell (1/3 drop from nest bosses, immediately grants a new spell).
-## When Magnet is unlocked in the Gold Shop, pickups automatically fly toward the player.
+## - a unique spell (hidden on each layer, immediately grants a new spell).
+## When Magnet is unlocked in the Gold Shop, drops automatically fly toward the player.
 
 enum Kind {
 	MOD_PART,
 	AUG_SCROLL,
 	ENHANCER,
-	BOSS_SPELL,
-	MEGA_BOSS_SPELL,
+	UNIQUE_SPELL,
 }
 
 var kind: Kind = Kind.MOD_PART
+## The spell this pickup grants, for Kind.UNIQUE_SPELL.
+var spell: SpellData
 
 var _t: float = 0.0
 
@@ -34,6 +35,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_t += delta
+	queue_redraw()
+	# Unique spells are meant to be found.
+	if kind == Kind.UNIQUE_SPELL:
+		return
 	var nearest: Player
 	var nearest_distance: float = INF
 	for node: Node in get_tree().get_nodes_in_group("player"):
@@ -49,8 +54,6 @@ func _physics_process(delta: float) -> void:
 		global_position = global_position.move_toward(nearest.global_position, step)
 		if global_position.distance_to(nearest.global_position) <= Config.tiles(0.6):
 			_collect(nearest.progress)
-			return
-	queue_redraw()
 
 
 func _on_body_entered(body: Node) -> void:
@@ -62,12 +65,9 @@ func _collect(progress: RunState) -> void:
 	if is_queued_for_deletion():
 		return
 	match kind:
-		Kind.MEGA_BOSS_SPELL:
-			progress.acquire_mega_boss_spell()
-			GameState.spawn_floating_text(global_position + Vector2(0, -16), "MEGA SPELL!", Color(1.0, 0.25, 0.25))
-		Kind.BOSS_SPELL:
-			progress.acquire_boss_spell()
-			GameState.spawn_floating_text(global_position + Vector2(0, -16), "BOSS SPELL!", Color(1.0, 0.65, 0.2))
+		Kind.UNIQUE_SPELL:
+			progress.acquire_unique_spell(spell)
+			GameState.spawn_floating_text(global_position + Vector2(0, -16), "%s SPELL!" % spell.name.to_upper(), spell.color)
 		Kind.AUG_SCROLL:
 			progress.add_aug_scrolls(1)
 			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Aug Scroll", Color(1.0, 0.35, 0.52))
@@ -77,6 +77,7 @@ func _collect(progress: RunState) -> void:
 		_:
 			progress.add_mod_parts(1)
 			GameState.spawn_floating_text(global_position + Vector2(0, -14), "+1 Spell Scroll", Color(0.45, 0.92, 1.0))
+	AudioManager.play_at("boss_spell_pickup" if kind == Kind.UNIQUE_SPELL else "scroll_pickup", global_position)
 	queue_free()
 
 
@@ -89,13 +90,9 @@ func _draw() -> void:
 	var glow_col := Color(0.35, 0.9, 1.0)
 	var icon_sz: float = 26.0
 	match kind:
-		Kind.MEGA_BOSS_SPELL:
-			tex_path = "res://assets/sprites/spells/mega_spell.png"
-			glow_col = Color(1.0, 0.15, 0.15)
-			icon_sz = 34.0
-		Kind.BOSS_SPELL:
-			tex_path = "res://assets/sprites/spells/boss_spell.png"
-			glow_col = Color(1.0, 0.55, 0.15)
+		Kind.UNIQUE_SPELL:
+			tex_path = spell.pickup_texture
+			glow_col = spell.color
 			icon_sz = 30.0
 		Kind.AUG_SCROLL:
 			tex_path = "res://assets/sprites/spells/aug_scroll.png"

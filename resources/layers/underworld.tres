@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="LayerData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/layer_data.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/monsters/ogre.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/spells/earth.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+unique_spell = ExtResource("3")
+name = "Underworld"
+monster = ExtResource("2")
+floor_texture = "res://assets/tilesets/dirt_tile.png"
+wall_textures = Array[String](["res://assets/tilesets/wall_brick.png"])
+backdrop_color = Color(0.2, 0.15, 0.1, 1)
+maze_cell_tiles = 6
+floor_crack_color = Color(0.36, 0.25, 0.14, 0.75)
+maze_opening_chance = 0.2

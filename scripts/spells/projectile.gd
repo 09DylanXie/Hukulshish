@@ -11,7 +11,10 @@ enum ProjKind {
 
 const FireZoneScript: GDScript = preload("res://scripts/spells/fire_zone.gd")
 const ChainLightningScript: GDScript = preload("res://scripts/spells/chain_lightning.gd")
+const ExplosionScript: GDScript = preload("res://scripts/spells/explosion.gd")
 const TRAIL_DURATION_SEC: float = 0.14
+const ARC_SEGMENTS: int = 6
+const ARC_JITTER_PX: float = 7.0
 
 var direction: Vector2 = Vector2.RIGHT
 var speed: float = 192.0
@@ -22,18 +25,26 @@ var color: Color = Color.WHITE
 var radius: float = 6.0
 var max_distance: float = 320.0
 var homing: bool = false
+## What a unique spell does on hit. Set after setup().
+var effect: SpellData.Effect = SpellData.Effect.NONE
+## The direction this spell left the caster, which homing's cone is measured from.
+var _fired_direction: Vector2 = Vector2.RIGHT
 var proj_kind: ProjKind = ProjKind.INITIAL
 ## Target to ignore (so split/sniper projectiles spawned on impact don't immediately re-hit the same enemy).
 var ignore_target: Node2D = null
-## Whether this player projectile triggers augmentations (true for Base Spell & Mega Boss Spell).
+## Whether this player projectile triggers augmentations (true for the Base Spell).
 var uses_augments: bool = true
-## Copied augment levels (used by Mega Boss Spell; empty = read live GameState.aug_levels).
+## Copied augment levels (used by the Doppelganger; empty = read live GameState.aug_levels).
 var aug_override: Dictionary = {}
 ## Slow duration in seconds (used by Undead 0-damage slow spell).
 var slow_duration: float = 0.0
 ## How many times this projectile has already split (0 = initial cast, 1..3 = split generations).
 var split_depth: int = 0
 
+## Split Spell Lv 3: the sibling this split shares a lightning arc with. Only one of a pair holds it.
+var _arc_partner: Projectile
+## Instance ids the arc has already zapped, so an enemy is only hit once by it.
+var _arc_zapped: Array[int] = []
 var _traveled: float = 0.0
 var _spent: bool = false
 var _trail_pts: PackedVector2Array = PackedVector2Array()
@@ -66,6 +77,7 @@ func setup(
 	max_distance = max_distance_px
 	# Homing does not work on split shots.
 	homing = is_homing and kind != ProjKind.SPLIT
+	_fired_direction = dir.normalized()
 	proj_kind = kind
 	ignore_target = ignored
 	uses_augments = can_use_augments
@@ -165,7 +177,7 @@ func _physics_process(delta: float) -> void:
 		proj_kind == ProjKind.SNIPER or (homing and _progress().is_homing_active())
 	)
 	if should_home:
-		var target: Node2D = _find_homing_target(proj_kind == ProjKind.SNIPER)
+		var target: Node2D = _find_homing_target(proj_kind == ProjKind.SNIPER, proj_kind != ProjKind.SNIPER)
 		if target != null:
 			var to_target: Vector2 = global_position.direction_to(target.global_position)
 			if to_target != Vector2.ZERO:
@@ -181,6 +193,7 @@ func _physics_process(delta: float) -> void:
 	_traveled += step
 	_push_trail_point(global_position)
 	queue_redraw()
+	_zap_along_arc()
 
 	# Swept-segment hit check guarantees hits on StaticBody2D nests, monsters, and bosses.
 	_check_swept_hits(prev_pos, global_position)
@@ -203,7 +216,8 @@ func _on_range_expired() -> void:
 		_spawn_bomb_zone(container)
 
 
-func _find_homing_target(exclude_nests: bool = false) -> Node2D:
+func _find_homing_target(exclude_nests: bool = false, cone_only: bool = false) -> Node2D:
+	var half_cone: float = deg_to_rad(Config.HOMING_CONE_DEG) * 0.5
 	var best: Node2D = null
 	var best_score: float = INF
 	for node in get_tree().get_nodes_in_group("targets"):
@@ -211,6 +225,8 @@ func _find_homing_target(exclude_nests: bool = false) -> Node2D:
 		if target == null or target == ignore_target or target.is_queued_for_deletion() or not target.has_method("take_damage"):
 			continue
 		if exclude_nests and target.is_in_group("nests"):
+			continue
+		if cone_only and absf(_fired_direction.angle_to(global_position.direction_to(target.global_position))) > half_cone:
 			continue
 		var d: float = global_position.distance_to(target.global_position)
 		# Prefer active enemies (monsters & bosses) over static nests when nearby.
@@ -318,15 +334,19 @@ func _check_swept_hits(from_pos: Vector2, to_pos: Vector2) -> void:
 		_retire_with_trail()
 
 
+func is_spent() -> bool:
+	return _spent
+
+
 func _progress() -> RunState:
 	return source_state if is_instance_valid(source_state) else GameState
 
 
-func _deal_damage(target: Node) -> void:
+func _deal_damage(target: Node, amount: float = damage) -> void:
 	if from_player and is_instance_valid(source_state):
-		source_state.deal_damage(target, damage)
+		source_state.deal_damage(target, amount)
 	else:
-		target.call("take_damage", damage)
+		target.call("take_damage", amount)
 
 
 func _on_body_entered(body: Node) -> void:
@@ -350,9 +370,59 @@ func _on_body_entered(body: Node) -> void:
 		_spent = true
 		if damage > 0.0:
 			_deal_damage(body)
+		if from_player:
+			AudioManager.play_at("spell_hit", global_position)
+			_apply_effect(body)
 		if from_player and body is Node2D and uses_augments:
 			_apply_augmentations(body as Node2D)
 		_retire_with_trail()
+
+
+func _apply_effect(hit_target: Node) -> void:
+	if effect == SpellData.Effect.EXPLODE:
+		_explode(hit_target)
+		return
+	if effect == SpellData.Effect.CORRUPTION:
+		_corrupt(hit_target)
+		return
+	var status: EnemyStatus = hit_target.get("status") as EnemyStatus
+	if status == null:
+		return
+	match effect:
+		SpellData.Effect.SLOW:
+			status.apply_slow()
+		SpellData.Effect.STUN:
+			status.apply_stun()
+		SpellData.Effect.POISON:
+			status.apply_poison(source_state)
+
+
+## One-shots anything except the Mega Boss and hidden boss, which take every spell's damage combined (§6.5).
+func _corrupt(target: Node) -> void:
+	if target is MegaBoss:
+		_progress().deal_damage(target, _progress().combined_spell_damage())
+		return
+	if target is Monster:
+		(target as Monster).strip_shield()
+	_progress().deal_damage(target, float(target.get("hp")) * 2.0 + 1.0)
+
+
+## Deals this spell's damage across the Bombspell's area. `hit_target` already took its share.
+func _explode(hit_target: Node) -> void:
+	var blast_radius: float = Config.tiles(Config.BOMB_RADIUS_TILES)
+	for node: Node in get_tree().get_nodes_in_group("targets"):
+		var target := node as Node2D
+		if target == null or target == hit_target or target.is_queued_for_deletion() or not target.has_method("take_damage"):
+			continue
+		var hit_r: float = float(target.call("get_hit_radius")) if target.has_method("get_hit_radius") else Config.tiles(0.5)
+		if global_position.distance_to(target.global_position) <= blast_radius + hit_r:
+			_deal_damage(target)
+	var blast: Node2D = ExplosionScript.new()
+	blast.global_position = global_position
+	var container: Node = get_tree().get_first_node_in_group("projectile_container")
+	if container == null:
+		container = get_parent()
+	container.call_deferred("add_child", blast)
 
 
 func _apply_augmentations(hit_target: Node2D) -> void:
@@ -373,56 +443,68 @@ func _apply_augmentations(hit_target: Node2D) -> void:
 	if proj_kind == ProjKind.INITIAL and _aug_lvl("sniper") > 0:
 		_spawn_sniper_shot(container, hit_target)
 
-	# 2. Split Spell Lv 3 unique ability: chain lightning across split hits, connecting hit_target with another enemy
-	# and zapping both alongside each other for the same damage as the split shot.
-	if proj_kind == ProjKind.SPLIT and split_lvl >= 3:
-		_trigger_chain_lightning(container, hit_target)
-
-	# 3. Recursive Split Spell: each hit splits into 2 projectiles at 45° (½ damage, no homing),
+	# 2. Recursive Split Spell: each hit splits into 2 projectiles at 45° (½ damage, no homing),
 	# and each of those can re-split on hit up to `split_lvl` times (1 split at Lv 1, 2 at Lv 2, 3 at Lv 3).
-	var can_split: bool = split_depth < split_lvl
-	if can_split:
+	if split_depth < split_lvl:
 		_spawn_split_shots(container, hit_target)
-		# Bombspell Lv 3 unique ability: explodes on each hit no matter if they split or not.
-		if bomb_lvl >= 3:
-			_spawn_bomb_zone(container)
-	elif bomb_lvl > 0:
-		# Final split projectiles (or unsplit spells when Split is Lv 0) trigger Bombspell on impact.
+
+	# 3. Bombspell fires on the first impact only, until its Lv 3 unique ability makes it every hit.
+	if bomb_lvl >= 3 or (bomb_lvl > 0 and proj_kind == ProjKind.INITIAL):
 		_spawn_bomb_zone(container)
 
 
-func _trigger_chain_lightning(container: Node, hit_target: Node2D) -> void:
-	var best: Node2D = null
-	var best_dist: float = Config.tiles(Config.CHAIN_LIGHTNING_RANGE_TILES)
-	for node in get_tree().get_nodes_in_group("targets"):
-		var candidate := node as Node2D
-		if candidate == null or candidate == hit_target or candidate.is_queued_for_deletion() or not candidate.has_method("take_damage"):
-			continue
-		if candidate.is_in_group("nests"):
-			continue
-		var d: float = hit_target.global_position.distance_to(candidate.global_position)
-		if d <= best_dist:
-			best_dist = d
-			best = candidate
-	if best == null:
+func has_arc() -> bool:
+	return not _spent and is_instance_valid(_arc_partner) and not _arc_partner.is_spent() \
+		and global_position.distance_to(_arc_partner.global_position) <= Config.tiles(Config.SPLIT_ARC_MAX_TILES)
+
+
+func arc_end() -> Vector2:
+	return _arc_partner.global_position
+
+
+## Split Spell Lv 3 unique ability: anything between two sibling splits gets zapped and stunned.
+func _zap_along_arc() -> void:
+	if not has_arc():
 		return
-	var start_pos: Vector2 = hit_target.global_position
-	var end_pos: Vector2 = best.global_position
-	# Both connected enemies get zapped alongside each other for the same damage as the split shot.
-	if not hit_target.is_queued_for_deletion() and hit_target.has_method("take_damage"):
-		_deal_damage(hit_target)
-	if not best.is_queued_for_deletion() and best.has_method("take_damage"):
-		_deal_damage(best)
-	var arc: Node2D = ChainLightningScript.new()
-	arc.call("setup", start_pos, end_pos)
-	container.call_deferred("add_child", arc)
+	for node: Node in get_tree().get_nodes_in_group("targets"):
+		var target := node as Node2D
+		if target == null or target.is_in_group("nests") or target.is_queued_for_deletion() or _arc_zapped.has(target.get_instance_id()):
+			continue
+		if not target.has_method("take_damage"):
+			continue
+		var hit_r: float = float(target.call("get_hit_radius")) if target.has_method("get_hit_radius") else Config.tiles(0.5)
+		var closest: Vector2 = Geometry2D.get_closest_point_to_segment(target.global_position, global_position, arc_end())
+		if closest.distance_to(target.global_position) > hit_r:
+			continue
+		_arc_zapped.append(target.get_instance_id())
+		var status: EnemyStatus = target.get("status") as EnemyStatus
+		if status != null:
+			status.apply_stun()
+		_deal_damage(target, damage * Config.SPLIT_ARC_DAMAGE_MULT)
+		AudioManager.play_at("chain_lightning", closest)
+		var flash: Node2D = ChainLightningScript.new()
+		flash.call("setup", closest, target.global_position)
+		get_parent().call_deferred("add_child", flash)
+
+
+## Shared with guests, who only know the arc's two ends.
+static func draw_arc_between(canvas: CanvasItem, from_pos: Vector2, to_pos: Vector2) -> void:
+	var points := PackedVector2Array([from_pos])
+	var across: Vector2 = (to_pos - from_pos).orthogonal().normalized()
+	for i in range(1, ARC_SEGMENTS):
+		points.append(from_pos.lerp(to_pos, float(i) / float(ARC_SEGMENTS)) + across * randf_range(-ARC_JITTER_PX, ARC_JITTER_PX))
+	points.append(to_pos)
+	canvas.draw_polyline(points, Color(0.35, 0.85, 1.0, 0.5), 4.0)
+	canvas.draw_polyline(points, Color(0.95, 1.0, 0.7, 0.95), 1.5)
 
 
 func _spawn_split_shots(container: Node, hit_target: Node2D) -> void:
+	AudioManager.play_at("split_spell", global_position)
 	var count: int = Config.SPLIT_PROJECTILES_PER_HIT
 	var step_rad: float = deg_to_rad(Config.SPLIT_ANGLE_DEG)
 	var base_angle: float = direction.angle()
 	var this_scene: PackedScene = load("res://scenes/spells/Projectile.tscn")
+	var sibling: Projectile = null
 	for i in count:
 		var angle_offset: float = (float(i) - float(count - 1) * 0.5) * step_rad
 		var split_dir: Vector2 = Vector2.from_angle(base_angle + angle_offset)
@@ -446,6 +528,9 @@ func _spawn_split_shots(container: Node, hit_target: Node2D) -> void:
 		)
 		p.global_position = global_position
 		container.call_deferred("add_child", p)
+		if sibling != null and _max_split_depth_for_proj() >= 3:
+			sibling._arc_partner = p
+		sibling = p
 
 
 func _spawn_sniper_shot(container: Node, hit_target: Node2D) -> void:
@@ -481,6 +566,7 @@ func _spawn_sniper_shot(container: Node, hit_target: Node2D) -> void:
 	)
 	p.global_position = global_position
 	container.call_deferred("add_child", p)
+	AudioManager.play_at("sniper_shot", global_position)
 
 
 func _spawn_bomb_zone(container: Node) -> void:
@@ -513,6 +599,10 @@ func _draw() -> void:
 
 		if _spent:
 			return
+		if has_arc():
+			draw_set_transform_matrix(global_transform.affine_inverse())
+			draw_arc_between(self, global_position, arc_end())
+			draw_set_transform_matrix(Transform2D.IDENTITY)
 
 		# 2. Flashy outer arcane triangle halo
 		var pulse: float = 0.28 + 0.08 * sin(_glint_t)

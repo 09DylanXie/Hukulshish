@@ -4,19 +4,20 @@ extends CharacterBody2D
 ## Speed comes from its size (Config.monster_speed_tiles). Call setup() before adding it to the tree.
 ## Undead also cast a 0-damage slow spell moving at half normal spell speed (3.0 tiles/sec).
 
-signal died(gold: int, at: Vector2, is_demon: bool, drops_enhancer: bool)
+signal died(gold: int, at: Vector2)
 
-const ProjectileScene: PackedScene = preload("res://scenes/spells/Projectile.tscn")
 
 var stats: MonsterStats
 var max_hp: float = 1.0
 var hp: float = 1.0
 var killing_player: RunState
+var status: EnemyStatus = EnemyStatus.new()
 var _damage_owner: RunState
 
 var _radius: float = 12.0
 var _speed: float = 32.0
 var _has_bubble_shield: bool = false
+var _shield_regen_left: float = 0.0
 var _is_undead: bool = false
 var _attack_cooldown: float = 0.0
 var _slow_fire_cooldown: float = Config.UNDEAD_SLOW_FIRE_INTERVAL_SEC
@@ -76,8 +77,19 @@ func _physics_process(delta: float) -> void:
 	if _flash > 0.0:
 		_flash -= delta
 	queue_redraw()
+	status.update(delta, self)
+	if _dead:
+		return
+	if _shield_regen_left > 0.0:
+		_shield_regen_left -= delta
+		if _shield_regen_left <= 0.0:
+			_has_bubble_shield = true
+			AudioManager.play_at("demon_shield_regen", global_position)
+	if status.is_stunned():
+		velocity = Vector2.ZERO
+		return
 
-	var player: Player = Player.first_living_player(get_tree())
+	var player: Player = Player.nearest_living_player(get_tree(), global_position)
 	if player == null or player.is_dead():
 		velocity = Vector2.ZERO
 		return
@@ -93,7 +105,7 @@ func _physics_process(delta: float) -> void:
 			_attack_cooldown = Config.MONSTER_ATTACK_COOLDOWN_SEC
 	else:
 		var dir: Vector2 = _world.flow_direction(global_position, player.global_position) if _world != null else to_player.normalized()
-		velocity = dir * _speed
+		velocity = dir * _speed * World.terrain_speed_mult(self) * status.speed_mult()
 		if absf(velocity.x) > 8.0:
 			_facing_left = velocity.x < 0.0
 	move_and_slide()
@@ -104,7 +116,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _fire_slow_spell(target_pos: Vector2) -> void:
-	var p: Projectile = ProjectileScene.instantiate()
+	AudioManager.play_at("undead_slow_cast", global_position)
+	var p: Projectile = Config.projectile_scene().instantiate()
 	var speed_px: float = Config.tiles(Config.UNDEAD_SLOW_BOLT_SPEED_TILES)
 	p.setup(
 		global_position.direction_to(target_pos),
@@ -132,6 +145,28 @@ func get_hit_radius() -> float:
 	return _radius
 
 
+func facing_left() -> bool:
+	return _facing_left
+
+
+## A guest's copy takes its state from the host.
+func apply_net(new_hp: float, new_max_hp: float, flags: int) -> void:
+	if new_hp < hp:
+		_flash = 0.1
+	else:
+		_flash = 0.0
+	hp = new_hp
+	max_hp = new_max_hp
+	_has_bubble_shield = flags & 1 != 0
+	_facing_left = flags & 2 != 0
+	queue_redraw()
+
+
+func strip_shield() -> void:
+	_has_bubble_shield = false
+	_shield_regen_left = 0.0
+
+
 func has_bubble_shield() -> bool:
 	return _has_bubble_shield
 
@@ -147,7 +182,9 @@ func take_damage(amount: float) -> void:
 		return
 	if _has_bubble_shield:
 		_has_bubble_shield = false
+		_shield_regen_left = Config.DEMON_SHIELD_REGEN_SEC
 		_flash = 0.15
+		AudioManager.play_at("demon_shield_break", global_position)
 		GameState.spawn_floating_text(global_position + Vector2(0, -_radius), "SHIELD BREAK", Color(0.45, 0.95, 1.0))
 		queue_redraw()
 		return
@@ -162,9 +199,8 @@ func take_damage(amount: float) -> void:
 	if hp <= 0.0:
 		_dead = true
 		killing_player = _damage_owner
-		var is_demon: bool = stats != null and (stats.has_bubble_shield or stats.name == "Demon")
-		var drops_enhancer: bool = stats != null and (stats.name == "Goblin" or stats.name == "Undead")
-		died.emit(stats.gold, global_position, is_demon, drops_enhancer)
+		AudioManager.play_at(stats.name.to_lower() + "_death", global_position)
+		died.emit(stats.gold, global_position)
 		queue_free()
 
 
@@ -204,4 +240,5 @@ func _draw() -> void:
 		var top: Vector2 = Vector2(-w * 0.5, -_radius - 10.0)
 		draw_rect(Rect2(top - Vector2(1, 1), Vector2(w + 2, 5)), Color(0, 0, 0, 0.72))
 		draw_rect(Rect2(top, Vector2(w * maxf(hp, 0.0) / max_hp, 3)), Color(0.95, 0.22, 0.28))
+	status.draw(self, _radius)
 
