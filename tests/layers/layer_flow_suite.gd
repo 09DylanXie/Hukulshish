@@ -68,13 +68,12 @@ func _clear_layer(player: Player, monster_name: String, boss_hp: float, index: i
 	_check(GameState.layer_index == index, "Expected to be on layer %d" % index)
 	_check(GameState.layer_stage == RunState.LayerStage.NEST, "A new layer must start at its nest")
 	var nests: Array[Node] = get_tree().get_nodes_in_group("nests")
-	_check(nests.size() == 2, "Layer %d must have two nests, found %d" % [index, nests.size()])
+	_check(nests.size() == 2 + index, "Layer %d must have %d nests, found %d" % [index, 2 + index, nests.size()])
 	_check((nests[0] as Nest).position.distance_to((nests[1] as Nest).position) >= Config.tiles(Config.NEST_MIN_SPACING_TILES), "Nests must stay apart")
 	for standing: Node in nests:
 		_check((standing as Nest).stats.name == monster_name, "Layer %d nests must spawn %s" % [index, monster_name])
 		_check(_near_edge((standing as Nest).position), "Nests must sit near a map edge")
-	var first_nest: Nest = nests[0]
-	var nest: Nest = nests[1]
+	var nest: Nest = nests[nests.size() - 1]
 	_check(get_tree().get_nodes_in_group("bosses").is_empty(), "Old bosses must not follow the player down")
 	var mines: int = get_tree().get_nodes_in_group("gold_mines").size()
 	_check((mines > 0) == (index == 0), "Layer %d has the wrong gold mines" % index)
@@ -83,7 +82,8 @@ func _clear_layer(player: Player, monster_name: String, boss_hp: float, index: i
 	_check(player.global_position.is_equal_approx(Vector2.ZERO), "The player must arrive in the middle")
 
 	var nest_position: Vector2 = nest.position
-	first_nest.take_damage(first_nest.hp + 1.0)
+	for i in nests.size() - 1:
+		(nests[i] as Nest).take_damage((nests[i] as Nest).hp + 1.0)
 	await get_tree().physics_frame
 	await get_tree().process_frame
 	_check(GameState.layer_stage == RunState.LayerStage.NEST, "One nest left must not call the boss")

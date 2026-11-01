@@ -14,6 +14,7 @@ var _gold_label: Label
 var _spell_label: Label
 var _objective_label: Label
 var _hint_label: Label
+var _layer_title: Label
 var _pause_button: Button
 var _pause_overlay: Control
 var _slots: Array[Control] = []
@@ -59,6 +60,7 @@ func _ready() -> void:
 	_apply_crosshair_cursor()
 	_build_stats_panel()
 	_build_hint_label()
+	_build_layer_title()
 	_build_pause_ui()
 	if Config.is_touch_device():
 		_build_touch_toggles()
@@ -71,6 +73,7 @@ func _ready() -> void:
 	GameState.layer_entered.connect(_on_layer_entered)
 	_on_mana_changed(GameState.mana, GameState.max_mana(), GameState.mana_regen())
 	_refresh()
+	_show_layer_title(GameState.current_layer().name)
 
 
 func _exit_tree() -> void:
@@ -110,11 +113,17 @@ func bind_player(player: Player) -> void:
 
 func _on_endless_started() -> void:
 	_endless_banner_timer = 5.0
+	_show_layer_title("Endless")
 	_refresh()
 
 
-func _on_layer_entered(_layer: LayerData) -> void:
+func _on_layer_entered(layer: LayerData) -> void:
 	_elapsed = 0.0
+	_show_layer_title("Endless" if GameState.endless_active else layer.name)
+
+
+func _show_layer_title(title: String) -> void:
+	_layer_title.text = title
 	_layer_banner_timer = Config.LAYER_BANNER_SEC
 
 
@@ -125,9 +134,9 @@ func _process(delta: float) -> void:
 		if _endless_banner_timer > 0.0:
 			_endless_banner_timer = maxf(0.0, _endless_banner_timer - delta)
 		_layer_banner_timer = maxf(0.0, _layer_banner_timer - delta)
-	if _layer_banner_timer > 0.0:
-		_hint_label.text = "You have descended to the %s" % GameState.current_layer().name
-	elif _endless_banner_timer > 0.0:
+	# Fades out over its last second.
+	_layer_title.modulate.a = clampf(_layer_banner_timer, 0.0, 1.0)
+	if _endless_banner_timer > 0.0:
 		_hint_label.text = "ENDLESS! A stronger Mega Boss arrives every minute!"
 	elif GameState.endless_active and not GameState.mega_boss_spawned:
 		_hint_label.text = "Next Mega Boss in %ds" % ceili(GameState.endless_next_boss_sec)
@@ -210,6 +219,20 @@ func _build_stats_panel() -> void:
 	_gold_label = _label(box, "")
 	_spell_label = _label(box, "")
 	_objective_label = _label(box, "")
+
+
+func _build_layer_title() -> void:
+	_layer_title = Label.new()
+	_layer_title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_layer_title.position = Vector2(-360, 56)
+	_layer_title.custom_minimum_size = Vector2(720, 0)
+	_layer_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_layer_title.add_theme_font_size_override("font_size", 52)
+	_layer_title.add_theme_color_override("font_color", Color(0.95, 0.82, 0.32))
+	_layer_title.add_theme_color_override("font_outline_color", Color.BLACK)
+	_layer_title.add_theme_constant_override("outline_size", 8)
+	_layer_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_layer_title)
 
 
 func _build_hint_label() -> void:

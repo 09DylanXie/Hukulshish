@@ -31,6 +31,18 @@ func _ready() -> void:
 	load_preferences()
 
 
+## One more nest on each layer below the Overworld (§6.7): 2, 3, 4, 5.
+func nests_on_layer(index: int) -> int:
+	return 0 if index >= LAYERS.size() - 1 else FIRST_LAYER_NESTS + index
+
+
+func total_nests() -> int:
+	var total: int = 0
+	for index in LAYERS.size():
+		total += nests_on_layer(index)
+	return total
+
+
 func load_preferences() -> void:
 	var settings: ConfigFile = ConfigFile.new()
 	if settings.load(_preferences_path) != OK:
@@ -236,7 +248,7 @@ const NEST_HP: int = 70
 const NEST_SPAWN_DELAY_SEC: float = 5.0
 const NEST_BOSS_DELAY_SEC: float = 0.0
 const NEST_RADIUS_TILES: float = 1.0
-const NESTS_PER_LAYER: int = 2
+const FIRST_LAYER_NESTS: int = 2
 ## Nests on one layer stay at least this far apart, in tiles.
 const NEST_MIN_SPACING_TILES: float = 16.0
 ## How far inside the map edge nests sit, in tiles.
@@ -325,6 +337,18 @@ const BREATH_LENGTH_TILES: float = 16.0
 const BREATH_WIDTH_TILES: float = 1.0
 const BREATH_WARNING_SEC: float = 2.5
 const BREATH_DAMAGE: int = 3
+const HATCHLING_HP: float = 500.0
+const HATCHLING_SHIELD_HP: float = 300.0
+const HATCHLING_SPAWN_COUNT: int = 3
+const HATCHLING_SPAWN_INTERVAL_SEC: float = 5.0
+const HATCHLING_RADIUS_TILES: float = 0.7
+const HATCHLING_SPEED_TILES: float = 2.0
+const HATCHLING_KEEP_AWAY_TILES: float = 4.0
+const HATCHLING_FIRE_INTERVAL_SEC: float = 2.5
+const HATCHLING_BOLT_DAMAGE: float = 1.0
+const HATCHLING_BOLT_SPEED_TILES: float = 4.0
+const HATCHLING_BOLT_RADIUS_TILES: float = 0.15
+const HATCHLING_BOLT_RANGE_TILES: float = 12.0
 const DRAGON_RADIUS_TILES: float = 2.0
 ## It circles the player at this distance, in tiles, so it can always be hit.
 const DRAGON_ORBIT_TILES: float = 6.0

@@ -11,6 +11,7 @@ const ModPickupScene: PackedScene = preload("res://scenes/spells/ModPickup.tscn"
 const PLAYER_STRIDE: int = 8
 const MONSTER_STRIDE: int = 7
 const BOSS_STRIDE: int = 11
+const HATCHLING_STRIDE: int = 6
 const NEST_STRIDE: int = 6
 const PICKUP_STRIDE: int = 5
 ## How quickly drawn positions catch up with snapshots, per second.
@@ -57,6 +58,7 @@ func apply(data: Dictionary) -> void:
 	var seen: Dictionary = {}
 	_apply_monsters(data["m"], seen)
 	_apply_bosses(data["b"], seen)
+	_apply_hatchlings(data["h"], seen)
 	_apply_nests(data["n"], seen)
 	_apply_pickups(data["i"], seen)
 	_remove_unseen(seen)
@@ -130,6 +132,18 @@ func _apply_bosses(data: PackedFloat32Array, seen: Dictionary) -> void:
 		view.apply_net(data[i + 5], data[i + 6], data[i + 9] > 0.5)
 		if view is MegaBoss:
 			(view as MegaBoss).apply_net_phase(data[i + 7], int(data[i + 8]), data[i + 10] > 0.5)
+
+
+func _apply_hatchlings(data: PackedFloat32Array, seen: Dictionary) -> void:
+	for i in range(0, data.size(), HATCHLING_STRIDE):
+		var net_id: int = int(data[i])
+		var pos := Vector2(data[i + 1], data[i + 2])
+		seen[net_id] = true
+		if not _nodes.has(net_id):
+			_add_view(net_id, DragonHatchling.new(), pos, seen)
+		var view: DragonHatchling = _nodes[net_id]
+		_targets[view] = pos
+		view.apply_net(data[i + 3], data[i + 4], data[i + 5] > 0.5)
 
 
 func _make_boss(is_mega: bool, look: int) -> NestBoss:

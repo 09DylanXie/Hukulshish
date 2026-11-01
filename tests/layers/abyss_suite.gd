@@ -322,6 +322,37 @@ func _check_breath(breath: Cataclysm) -> void:
 	breath._update_breath(0.01)
 	_check(_player.hp == hp_before - Config.BREATH_DAMAGE, "A beam must burn whoever it sweeps over")
 	_player._iframes = 0.0
+	await _check_hatchlings()
+
+
+func _check_hatchlings() -> void:
+	await get_tree().physics_frame
+	var hatchlings: Array[Node] = get_tree().get_nodes_in_group("hatchlings")
+	_check(hatchlings.size() == Config.HATCHLING_SPAWN_COUNT, "Dragon's Breath must hatch 3, found %d" % hatchlings.size())
+	var hatchling: DragonHatchling = hatchlings[0]
+	_check(hatchling.hp == 500.0 and hatchling.shield == 300.0, "A hatchling has 500 HP and a 300 shield")
+	hatchling.take_damage(100.0)
+	_check(hatchling.shield == 200.0 and hatchling.hp == 500.0, "Its shield must take damage first")
+	hatchling.take_damage(250.0)
+	_check(hatchling.shield == 0.0 and hatchling.hp == 450.0, "Damage must carry through a broken shield")
+	hatchling._fire_timer = 0.0
+	var bolts_before: int = _enemy_bolts()
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	_check(_enemy_bolts() > bolts_before, "A hatchling must spit fireballs")
+	hatchling.take_damage(1000.0)
+	await get_tree().process_frame
+	_check(not is_instance_valid(hatchling), "A hatchling must die")
+	for node: Node in get_tree().get_nodes_in_group("hatchlings"):
+		node.free()
+
+
+func _enemy_bolts() -> int:
+	var count: int = 0
+	for child: Node in _game._entities.get_children():
+		if child is Projectile and not (child as Projectile).from_player:
+			count += 1
+	return count
 
 
 func _check_hidden_boss() -> void:

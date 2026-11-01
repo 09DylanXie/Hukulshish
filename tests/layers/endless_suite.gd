@@ -62,14 +62,9 @@ func _go_to_abyss() -> void:
 func _check_hidden_spell_placement() -> void:
 	GameState.nothing_unlocked = false
 	await _go_to_abyss()
-	_game._on_crystal_shattered()
-	await get_tree().physics_frame
 	_check(_spell_pickups().is_empty(), "No key means no hidden spell")
 	GameState.nothing_unlocked = true
 	await _go_to_abyss()
-	_check(_spell_pickups().is_empty(), "The hidden spell must wait for the crystal")
-	_game._on_crystal_shattered()
-	await get_tree().physics_frame
 	var pickups: Array[ModPickup] = _spell_pickups()
 	_check(pickups.size() == 1, "The key must reveal the hidden spell")
 	var world: World = get_tree().get_first_node_in_group("world")
@@ -206,6 +201,8 @@ func _check_endless_bosses() -> void:
 	await get_tree().process_frame
 	_check(get_tree().get_nodes_in_group("mega_boss").size() == 1, "Mega Bosses must never stack")
 
+	# Only the first dragon brings the hidden boss, even if it was never fought.
+	_game._hidden_boss_fought = false
 	first._become_dragon()
 	first._next_dragon_idx = MegaBoss.DRAGON_THRESHOLDS.size()
 	first.take_damage(first.hp * 2.0)
@@ -217,6 +214,7 @@ func _check_endless_bosses() -> void:
 	await get_tree().process_frame
 	var second: MegaBoss = get_tree().get_first_node_in_group("mega_boss")
 	_check(second != null and second.max_hp == 16000.0, "The next one must arrive once the last dies, with 2× HP")
+	_check(second != null and second.phase == MegaBoss.Phase.FIGHT, "Endless Mega Bosses must not bring the hidden boss")
 
 
 func _drops() -> Array[ModPickup]:

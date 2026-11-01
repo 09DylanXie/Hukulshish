@@ -31,7 +31,7 @@ Open Godot → **Import** → select `project.godot`.
 - **Main Menu → Rules & Guide:** An illustrated guide to everything below.
 
 ### The Five Layers
-On each of the first four layers, destroy the two nests near the map edge, defeat the crowned boss and the monsters it brings, then enter the portal where the last nest stood. Portals are one-way.
+On each of the first four layers, destroy every nest near the map edge (2 on the Overworld, one more on each layer after it), defeat the crowned boss and the monsters it brings, then enter the portal where the last nest stood. Portals are one-way.
 
 | # | Layer | Monsters | What makes it different |
 |---|---|---|---|

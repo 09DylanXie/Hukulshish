@@ -240,7 +240,7 @@ Unique spells replace Boss Spells. Bosses never drop them. One is **hidden on ea
 - **Stun:** bosses are immune. A stunned monster can't be stunned again for 2 seconds after it recovers. Without this, Earth's fire rate would freeze monsters permanently.
 
 ### 6.5 Hidden Spell: Abyssal Corruption
-- Appears only if `Nothing` was bought, at the **top of the Abyss map**, once the crystal breaks. There are no hints.
+- Appears only if `Nothing` was bought, at the **top of the Abyss map**, from the moment the player arrives. There are no hints.
 - Selected with `7` and fired at 1 mana, like a unique spell.
 - Moves at **1/2 the speed** of other spells (3.0 tiles/sec). It never homes, and it has no augments or effects.
 - **One-shots anything** except the Mega Boss and the hidden boss, including nests and floor bosses.
@@ -256,8 +256,9 @@ Unique spells replace Boss Spells. Bosses never drop them. One is **hidden on ea
 | 4 | **Pandemonium** | Demons | Reddish-brown ground with lava cracks | Black iron-bar walls | Lava. Demon shields regenerate every 9 seconds. |
 | 5 | **Abyss** | All four | Greyish-black ground | Large purple crystal in the center | No shop, no nest, no Gold Mines |
 
+- **Arrival:** a large title with the layer's name shows at the top of the screen when the player enters a layer, and `Endless` when Endless Mode begins.
 - **Spawning:** the player spawns in the **middle** of layers 1–4. In the Abyss they spawn at the **bottom** and follow a path to the center, moving at **60% speed** until the crystal breaks.
-- **Layer flow (layers 1–4):** destroy both nests, defeat the boss, collect the rewards, then enter the portal that opens **where the last nest stood**.
+- **Layer flow (layers 1–4):** destroy every nest, defeat the boss, collect the rewards, then enter the portal that opens **where the last nest stood**.
 - **Portals are one-way.** A layer can't be revisited, and anything left behind is lost.
 - **Darkness (Catacombs):** visibility radius is halved, and enemies beyond it are unseen. Vision is restored when the boss dies.
 - **Lava (Pandemonium):** thin, jagged, forking cracks. Standing on one deals **1 HP every 3 seconds** to the player unless they have an active shield. It doesn't consume shield points.
@@ -265,7 +266,7 @@ Unique spells replace Boss Spells. Bosses never drop them. One is **hidden on ea
 - **Obstacles:** trees, rocks, walls and iron bars all block movement and spells. Shoot Through Walls lets player spells pass through every one of them.
 
 ### 6.7 Nests
-- Layers 1–4 each have **two nests**, placed at random near the **4 edges** of the map, at least 16 tiles apart.
+- Layers 1–4 have **2, 3, 4 and 5 nests**, placed at random near the **4 edges** of the map, at least 16 tiles apart.
 - It spawns that layer's monster type directly from its center hole, starting **5 seconds** after the player arrives.
 - Spawn rate rises each layer: **1×, 1.5×, 2×, 2.5×** the rates in §6.8. The Abyss keeps its own rates (§6.10).
 - Nest base HP: **70** (§3), damaged by player spells via swept-segment hit detection.
@@ -337,8 +338,9 @@ Each of layers 1–4 has one boss matching its monster: **Goblin, Ogre, Undead, 
 **Phase 2 (Dragon):**
 - Revives to full HP and transforms into a dragon that moves around the map **over walls**.
 - Stops spawning anything. Monsters already alive remain.
-- **Cataclysms:** at 75% HP the Inferno (fire lines radiating from it, plus meteors), at 50% Dragon's Breath (3 fire beams sweeping around it for 3 damage, after a warning), and at 25% The Sky Falls (The Collapse plus meteors).
+- **Cataclysms:** at 75% HP the Inferno (fire lines radiating from it, plus meteors), at 50% Dragon's Breath (3 fire beams sweeping around it for 3 damage, after a warning, while it hatches dragon hatchlings), and at 25% The Sky Falls (The Collapse plus meteors).
 - It has **no shield** and **no melee**. Fire is its only attack.
+- **Dragon hatchlings:** once the beams start, 3 hatch every 5 seconds until Dragon's Breath ends. Each has **500 HP** and a **300 HP shield**, flies over walls, keeps about 4 tiles away, and spits a 1-damage fireball every 2.5 seconds. They stay until killed and drop nothing.
 - It moves at its phase 1 speed and stays near the player so it can be hit.
 - **Fire lines:** 5 seconds after the previous line finishes, a line lights up on the ground for **3 seconds**, then fire engulfs it for **3 seconds**.
   - **Aim:** the line runs from the dragon's position through the player's position, both fixed when it lights up.
@@ -366,7 +368,7 @@ Each of layers 1–4 has one boss matching its monster: **Goblin, Ogre, Undead, 
 - **Underworld:** rigid walls.
 - **Catacombs:** a tighter maze.
 - **Pandemonium:** black iron-bar walls, with lava cracks across the floor.
-- **Abyss:** a fixed shape rather than random terrain. A 5-tile-wide corridor of jagged rock runs from the bottom edge to a circular arena around the crystal, with a radius of 35% of the map size. A second corridor runs from the top of the arena to the top of the map, where the hidden spell sits. The hidden spell appears when the crystal breaks, so reaching it means crossing the fight.
+- **Abyss:** a fixed shape rather than random terrain. A 5-tile-wide corridor of jagged rock runs from the bottom edge to a circular arena around the crystal, with a radius of 35% of the map size. A second corridor runs from the top of the arena to the top of the map, where the hidden spell sits. The crystal only breaks when touched, so a player who bought `Nothing` can collect the spell before starting the fight.
 - Nests, unique spells and the path to them must always be reachable.
 
 ### 6.13 Endless Mode

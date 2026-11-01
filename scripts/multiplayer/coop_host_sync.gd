@@ -41,11 +41,14 @@ func build() -> Dictionary:
 	var portal := PackedFloat32Array()
 	var hazards := PackedFloat32Array()
 	var arcs := PackedFloat32Array()
+	var hatchlings := PackedFloat32Array()
 	for node: Node in game.entity_nodes():
 		if node is Monster:
 			_add_monster(monsters, node as Monster)
 		elif node is MegaBoss or node is NestBoss:
 			_add_boss(bosses, node as NestBoss)
+		elif node is DragonHatchling:
+			_add_hatchling(hatchlings, node as DragonHatchling)
 		elif node is Nest:
 			_add_nest(nests, node as Nest)
 		elif node is Projectile:
@@ -83,6 +86,7 @@ func build() -> Dictionary:
 		"o": portal,
 		"c": hazards,
 		"a": arcs,
+		"h": hatchlings,
 		"r": _run_state(),
 	}
 
@@ -128,6 +132,10 @@ func _add_boss(data: PackedFloat32Array, boss: NestBoss) -> void:
 		1.0 if boss.facing_left() else 0.0,
 		1.0 if is_mega and (boss as MegaBoss).in_cataclysm() else 0.0,
 	])
+
+
+func _add_hatchling(data: PackedFloat32Array, hatchling: DragonHatchling) -> void:
+	data.append_array([_net_id(hatchling), hatchling.position.x, hatchling.position.y, hatchling.hp, hatchling.shield, 1.0 if hatchling.facing_left() else 0.0])
 
 
 func _add_nest(data: PackedFloat32Array, nest: Nest) -> void:

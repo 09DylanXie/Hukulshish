@@ -209,7 +209,7 @@ func _run_guest() -> void:
 	await _until(func() -> bool: return GameState.layer_index == 1 and GameState.current_layer().name == "Underworld", "the team to descend")
 	await get_tree().create_timer(0.4).timeout
 	print("WORLD %d" % _world_hash())
-	_check(get_tree().get_nodes_in_group("nests").size() == Config.NESTS_PER_LAYER, "the new nests must appear here")
+	_check(get_tree().get_nodes_in_group("nests").size() == Config.nests_on_layer(1), "the new nests must appear here")
 
 	if _role == "guest3":
 		await get_tree().create_timer(0.5).timeout

@@ -203,7 +203,7 @@ func _build_tab_layers() -> Control:
 
 	right.add_child(_section_title("Descend Through Five Layers", Color(0.72, 0.5, 1.0)))
 	right.add_child(_body_text(
-		"On each of the first four layers: destroy both nests near the map edge, defeat the boss, collect the rewards, then enter the portal where the last nest stood.\n" +
+		"On each of the first four layers: destroy every nest near the map edge, defeat the boss, collect the rewards, then enter the portal where the last nest stood.\n" +
 		"Portals are one-way, and anything you leave behind is lost."
 	))
 
@@ -214,7 +214,7 @@ func _build_tab_layers() -> Control:
 		"3. Catacombs (Undead): A tight maze of bone and iron bars. Darkness halves your vision until the boss dies.\n" +
 		"4. Pandemonium (Demons): Iron bars and lava cracks. Lava burns 1 HP every 3s unless you have a shield, and doesn't use it up.\n" +
 		"5. Abyss: No shop! The walk is slow. Follow the path to the purple crystal and touch it to wake the Mega Boss.\n" +
-		"Nests spawn faster on every layer: 1×, 1.5×, 2×, then 2.5×."
+		"Each layer adds a nest (2, 3, 4, then 5), and nests spawn faster: 1×, 1.5×, 2×, then 2.5×."
 	))
 
 	right.add_child(_section_title("Playing Together", Color(0.45, 0.85, 1.0)))
@@ -338,7 +338,7 @@ func _build_tab_enemies_and_bosses() -> Control:
 	right.add_child(_section_title("The Final Fight", Color(1.0, 0.3, 0.3)))
 	right.add_child(_body_text(
 		"• Mega Boss (8000 HP): Its Shield regenerates at 75%, 50% and 25% HP, and each time it summons a Floor Boss and turns invulnerable for a 20s Cataclysm: dodge the marked meteors, stand in the gaps of the shockwaves, and stay inside the safe circle. A fourth boss arrives at 0%.\n" +
-		"• Dragon: Once all four summons are dead, it rises at full HP with three Cataclysms of its own, at 75%, 50% and 25% HP. Fire lines glow for 3s, then burn for 3s. Fire breaks your shield first, then burns 3 HP/s.\n" +
+		"• Dragon: Once all four summons are dead, it rises at full HP with three Cataclysms of its own, at 75%, 50% and 25% HP. During Dragon's Breath it hatches small dragons that spit fireballs. Fire lines glow for 3s, then burn for 3s. Fire breaks your shield first, then burns 3 HP/s.\n" +
 		"• Endless Mode: After the dragon you return to the Overworld. Mega Bosses arrive every minute with growing HP, one at a time. Nothing drops, so only your mines earn gold."
 	))
 	return hbox

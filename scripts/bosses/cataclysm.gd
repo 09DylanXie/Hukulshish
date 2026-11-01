@@ -50,6 +50,7 @@ var _collapse_warning: float = Config.COLLAPSE_WARNING_SEC
 var _collapse_tick: float = 0.0
 var _beam_angle: float = randf() * TAU
 var _beam_warning: float = Config.BREATH_WARNING_SEC
+var _hatch_timer: float = 0.0
 
 
 func _ready() -> void:
@@ -222,6 +223,13 @@ func _update_breath(delta: float) -> void:
 			AudioManager.play("fire_line_burn")
 		return
 	_beam_angle += Config.BREATH_TURN_SPEED * delta
+	_hatch_timer -= delta
+	if _hatch_timer <= 0.0:
+		_hatch_timer = Config.HATCHLING_SPAWN_INTERVAL_SEC
+		for _i in Config.HATCHLING_SPAWN_COUNT:
+			var hatchling := DragonHatchling.new()
+			hatchling.position = position + Vector2.from_angle(randf() * TAU) * Config.tiles(randf_range(2.5, 4.0))
+			get_parent().add_child(hatchling)
 	var reach: float = Config.tiles(Config.BREATH_WIDTH_TILES * 0.5 + Config.PLAYER_RADIUS_TILES)
 	for player: Player in _targets():
 		for i in Config.BREATH_BEAMS:

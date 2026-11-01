@@ -402,8 +402,8 @@ func _corrupt(target: Node) -> void:
 	if target is MegaBoss:
 		_progress().deal_damage(target, _progress().combined_spell_damage())
 		return
-	if target is Monster:
-		(target as Monster).strip_shield()
+	if target.has_method("strip_shield"):
+		target.call("strip_shield")
 	_progress().deal_damage(target, float(target.get("hp")) * 2.0 + 1.0)
 
 

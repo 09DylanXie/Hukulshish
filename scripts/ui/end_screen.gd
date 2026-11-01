@@ -9,7 +9,7 @@ func _ready() -> void:
 	var title: String = "Victory!" if is_victory else "Game Over"
 	var sub: String = "The dragon is slain and the kingdom is safe." if is_victory else "Hukulshish has fallen."
 	var box: VBoxContainer = UIKit.make_centered_menu(self, title, sub)
-	box.add_child(UIKit.make_label("Nests destroyed: %d / %d    Bosses defeated: %d" % [GameState.nests_destroyed, Config.NESTS_PER_LAYER * (Config.LAYERS.size() - 1), GameState.bosses_defeated], 18))
+	box.add_child(UIKit.make_label("Nests destroyed: %d / %d    Bosses defeated: %d" % [GameState.nests_destroyed, Config.total_nests(), GameState.bosses_defeated], 18))
 	box.add_child(UIKit.make_label("Spell level: %d    Unique spells: %d    Gold: %d" % [GameState.spell_level, GameState.unique_spells.size(), GameState.gold], 18))
 	if is_victory:
 		for line: String in Config.CREDITS:

@@ -625,6 +625,26 @@ def dragon(rng):
 	return image
 
 
+@art("dragon_hatchling", BOSSES)
+def dragon_hatchling(rng):
+	"""A runt of the big dragon: big head, stubby body, small wings."""
+	image = Image(56, 48)
+	bat_wing(image, (24, 22), (17, 13), (11, 4), [(1, 8), (3, 18), (11, 24)], DRAGON_WING_NEAR, DRAGON_SCALES[4])
+	scaled_limb(image, [(18, 30, 5), (10, 34, 3), (5, 41, 2), (10, 45, 1)], rng, 1.0)
+	scaled_limb(image, [(18, 29, 7), (28, 28, 8)], rng, -1.0)
+	clawed_leg(image, [(20, 33, 3), (19, 41, 2)], rng)
+	clawed_leg(image, [(30, 33, 3), (31, 41, 2)], rng)
+	scaled_limb(image, [(30, 26, 5), (35, 19, 4), (38, 13, 4)], rng, -1.0)
+	polygon(image, [(35, 7), (46, 6), (55, 12), (53, 15), (45, 17), (35, 18)], DRAGON_SCALES[3])
+	polygon(image, [(35, 7), (46, 6), (55, 12), (45, 11), (37, 12)], DRAGON_SCALES[4])
+	polygon(image, [(38, 17), (46, 19), (51, 22), (49, 24), (38, 22)], DRAGON_SCALES[2])
+	polygon(image, [(37, 8), (31, 1), (28, 2), (34, 10)], DRAGON_BONE)
+	polygon(image, [(43, 8), (40, 13), (46, 12)], (255, 226, 80, 255))
+	image.set(44, 10, (20, 8, 8, 255))
+	image.outline()
+	return image
+
+
 @art("hidden_boss", BOSSES)
 def hidden_boss(rng):
 	"""What's left inside the dragon: a shrouded thing with a shard crown and too many eyes."""
