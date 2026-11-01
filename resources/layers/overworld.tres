@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="LayerData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/layer_data.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/monsters/goblin.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/spells/water.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+unique_spell = ExtResource("3")
+name = "Overworld"
+terrain = 1
+monster = ExtResource("2")
+has_castle = true
+has_gold_mines = true
+floor_texture = "res://assets/tilesets/grass_tile.png"
+backdrop_color = Color(0.05, 0.2, 0.09, 1)

@@ -1,24 +1,58 @@
 class_name Player
 extends CharacterBody2D
-## The mage Hukulshish. WASD / virtual joystick movement; spells fire automatically (SpellCaster child).
+## The mage Hukulshish. WASD movement; click to shoot the selected spell, or hold E to shoot them all.
+## Starts with 7 max HP (upgradable in the shop to 8 → 9 → 12 without instant heal); shops heal up to 75%.
 
 signal hp_changed(hp: int, max_hp: int)
+signal shield_changed(shield: int, max_shield: int)
 signal died
+signal revived
 
 const SpellCasterScript: GDScript = preload("res://scripts/spells/spell_caster.gd")
+## Guest prediction: small gaps from the host are eased away, and big ones jump.
+const NET_SNAP_DISTANCE: float = 96.0
+const NET_NUDGE_DISTANCE: float = 6.0
+const NET_NUDGE_WEIGHT: float = 0.15
 
 var max_hp: int = Config.PLAYER_MAX_HP
 var hp: int = Config.PLAYER_MAX_HP
+var max_shield: int = Config.PLAYER_MAX_SHIELD
+var shield: int = 0
 ## Map area the player is kept inside. Set by Game; empty = unlimited.
 var bounds: Rect2 = Rect2()
+## Assigned before entering the tree. Null keeps the single-player GameState behavior.
+var progress: RunState
+var accepts_local_input: bool = true
+var respawn_pending: bool = false
+var remote_move_direction: Vector2 = Vector2.ZERO
+var remote_aim_position: Vector2 = Vector2.ZERO
+var remote_fire_pressed: bool = false
+var remote_fire_all: bool = false
+## On guests, every player is a view of the host's. Only the local one predicts its own movement.
+var net_view: bool = false
+## Waiting for teammates after entering a portal.
+var in_void: bool = false
+## Tells teammates apart. Clear in single player.
+var team_color: Color = Color.TRANSPARENT
 
 var _iframes: float = 0.0
+var _regen_timer: float = 0.0
+var _slow_timer: float = 0.0
+var _lava_timer: float = 0.0
 var _dead: bool = false
 var _radius: float = Config.tiles(Config.PLAYER_RADIUS_TILES)
 var _facing: Vector2 = Vector2.RIGHT
+var _aim_dir: Vector2 = Vector2.RIGHT
+var _walk_t: float = 0.0
+var _camera: Camera2D
+var _shake_intensity: float = 0.0
+var _shake_timer: float = 0.0
 
 
 func _ready() -> void:
+	if progress == null:
+		progress = GameState
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_to_group("player")
 	collision_layer = Config.LAYER_PLAYER
 	collision_mask = Config.LAYER_WORLD
@@ -30,33 +64,108 @@ func _ready() -> void:
 	shape.shape = circle
 	add_child(shape)
 
-	var camera := Camera2D.new()
-	camera.zoom = Vector2(2, 2)
-	camera.position_smoothing_enabled = true
+	_camera = Camera2D.new()
+	_camera.enabled = accepts_local_input
+	_camera.zoom = Vector2(2, 2)
+	_camera.position_smoothing_enabled = true
 	if bounds.has_area():
-		camera.limit_left = int(bounds.position.x)
-		camera.limit_top = int(bounds.position.y)
-		camera.limit_right = int(bounds.end.x)
-		camera.limit_bottom = int(bounds.end.y)
-	add_child(camera)
+		_camera.limit_left = int(bounds.position.x)
+		_camera.limit_top = int(bounds.position.y)
+		_camera.limit_right = int(bounds.end.x)
+		_camera.limit_bottom = int(bounds.end.y)
+	add_child(_camera)
 
-	var caster: Node2D = SpellCasterScript.new()
-	caster.name = "SpellCaster"
-	add_child(caster)
+	if not net_view:
+		var caster: Node2D = SpellCasterScript.new()
+		caster.name = "SpellCaster"
+		add_child(caster)
 
+	max_hp = progress.player_max_hp()
+	hp = max_hp
+	progress.changed.connect(_on_game_state_changed)
+	progress.screen_shake_requested.connect(_on_screen_shake_requested)
+	Config.preferences_changed.connect(_on_preferences_changed)
 	hp_changed.emit(hp, max_hp)
+	shield_changed.emit(shield, max_shield)
+
+
+func _on_screen_shake_requested(intensity: float, duration: float) -> void:
+	if Config.screen_shake_strength <= 0.0:
+		return
+	_shake_intensity = maxf(_shake_intensity, intensity)
+	_shake_timer = maxf(_shake_timer, duration)
+
+
+func _on_preferences_changed() -> void:
+	# Clearing the offset here also works while the simulation is paused.
+	if Config.screen_shake_strength <= 0.0:
+		_shake_intensity = 0.0
+		_shake_timer = 0.0
+		if _camera != null:
+			_camera.offset = Vector2.ZERO
+
+
+func _on_game_state_changed() -> void:
+	if net_view:
+		return
+	var new_max: int = progress.player_max_hp()
+	if new_max != max_hp:
+		# Buying Max HP increases the cap (7 → 8 → 9 → 12) without instantly healing current HP.
+		max_hp = new_max
+		hp = mini(hp, max_hp)
+		hp_changed.emit(hp, max_hp)
 
 
 func _physics_process(delta: float) -> void:
+	if in_void or (net_view and not accepts_local_input):
+		return
 	if _dead:
 		return
-	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var to_mouse: Vector2 = (get_global_mouse_position() if accepts_local_input else remote_aim_position) - global_position
+	if to_mouse.length_squared() > 1.0:
+		_aim_dir = to_mouse.normalized()
+
+	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down") if accepts_local_input else remote_move_direction.limit_length(1.0)
+	if progress.coop_mode and (progress.castle_menu_open or progress.pause_menu_open):
+		input = Vector2.ZERO
 	if input != Vector2.ZERO:
 		_facing = input.normalized()
-	velocity = input * Config.tiles(Config.PLAYER_SPEED_TILES)
+		_walk_t += delta * 12.0
+	else:
+		_walk_t += delta * 2.5
+
+	if _shake_timer > 0.0 and _camera != null:
+		_shake_timer = maxf(0.0, _shake_timer - delta)
+		_camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake_intensity * Config.screen_shake_strength
+		if _shake_timer <= 0.0:
+			_shake_intensity = 0.0
+			_camera.offset = Vector2.ZERO
+
+	if _slow_timer > 0.0:
+		_slow_timer = maxf(0.0, _slow_timer - delta)
+	var slow_mult: float = Config.UNDEAD_SLOW_SPEED_MULT if _slow_timer > 0.0 else 1.0
+	if GameState.in_abyss_approach():
+		slow_mult *= Config.ABYSS_APPROACH_SPEED_MULT
+
+	velocity = input * Config.tiles(progress.player_speed_tiles() * slow_mult) * World.terrain_speed_mult(self)
 	move_and_slide()
+	if net_view:
+		queue_redraw()
+		return
 	if bounds.has_area():
 		global_position = global_position.clamp(bounds.position + Vector2.ONE * _radius, bounds.end - Vector2.ONE * _radius)
+
+	_update_lava(delta)
+
+	# Personal Shop Health Regen: +1 HP / 10 secs per upgrade
+	var regen_hp: int = progress.health_regen_per_10s()
+	if regen_hp > 0 and hp < max_hp:
+		_regen_timer += delta
+		if _regen_timer >= Config.HEALTH_REGEN_INTERVAL_SEC:
+			_regen_timer -= Config.HEALTH_REGEN_INTERVAL_SEC
+			heal_amount(regen_hp)
+	else:
+		_regen_timer = 0.0
 
 	if _iframes > 0.0:
 		_iframes -= delta
@@ -66,31 +175,257 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 
-func take_damage(amount: int) -> void:
-	if _dead or _iframes > 0.0:
+## An active shield protects from lava without being used up.
+func _update_lava(delta: float) -> void:
+	if shield > 0 or not World.is_on_lava(self):
+		_lava_timer = 0.0
 		return
-	hp = maxi(0, hp - amount)
+	_lava_timer += delta
+	if _lava_timer >= Config.LAVA_DAMAGE_INTERVAL_SEC and _iframes <= 0.0:
+		_lava_timer = 0.0
+		take_damage(Config.LAVA_DAMAGE)
+
+
+## Applies the Undead 0-damage slow spell effect to the player.
+func apply_slow(duration: float) -> void:
+	if _dead:
+		return
+	_slow_timer = maxf(_slow_timer, duration)
+	queue_redraw()
+
+
+func get_wand_tip_global(dir_override: Vector2 = Vector2.ZERO) -> Vector2:
+	var d: Vector2 = dir_override.normalized() if dir_override != Vector2.ZERO else _aim_dir
+	return global_position + Config.get_staff_gem_offset(_radius, d)
+
+
+func take_damage(amount: float) -> void:
+	if _dead or _iframes > 0.0 or amount <= 0.0:
+		return
+	var dmg: int = maxi(1, int(round(amount)))
+	if shield > 0:
+		var absorbed: int = mini(shield, dmg)
+		shield -= absorbed
+		dmg -= absorbed
+		shield_changed.emit(shield, max_shield)
+	if dmg > 0:
+		hp = maxi(0, hp - dmg)
+		hp_changed.emit(hp, max_hp)
+		AudioManager.play_at("player_hurt", global_position)
+	else:
+		AudioManager.play_at("shield_hit", global_position)
+	progress.request_shake(5.0, 0.2)
 	_iframes = Config.PLAYER_IFRAMES_SEC
-	hp_changed.emit(hp, max_hp)
+	queue_redraw()
 	if hp <= 0:
 		_dead = true
+		velocity = Vector2.ZERO
+		modulate.a = 1.0
+		AudioManager.play_at("player_death", global_position)
 		died.emit()
-		GameState.on_player_died()
+		progress.on_player_died()
+
+
+## The dragon's fire must break the shield before it can touch HP (§6.10).
+func take_fire_tick() -> void:
+	if _dead:
+		return
+	if shield > 0:
+		shield = maxi(0, shield - Config.DRAGON_FIRE_SHIELD_DAMAGE)
+		shield_changed.emit(shield, max_shield)
+		AudioManager.play_at("shield_hit", global_position)
+		queue_redraw()
+	else:
+		take_damage(Config.DRAGON_FIRE_HP_DAMAGE)
+
+
+## Moves the player to their arrival point on a new layer.
+func place_at(pos: Vector2) -> void:
+	_leave_void()
+	global_position = pos
+	velocity = Vector2.ZERO
+	if _camera != null:
+		_camera.reset_smoothing()
+
+
+## Called by the authoritative co-op controller after its castle respawn timer.
+func revive_at_castle(castle_position: Vector2) -> bool:
+	if progress == null or not progress.coop_mode or progress.run_over or not _dead:
+		return false
+	global_position = castle_position
+	velocity = Vector2.ZERO
+	hp = mini(max_hp, int(Config.COOP_RULES.revival_restored_hp))
+	shield = 0
+	_dead = false
+	respawn_pending = false
+	_iframes = 0.0
+	_slow_timer = 0.0
+	_regen_timer = 0.0
+	modulate.a = 1.0
+	hp_changed.emit(hp, max_hp)
+	shield_changed.emit(shield, max_shield)
+	AudioManager.play_at("revive", global_position)
+	revived.emit()
+	queue_redraw()
+	return true
+
+
+## Adds shield points up to `max_shield` (5). Returns false if already full.
+func add_shield(amount: int) -> bool:
+	if _dead or shield >= max_shield:
+		return false
+	shield = mini(max_shield, shield + amount)
+	shield_changed.emit(shield, max_shield)
+	queue_redraw()
+	return true
+
+
+## Heals the player by `amount` up to `max_hp` (used by 3 HP healing potions and Health Regen).
+func heal_amount(amount: int) -> bool:
+	if _dead or hp >= max_hp:
+		return false
+	hp = mini(max_hp, hp + amount)
+	hp_changed.emit(hp, max_hp)
+	AudioManager.play_at("heal", global_position)
+	return true
+
+
+## Heals the player up to 75% of max HP when entering a shop stall (§6.3). Never reduces HP.
+func heal_at_shop() -> void:
+	if _dead:
+		return
+	var cap: int = ceili(max_hp * Config.SHOP_HEAL_FRACTION)
+	if hp < cap:
+		hp = cap
+		hp_changed.emit(hp, max_hp)
+		AudioManager.play_at("heal", global_position)
 
 
 func is_dead() -> bool:
 	return _dead
 
 
+func is_targetable() -> bool:
+	return not _dead and not in_void
+
+
+## Monsters skip bodies and players waiting in the void.
+static func nearest_living_player(tree: SceneTree, from: Vector2) -> Player:
+	var nearest: Player
+	var nearest_distance: float = INF
+	for node: Node in tree.get_nodes_in_group("player"):
+		var player: Player = node as Player
+		if player == null or not player.is_targetable():
+			continue
+		var distance: float = from.distance_squared_to(player.global_position)
+		if distance < nearest_distance:
+			nearest = player
+			nearest_distance = distance
+	return nearest
+
+
+# --- Co-op ---
+
+func enter_void() -> void:
+	if in_void:
+		return
+	in_void = true
+	velocity = Vector2.ZERO
+	visible = false
+	collision_layer = 0
+
+
+func _leave_void() -> void:
+	in_void = false
+	visible = true
+	if not net_view:
+		collision_layer = Config.LAYER_PLAYER
+
+
+func aim_angle() -> float:
+	return _aim_dir.angle()
+
+
+func net_flags() -> int:
+	return (1 if _dead else 0) | (2 if respawn_pending else 0) | (4 if in_void else 0) | (8 if _slow_timer > 0.0 else 0)
+
+
+## Applies the host's truth to a guest's view. Other players are smoothed by CoopGuestView, and the
+## local player, who already moved on prediction, is nudged back only if the two disagree.
+func apply_net(pos: Vector2, angle: float, new_hp: int, new_max_hp: int, new_shield: int, flags: int) -> void:
+	_aim_dir = Vector2.from_angle(angle)
+	if new_hp != hp or new_max_hp != max_hp:
+		hp = new_hp
+		max_hp = new_max_hp
+		hp_changed.emit(hp, max_hp)
+	if new_shield != shield:
+		shield = new_shield
+		shield_changed.emit(shield, max_shield)
+	_dead = flags & 1 != 0
+	respawn_pending = flags & 2 != 0
+	in_void = flags & 4 != 0
+	visible = not in_void
+	_slow_timer = 0.2 if flags & 8 != 0 else 0.0
+	if accepts_local_input:
+		var error: float = global_position.distance_to(pos)
+		if error > NET_SNAP_DISTANCE or _dead:
+			global_position = pos
+		elif error > NET_NUDGE_DISTANCE:
+			global_position = global_position.lerp(pos, NET_NUDGE_WEIGHT)
+	queue_redraw()
+
+
+## Kept for tests and single-target logic: the first player who can still be chased.
+static func first_living_player(tree: SceneTree) -> Player:
+	return nearest_living_player(tree, Vector2.ZERO)
+
+
 func _draw() -> void:
-	# Robe
-	draw_circle(Vector2.ZERO, _radius, Color(0.25, 0.3, 0.85))
-	# Hat
-	var hat := PackedVector2Array([
-		Vector2(-_radius * 0.9, -_radius * 0.3),
-		Vector2(_radius * 0.9, -_radius * 0.3),
-		Vector2(_radius * 0.2, -_radius * 1.8),
-	])
-	draw_colored_polygon(hat, Color(0.45, 0.2, 0.75))
-	# Facing indicator
-	draw_circle(_facing * _radius * 0.6, _radius * 0.25, Color(1, 0.95, 0.6))
+	if _dead and progress != null and progress.coop_mode:
+		draw_circle(Vector2.ZERO, _radius, Color(0.35, 0.18, 0.25, 0.8))
+		draw_line(Vector2(-_radius, -_radius), Vector2(_radius, _radius), Color.LIGHT_CORAL, 3.0)
+		draw_line(Vector2(-_radius, _radius), Vector2(_radius, -_radius), Color.LIGHT_CORAL, 3.0)
+		var caption: String = "Returning to castle" if respawn_pending else "Downed"
+		draw_string(ThemeDB.fallback_font, Vector2(-_radius * 2.0, -_radius * 1.5), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 12)
+		return
+	if team_color.a > 0.0:
+		draw_arc(Vector2.ZERO, _radius * 1.25, 0.0, TAU, 24, team_color, 2.0)
+	# Flat elliptical ground shadow right under the mage's feet
+	Config.draw_ground_shadow(self, _radius, _radius * 0.72, 0.34)
+
+	# Frost aura when slowed by Undead slow spell
+	if _slow_timer > 0.0:
+		draw_circle(Vector2.ZERO, _radius * 1.48, Color(0.35, 0.9, 1.0, 0.25))
+		draw_arc(Vector2.ZERO, _radius * 1.48, 0.0, TAU, 28, Color(0.55, 0.95, 1.0, 0.9), 2.0)
+	# Magic shield aura when shield > 0
+	if shield > 0:
+		draw_circle(Vector2.ZERO, _radius * 1.38, Color(0.2, 0.7, 1.0, 0.22))
+		draw_arc(Vector2.ZERO, _radius * 1.38, 0.0, TAU, 28, Color(0.3, 0.85, 1.0, 0.85), 2.0)
+
+	var staff_dir: Vector2 = _aim_dir if _aim_dir != Vector2.ZERO else _facing
+	var bob: float = sin(_walk_t) * 1.4 if velocity.length_squared() > 4.0 else sin(_walk_t) * 0.5
+
+	# Mage pixel-art sprite centered squarely on the (0, 0) hitbox
+	var tex: Texture2D = Config.get_tex("res://assets/sprites/player/player_mage.png")
+	if tex != null:
+		var flip_left: bool = staff_dir.x < -0.05
+		Config.draw_sprite_centered(
+			self,
+			tex,
+			Vector2(0, bob),
+			Vector2(_radius * 2.55, _radius * 2.55),
+			Color.WHITE,
+			flip_left
+		)
+	else:
+		draw_circle(Vector2.ZERO, _radius, Color(0.25, 0.3, 0.85))
+		var hat := PackedVector2Array([
+			Vector2(-_radius * 0.9, -_radius * 0.3),
+			Vector2(_radius * 0.9, -_radius * 0.3),
+			Vector2(_radius * 0.2, -_radius * 1.8),
+		])
+		draw_colored_polygon(hat, Color(0.45, 0.2, 0.75))
+
+	# Main-hand Sapphire Rhombus Staff + Offhand Open Magic Tome
+	Config.draw_mage_loadout(self, Vector2.ZERO, _radius, staff_dir, bob, false, 1.0)
+

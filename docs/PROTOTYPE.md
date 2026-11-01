@@ -1,56 +1,42 @@
-# Prototype Notes
+# Playtest Notes
 
-First playable prototype of Normal mode (milestones 1–9 from `AGENTS.md` §8), built for **Godot 4.7.2**.
-All visuals are placeholder shapes drawn in code (`_draw()`), so no art assets are needed yet.
+How to try the game quickly. `AGENTS.md` has the full rules.
 
-## How to play
+## Running it
 
-- **Start → Map Size → Difficulty**, then the run begins.
-- **WASD / arrow keys** to move. On touch devices, drag on the left half of the screen (virtual joystick).
-- Spells fire automatically at the nearest monster, boss or nest in range.
-- Walk **out of and back into the castle** to open the upgrade menu (the game pauses). `Esc` or *Leave Castle* closes it.
-- Destroyed nests have a 1-in-3 chance to drop a spell mod (glowing diamond). Pick it up, then apply it at the castle.
-- Win by destroying all 4 nests **and** the 4 bosses that appear 20 s later. Lose if your HP reaches 0.
+Open the project in **Godot 4.7.2** and press Play, or press F6 on `scenes/main/Game.tscn` to skip the menus (Medium map, Medium difficulty).
 
-## Code map
+**Sandbox** on the Difficulty screen gives infinite gold, scrolls, Enhancers, mana and hotbar items, which is the fastest way to reach later layers.
 
-| Piece | Scene | Script |
-|---|---|---|
-| Autoloads | — | `scripts/autoload/config.gd`, `game_state.gd`, `scene_router.gd` |
-| Data classes | — | `scripts/resources/*.gd` (`MonsterStats`, `SpellData`, `DifficultyData`, `MapSizeData`) |
-| Balance data | — | `resources/{monsters,spells,difficulty,maps}/*.tres` |
-| Menus | `scenes/ui/MainMenu.tscn`, `MapSizeSelect`, `DifficultySelect`, `GameOver`, `Victory` | `scripts/ui/*.gd` (built with `UIKit`) |
-| Run root | `scenes/main/Game.tscn` | `scripts/main/game.gd` |
-| Map | `scenes/world/World.tscn` | `scripts/world/world.gd` |
-| Player | `scenes/player/Player.tscn` | `scripts/player/player.gd`, `scripts/spells/spell_caster.gd` |
-| Spells | `scenes/spells/Projectile.tscn`, `ModPickup.tscn` | `scripts/spells/*.gd` |
-| Monsters / nests / bosses | `scenes/monsters/Monster.tscn`, `scenes/nests/Nest.tscn`, `scenes/bosses/NestBoss.tscn` | matching `scripts/` folders |
-| Castle | `scenes/castle/Castle.tscn` | `scripts/castle/castle.gd` |
-| HUD / castle menu / joystick | `scenes/ui/HUD.tscn`, `CastleMenu.tscn`, `VirtualJoystick.tscn` | `scripts/ui/*.gd` |
+## What to look at
 
-Scenes are just a root node + script; children (collision shapes, camera, UI) are built in code so the
-`.tscn` files almost never change → fewer merge conflicts.
+- **Balance:** every number is a first pass. The most useful feedback is how much gold a full run earns against the `37,400` the Base Spell costs, and how far Augmentation Scrolls stretch.
+- **Fire lines:** three burn ticks deal `9 HP`, enough to kill a player without a shield or Max HP upgrades.
+- **Lava and darkness:** check that lava isn't too dense and that the Catacombs' vision radius (`7.5` tiles) feels fair.
+- **Sound:** every effect is generated, so listen for anything harsh, especially full spell volleys and the fire lines.
 
-## Placeholder values (answers needed — AGENTS.md §9)
+## Automated tests
 
-Every one of these is a `# TODO(design)` constant in `scripts/autoload/config.gd` or a `.tres` file.
+Run any of these headless. Each suite prints its failure count and exits non-zero on failure.
 
-| Question | Placeholder used |
+```powershell
+& 'C:\path\Godot.exe' --headless --path . --script res://tests/layers/layer_flow_test.gd
+```
+
+| Script | Covers |
 |---|---|
-| Q1 Upgrade cost | `5 × 2^(level−1)` gold (5, 10, 20, 40 …) |
-| Q2 Magic Missile stats | 2 tiles/sec, 1 shot/sec, copies base damage |
-| Q3 Level 7 damage | +2 step (1, 3, 5, 7, 9, 11, 13, 18, 23) |
-| Q4 Difficulty scope / rounding | Monsters only; HP rounded **up** |
-| Q5 Map sizes | Small 40, Medium 60, Large 80 tiles |
-| Q6 Fire rates | Base spell & mods 1 shot/sec; boss bolt every 2 s |
-| Q7 Melee / i-frames | Monster attack cooldown 1 s; player i-frames 0.5 s |
-| Q8 Boss | 0.5× player speed, aims at player, drops 10 gold |
-| Q9 Nest → monster | One class per nest (TL Goblin, TR Undead, BL Ogre, BR Demon) |
-| Q10 Castle interaction | Walk in (after leaving once) |
-| — Auto-aim range | 10 tiles (nests are valid targets too) |
-| — Projectile lifetime | 12 s |
-| — Max alive per nest | 25 (performance cap) |
-| — Camera zoom | 2× |
+| `tests/load_order_test.gd` | Every preloaded scene loads when the game starts from the Main Menu |
+| `tests/layers/layer_flow_test.gd` | The descent: nest, boss, drops, portal, next layer |
+| `tests/layers/overworld_terrain_test.gd` | Overworld generation, rivers, spell blocking |
+| `tests/layers/lower_layers_test.gd` | Maze layers, darkness, lava, demon shields |
+| `tests/layers/abyss_test.gd` | The final fight, from crystal to white flash |
+| `tests/layers/endless_test.gd` | Endless Mode |
+| `tests/economy/economy_test.gd` | Upgrades, drops, shops, mines, spell selection, the Doppelganger, homing |
+| `tests/spells/unique_spells_test.gd` | Unique spells and status effects |
+| `tests/audio/audio_manager_test.gd` | Sound files and call sites |
+| `tests/audio/effects_preferences_test.gd` | SFX and Screen Shake sliders |
+| `tests/network/coop_mechanics_test.gd` | Co-op rules |
+| `tests/network/lobby_smoke_test.gd` | The multiplayer lobby |
+| `tests/network/run_coop_live.sh` | A real three-player game across three processes (run it with `bash`, passing the path to Godot) |
 
-> Note: the spec's speeds (player and spells 1 tile/sec) feel quite slow in play. They're kept as written —
-> tune `PLAYER_SPEED_TILES` / spell `speed_tiles` if you want a faster pace.
+The audio and co-op suites can print `ObjectDB instances were leaked` at exit. That only means a sound was still playing when the test quit.

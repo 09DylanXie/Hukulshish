@@ -1,72 +1,471 @@
 class_name HUD
 extends CanvasLayer
-## In-game HUD: HP, gold, spell level, objectives, pending mods, and the mobile joystick.
+## In-game HUD: HP bar, Fortnite-style Shield bar (max 5), Mana bar (with regen),
+## gold / spell scrolls / aug scrolls, objectives, top-right Pause button + overlay, and bottom circular hotbar.
 
-const JoystickScene: PackedScene = preload("res://scenes/ui/VirtualJoystick.tscn")
-
+var _player: Player
 var _hp_bar: ProgressBar
 var _hp_label: Label
+var _shield_bar: ProgressBar
+var _shield_label: Label
+var _mana_bar: ProgressBar
+var _mana_label: Label
 var _gold_label: Label
 var _spell_label: Label
 var _objective_label: Label
 var _hint_label: Label
+var _layer_title: Label
+var _pause_button: Button
+var _pause_overlay: Control
+var _slots: Array[Control] = []
+var _slot_hovered: Array[bool] = [false, false, false, false]
+var _spell_bar: HBoxContainer
+## What the spell bar last showed, so it's only rebuilt when that changes.
+var _spell_bar_shown: String = ""
 var _elapsed: float = 0.0
+var _endless_banner_timer: float = 0.0
+var _layer_banner_timer: float = 0.0
+var _void_overlay: ColorRect
+var _crosshair_tex: ImageTexture
+
+const _SLOT_TITLES: Array[String] = ["Shield [Z]", "Heal +3 [X]", "2× Dmg [C]", "Twin [V]"]
+const _SLOT_KEYS: Array[Key] = [KEY_Z, KEY_X, KEY_C, KEY_V]
+## Key -> the spell it selects. KEY_6 is left free.
+const _SPELL_KEYS: Dictionary = {
+	KEY_1: SpellData.Effect.NONE,
+	KEY_2: SpellData.Effect.SLOW,
+	KEY_3: SpellData.Effect.STUN,
+	KEY_4: SpellData.Effect.POISON,
+	KEY_5: SpellData.Effect.EXPLODE,
+	KEY_7: SpellData.Effect.CORRUPTION,
+}
+const _SLOT_ICONS: Array[String] = [
+	"res://assets/sprites/ui/icon_shield.png",
+	"res://assets/sprites/ui/icon_heal_potion.png",
+	"res://assets/sprites/ui/icon_damage_potion.png",
+	"res://assets/sprites/ui/icon_doppelganger.png",
+]
+const _SLOT_COLORS: Array[Color] = [
+	Color(0.25, 0.72, 1.0),
+	Color(0.95, 0.28, 0.42),
+	Color(0.95, 0.68, 0.18),
+	Color(0.7, 0.42, 1.0),
+]
 
 
 func _ready() -> void:
 	layer = 10
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
+	_apply_crosshair_cursor()
+	_build_stats_panel()
+	_build_hint_label()
+	_build_layer_title()
+	_build_pause_ui()
+	if Config.is_touch_device():
+		_build_touch_toggles()
+	_build_hotbar()
+	_build_spell_bar()
+
+	GameState.changed.connect(_refresh)
+	GameState.mana_changed.connect(_on_mana_changed)
+	GameState.endless_started.connect(_on_endless_started)
+	GameState.layer_entered.connect(_on_layer_entered)
+	_on_mana_changed(GameState.mana, GameState.max_mana(), GameState.mana_regen())
+	_refresh()
+	_show_layer_title(GameState.current_layer().name)
+
+
+func _exit_tree() -> void:
+	Input.set_custom_mouse_cursor(null, Input.CURSOR_ARROW)
+
+
+func _apply_crosshair_cursor() -> void:
+	var size: int = 32
+	var c: int = 16
+	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var outline := Color(0.05, 0.05, 0.08, 0.92)
+	var fg := Color(0.95, 0.98, 1.0, 0.98)
+	# Outer arms with dark outline for visibility on all backgrounds
+	for offset in range(4, 11):
+		for d in [-1, 0, 1]:
+			var col: Color = fg if d == 0 else outline
+			img.set_pixel(c + offset, c + d, col)
+			img.set_pixel(c - offset, c + d, col)
+			img.set_pixel(c + d, c + offset, col)
+			img.set_pixel(c + d, c - offset, col)
+	# Center dot
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			img.set_pixel(c + dx, c + dy, fg if (dx == 0 and dy == 0) else outline)
+	_crosshair_tex = ImageTexture.create_from_image(img)
+	Input.set_custom_mouse_cursor(_crosshair_tex, Input.CURSOR_ARROW, Vector2(c, c))
+
+
+func bind_player(player: Player) -> void:
+	_player = player
+	player.hp_changed.connect(_on_hp_changed)
+	player.shield_changed.connect(_on_shield_changed)
+	_on_hp_changed(player.hp, player.max_hp)
+	_on_shield_changed(player.shield, player.max_shield)
+
+
+func _on_endless_started() -> void:
+	_endless_banner_timer = 5.0
+	_show_layer_title("Endless")
+	_refresh()
+
+
+func _on_layer_entered(layer: LayerData) -> void:
+	_elapsed = 0.0
+	_show_layer_title("Endless" if GameState.endless_active else layer.name)
+
+
+func _show_layer_title(title: String) -> void:
+	_layer_title.text = title
+	_layer_banner_timer = Config.LAYER_BANNER_SEC
+
+
+func _process(delta: float) -> void:
+	_update_void_overlay()
+	if not get_tree().paused:
+		_elapsed += delta
+		if _endless_banner_timer > 0.0:
+			_endless_banner_timer = maxf(0.0, _endless_banner_timer - delta)
+		_layer_banner_timer = maxf(0.0, _layer_banner_timer - delta)
+	# Fades out over its last second.
+	_layer_title.modulate.a = clampf(_layer_banner_timer, 0.0, 1.0)
+	if _endless_banner_timer > 0.0:
+		_hint_label.text = "ENDLESS! A stronger Mega Boss arrives every minute!"
+	elif GameState.endless_active and not GameState.mega_boss_spawned:
+		_hint_label.text = "Next Mega Boss in %ds" % ceili(GameState.endless_next_boss_sec)
+	elif _elapsed < Config.NEST_SPAWN_DELAY_SEC and GameState.current_layer().monster != null:
+		_hint_label.text = "Monsters awaken in %d…" % ceili(Config.NEST_SPAWN_DELAY_SEC - _elapsed)
+	elif GameState.mega_boss_spawned and not GameState.mega_boss_defeated:
+		_hint_label.text = "THE MEGA BOSS HAS AWAKENED!"
+	elif GameState.layer_index == 0 and _elapsed < 12.0:
+		_hint_label.text = "Left-click to shoot • 1–5 swap spells • Z X C V use items • Walk into a stall to shop & heal"
+	else:
+		_hint_label.text = ""
+
+	for s in _slots:
+		s.queue_redraw()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if GameState.run_over:
+		return
+	if GameState.coop_mode and GameState.castle_menu_open:
+		return
+	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_P):
+		if _pause_overlay.visible:
+			_set_paused(false)
+			get_viewport().set_input_as_handled()
+		elif not get_tree().paused:
+			_set_paused(true)
+			get_viewport().set_input_as_handled()
+	elif not get_tree().paused and event is InputEventKey and event.pressed and not event.echo:
+		var k := (event as InputEventKey).physical_keycode
+		if _SLOT_KEYS.has(k):
+			_use_slot(_SLOT_KEYS.find(k))
+		elif _SPELL_KEYS.has(k):
+			GameState.select_spell(_SPELL_KEYS[k])
+		elif k == KEY_F:
+			if GameState.toggle_homing():
+				Coop.request_action("toggle_homing")
+				get_viewport().set_input_as_handled()
+
+
+func _build_stats_panel() -> void:
 	var panel := PanelContainer.new()
-	panel.position = Vector2(12, 12)
+	panel.position = Vector2(16, 16)
 	add_child(panel)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 10)
+	panel.add_child(margin)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
-	panel.add_child(box)
+	margin.add_child(box)
 
 	_hp_label = _label(box, "HP")
 	_hp_bar = ProgressBar.new()
-	_hp_bar.custom_minimum_size = Vector2(220, 14)
+	_hp_bar.custom_minimum_size = Vector2(280, 14)
 	_hp_bar.show_percentage = false
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color(0.85, 0.2, 0.25)
-	_hp_bar.add_theme_stylebox_override("fill", fill)
+	var hp_fill := StyleBoxFlat.new()
+	hp_fill.bg_color = Color(0.85, 0.2, 0.25)
+	_hp_bar.add_theme_stylebox_override("fill", hp_fill)
 	box.add_child(_hp_bar)
+
+	_shield_label = _label(box, "Shield")
+	_shield_bar = ProgressBar.new()
+	_shield_bar.custom_minimum_size = Vector2(280, 12)
+	_shield_bar.show_percentage = false
+	var shield_fill := StyleBoxFlat.new()
+	shield_fill.bg_color = Color(0.2, 0.68, 1.0)
+	_shield_bar.add_theme_stylebox_override("fill", shield_fill)
+	box.add_child(_shield_bar)
+
+	_mana_label = _label(box, "Mana")
+	_mana_bar = ProgressBar.new()
+	_mana_bar.custom_minimum_size = Vector2(280, 12)
+	_mana_bar.show_percentage = false
+	var mana_fill := StyleBoxFlat.new()
+	mana_fill.bg_color = Color(0.58, 0.32, 0.98)
+	_mana_bar.add_theme_stylebox_override("fill", mana_fill)
+	box.add_child(_mana_bar)
+
 	_gold_label = _label(box, "")
 	_spell_label = _label(box, "")
 	_objective_label = _label(box, "")
 
+
+func _build_layer_title() -> void:
+	_layer_title = Label.new()
+	_layer_title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_layer_title.position = Vector2(-360, 56)
+	_layer_title.custom_minimum_size = Vector2(720, 0)
+	_layer_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_layer_title.add_theme_font_size_override("font_size", 52)
+	_layer_title.add_theme_color_override("font_color", Color(0.95, 0.82, 0.32))
+	_layer_title.add_theme_color_override("font_outline_color", Color.BLACK)
+	_layer_title.add_theme_constant_override("outline_size", 8)
+	_layer_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_layer_title)
+
+
+func _build_hint_label() -> void:
 	_hint_label = Label.new()
 	_hint_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_hint_label.position = Vector2(-300, 16)
-	_hint_label.custom_minimum_size = Vector2(600, 0)
+	_hint_label.position = Vector2(-360, 18)
+	_hint_label.custom_minimum_size = Vector2(720, 0)
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint_label.add_theme_font_size_override("font_size", 20)
+	_hint_label.add_theme_font_size_override("font_size", 22)
 	_hint_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	_hint_label.add_theme_constant_override("outline_size", 6)
+	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint_label)
 
-	add_child(JoystickScene.instantiate())
 
-	GameState.gold_changed.connect(func(_g: int) -> void: _refresh())
-	GameState.spell_level_changed.connect(func(_l: int) -> void: _refresh())
-	GameState.mods_changed.connect(_refresh)
-	GameState.objectives_changed.connect(_refresh)
-	_refresh()
-
-
-func bind_player(player: Player) -> void:
-	player.hp_changed.connect(_on_hp_changed)
-	_on_hp_changed(player.hp, player.max_hp)
+## Touch screens have no F key.
+func _build_touch_toggles() -> void:
+	var homing_button: Button = UIKit.make_button("Homing", func() -> void: GameState.toggle_homing(), 18)
+	for i: int in 1:
+		var button: Button = homing_button
+		button.custom_minimum_size = Vector2(130, 44)
+		button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		button.position = Vector2(-146, 68 + 52 * i)
+		add_child(button)
 
 
-func _process(delta: float) -> void:
-	_elapsed += delta
-	if _elapsed < Config.NEST_SPAWN_DELAY_SEC:
-		_hint_label.text = "Monsters awaken in %d…" % ceili(Config.NEST_SPAWN_DELAY_SEC - _elapsed)
-	elif not GameState.pending_mods.is_empty():
-		_hint_label.text = "You found a spell mod! Return to the castle to apply it."
+func _build_pause_ui() -> void:
+	_pause_button = UIKit.make_button("⏸ Pause", func() -> void:
+		if _pause_overlay.visible:
+			_set_paused(false)
+		elif not get_tree().paused:
+			_set_paused(true)
+	, 20)
+	_pause_button.custom_minimum_size = Vector2(130, 44)
+	_pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_pause_button.position = Vector2(-146, 16)
+	add_child(_pause_button)
+
+	_pause_overlay = Control.new()
+	_pause_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_overlay.hide()
+	add_child(_pause_overlay)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_overlay.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(380, 0)
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	margin.add_child(box)
+
+	box.add_child(UIKit.make_label("Game Paused", 36, Color(0.95, 0.8, 0.3)))
+	_add_effect_slider(box, "SFX volume", Config.sfx_volume, func(value: float) -> void:
+		Config.sfx_volume = value
+		Config.save_preferences()
+	)
+	_add_effect_slider(box, "Music volume", Config.music_volume, func(value: float) -> void:
+		Config.music_volume = value
+		Config.save_preferences()
+	)
+	_add_effect_slider(box, "Screen shake", Config.screen_shake_strength, func(value: float) -> void:
+		Config.screen_shake_strength = value
+		Config.save_preferences()
+	)
+	box.add_child(UIKit.make_button("Resume", func() -> void: _set_paused(false), 22))
+	if not Coop.in_run:
+		box.add_child(UIKit.make_button("Restart Run", func() -> void: SceneRouter.goto(SceneRouter.GAME), 22))
+	box.add_child(UIKit.make_button("Main Menu", func() -> void: SceneRouter.goto(SceneRouter.MAIN_MENU), 22))
+
+
+func _add_effect_slider(box: VBoxContainer, title: String, initial: float, apply: Callable) -> void:
+	var label: Label = UIKit.make_label("%s: %d%%" % [title, roundi(initial * 100.0)], 20)
+	box.add_child(label)
+	var slider: HSlider = HSlider.new()
+	slider.name = {"SFX volume": "SFXVolume", "Music volume": "MusicVolume"}.get(title, "ScreenShake")
+	slider.min_value = 0.0
+	slider.max_value = 100.0
+	slider.step = 1.0
+	slider.value = initial * 100.0
+	slider.custom_minimum_size = Vector2(280, 36)
+	slider.accessibility_name = title
+	slider.value_changed.connect(func(value: float) -> void:
+		label.text = "%s: %d%%" % [title, roundi(value)]
+		apply.call(value / 100.0)
+	)
+	box.add_child(slider)
+
+
+func _set_paused(paused_state: bool) -> void:
+	_pause_overlay.visible = paused_state
+	GameState.pause_menu_open = paused_state
+	if not GameState.coop_mode:
+		get_tree().paused = paused_state
+
+
+func _build_hotbar() -> void:
+	var bar_wrap := CenterContainer.new()
+	bar_wrap.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bar_wrap.position = Vector2(0, -108)
+	bar_wrap.custom_minimum_size = Vector2(0, 96)
+	bar_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bar_wrap)
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 18)
+	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar_wrap.add_child(hbox)
+
+	for idx in _SLOT_TITLES.size():
+		var slot := Control.new()
+		slot.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		slot.custom_minimum_size = Vector2(84, 88)
+		slot.mouse_filter = Control.MOUSE_FILTER_STOP
+		slot.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		slot.mouse_entered.connect(_on_slot_hover.bind(idx, true))
+		slot.mouse_exited.connect(_on_slot_hover.bind(idx, false))
+		slot.gui_input.connect(_on_slot_gui_input.bind(idx, slot))
+		slot.draw.connect(_draw_slot.bind(idx, slot))
+		hbox.add_child(slot)
+		_slots.append(slot)
+
+
+## A row above the hotbar showing the spells the player has, and which one left-click fires.
+func _build_spell_bar() -> void:
+	var wrap := CenterContainer.new()
+	wrap.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	wrap.position = Vector2(0, -136)
+	wrap.custom_minimum_size = Vector2(0, 24)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(wrap)
+	_spell_bar = HBoxContainer.new()
+	_spell_bar.add_theme_constant_override("separation", 22)
+	_spell_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.add_child(_spell_bar)
+
+
+func _refresh_spell_bar() -> void:
+	var spells: Array[Dictionary] = GameState.all_spells()
+	var shown: String = "%d/%d" % [spells.size(), GameState.selected_effect]
+	if shown == _spell_bar_shown:
+		return
+	_spell_bar_shown = shown
+	for child: Node in _spell_bar.get_children():
+		child.free()
+	if spells.size() < 2:
+		return
+	for spell: Dictionary in spells:
+		var effect: int = int(spell["effect"])
+		var key_text: String = OS.get_keycode_string(_SPELL_KEYS.find_key(effect))
+		var selected: bool = effect == GameState.selected_effect
+		var text: String = "[%s] %s" % [key_text, spell["name"]]
+		var color: Color = spell["color"] as Color
+		_spell_bar.add_child(UIKit.make_label("▶ " + text if selected else text, 16, color.lightened(0.3) if selected else color.lerp(Color.WHITE, 0.45)))
+
+
+func _on_slot_hover(idx: int, hovered: bool) -> void:
+	_slot_hovered[idx] = hovered
+	_slots[idx].queue_redraw()
+
+
+func _on_slot_gui_input(event: InputEvent, idx: int, slot: Control) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			_use_slot(idx)
+			slot.accept_event()
+
+
+func _draw_slot(idx: int, slot: Control) -> void:
+	var center := Vector2(slot.size.x * 0.5, 34.0)
+	var r: float = 28.0
+	var tint: Color = _SLOT_COLORS[idx]
+	var title: String = _SLOT_TITLES[idx]
+	var count: int = 0
+	var active_timer: float = 0.0
+	match idx:
+		0:
+			count = GameState.shield_items
+		1:
+			count = GameState.heal_potions
+		2:
+			count = GameState.damage_potions
+			active_timer = GameState.damage_boost_timer
+		3:
+			count = GameState.doppelganger_items
+
+	var bg_col := Color(0.14, 0.16, 0.22, 0.92) if not _slot_hovered[idx] else Color(0.22, 0.25, 0.34, 0.96)
+	slot.draw_circle(center, r, bg_col)
+	var ring_col: Color = tint if (count > 0 or active_timer > 0.0) else Color(0.45, 0.48, 0.55, 0.7)
+	slot.draw_arc(center, r, 0.0, TAU, 36, ring_col, 3.0 if active_timer > 0.0 else 2.0)
+
+	if active_timer > 0.0:
+		var ratio: float = clampf(active_timer / Config.POTION_DURATION_SEC, 0.0, 1.0)
+		slot.draw_arc(center, r + 4.0, -PI * 0.5, -PI * 0.5 + TAU * ratio, 36, Color(1.0, 0.95, 0.35), 3.0)
+
+	var icon_alpha: float = 1.0 if (count > 0 or active_timer > 0.0 or GameState.sandbox_mode) else 0.38
+	var icon_tex: Texture2D = Config.get_tex(_SLOT_ICONS[idx])
+	if icon_tex != null:
+		Config.draw_sprite_centered(slot, icon_tex, center, Vector2(36, 36), Color(1, 1, 1, icon_alpha))
 	else:
-		_hint_label.text = ""
+		var ic := Color(tint.r, tint.g, tint.b, icon_alpha)
+		slot.draw_circle(center, 12.0, ic)
+
+	var font: Font = ThemeDB.fallback_font
+	var badge_str: String = "∞" if GameState.sandbox_mode else ("×%d" % count)
+	slot.draw_string(font, center + Vector2(10, 18), badge_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
+	if active_timer > 0.0:
+		slot.draw_string(font, center + Vector2(-14, 5), "%ds" % ceili(active_timer), HORIZONTAL_ALIGNMENT_CENTER, 28, 13, Color(1, 1, 0.4))
+	slot.draw_string(font, Vector2(0, 78), title, HORIZONTAL_ALIGNMENT_CENTER, slot.size.x, 13, Color(0.88, 0.9, 0.95))
+
+
+func _use_slot(index: int) -> void:
+	if get_tree().paused or GameState.run_over:
+		return
+	if Coop.is_guest():
+		Coop.request_hotbar(index)
+		AudioManager.play("potion_use")
+		return
+	if GameState.use_slot(index, _player):
+		AudioManager.play("potion_use")
+	_refresh()
 
 
 func _on_hp_changed(hp: int, max_hp: int) -> void:
@@ -75,18 +474,94 @@ func _on_hp_changed(hp: int, max_hp: int) -> void:
 	_hp_label.text = "HP  %d / %d" % [hp, max_hp]
 
 
+func _on_shield_changed(shield: int, max_shield: int) -> void:
+	_shield_bar.max_value = max_shield
+	_shield_bar.value = shield
+	_shield_label.text = "Shield  %d / %d" % [shield, max_shield]
+
+
+func _on_mana_changed(mana: float, max_mana: int, regen: float) -> void:
+	_mana_bar.max_value = max_mana
+	_mana_bar.value = mana
+	if GameState.sandbox_mode:
+		_mana_label.text = "Mana  ∞  (SANDBOX)"
+	else:
+		_mana_label.text = "Mana  %.1f / %d  (+%.1f/s)" % [mana, max_mana, regen]
+
+
 func _refresh() -> void:
-	_gold_label.text = "Gold  %d" % GameState.gold
-	var mods: String = ""
-	if not GameState.active_mods.is_empty():
-		mods = "  +%d mod(s)" % GameState.active_mods.size()
-	_spell_label.text = "Spell  Lv %d  (%d dmg)%s" % [GameState.spell_level, Config.spell_damage(GameState.spell_level), mods]
-	_objective_label.text = "Nests  %d/4    Bosses  %d/4" % [GameState.nests_destroyed, GameState.bosses_defeated]
+	if GameState.sandbox_mode:
+		_gold_label.text = "Gold  ∞   Spell Scrolls  ∞   Aug Scrolls  ∞   Enhancers  ∞"
+	else:
+		_gold_label.text = "Gold  %d   Spell Scrolls  %d   Aug Scrolls  %d   Enhancers  %d" % [
+			GameState.gold, GameState.mod_parts, GameState.aug_scrolls, GameState.enhancers]
+	var base: Dictionary = GameState.base_spell_stats()
+	var dmg: float = float(base["damage"]) * GameState.damage_boost_multiplier()
+	var extra: String = ""
+	if not GameState.unique_spells.is_empty():
+		extra = "  +%d unique spell(s)" % GameState.unique_spells.size()
+	var mode_tag: String = ""
+	if GameState.homing_unlocked:
+		mode_tag += " [Homing: ON (F)]" if GameState.homing_enabled else " [Homing: OFF (F)]"
+	if GameState.magnet_unlocked:
+		mode_tag += " [Magnet]"
+	if GameState.auto_collector_unlocked:
+		mode_tag += " [Auto-Mine]"
+	if GameState.wall_pierce_unlocked:
+		mode_tag += " [Wall-Pierce]"
+	_refresh_spell_bar()
+	if GameState.doppelganger_alive:
+		mode_tag += " [Twin]"
+	if GameState.sandbox_mode:
+		mode_tag += " [SANDBOX]"
+	_spell_label.text = "Spell Lv %d  (%.1f dmg, %d mana)%s%s" % [
+		GameState.spell_level, dmg, int(Config.BASE_SPELL_MANA_COST), extra, mode_tag]
+	if GameState.endless_active:
+		_objective_label.text = "Endless    Mega Bosses defeated: %d" % GameState.endless_megas_defeated
+	else:
+		_objective_label.text = "%s (%d/%d)    %s" % [
+			GameState.current_layer().name, GameState.layer_index + 1, Config.LAYERS.size(), _objective_text()]
+	for s in _slots:
+		s.queue_redraw()
+
+
+## Co-op: shown while waiting for teammates after entering a portal.
+func _update_void_overlay() -> void:
+	var waiting: bool = _player != null and _player.in_void
+	if waiting and _void_overlay == null:
+		_void_overlay = ColorRect.new()
+		_void_overlay.color = Color(0.06, 0.02, 0.12, 1.0)
+		_void_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_void_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_void_overlay)
+		move_child(_void_overlay, 0)
+		var label: Label = UIKit.make_label("The Void\nWaiting for your team to reach the portal", 34, Color(0.8, 0.65, 1.0))
+		label.set_anchors_preset(Control.PRESET_CENTER)
+		label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		label.grow_vertical = Control.GROW_DIRECTION_BOTH
+		_void_overlay.add_child(label)
+	if _void_overlay != null:
+		_void_overlay.visible = waiting
+
+
+func _objective_text() -> String:
+	if GameState.current_layer().is_final:
+		var mega: MegaBoss = get_tree().get_first_node_in_group("mega_boss") as MegaBoss
+		if mega != null and mega.phase == MegaBoss.Phase.HIDDEN:
+			return "???"
+		return "Defeat the Mega Boss" if GameState.mega_boss_spawned else "Touch the crystal"
+	match GameState.layer_stage:
+		RunState.LayerStage.NEST:
+			return "Destroy the nests (%d left)" % GameState.layer_nests_left
+		RunState.LayerStage.BOSS:
+			return "Defeat the boss"
+		_:
+			return "Enter the portal"
 
 
 func _label(parent: Node, text: String) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", 18)
+	l.add_theme_font_size_override("font_size", 17)
 	parent.add_child(l)
 	return l

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SpellData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/spell_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+name = "Water"
+speed_tiles = 6
+range_tiles = 10
+fire_rate = 2
+color = Color(0.35, 0.72, 1, 1)
+radius_tiles = 0.2
+damage_mult = 1
+effect = 1
+cast_sound = "cast_water"
+pickup_texture = "res://assets/sprites/spells/unique_water.png"
