@@ -88,6 +88,7 @@ func _build_host_controls(box: VBoxContainer) -> void:
 	_host_box.add_child(_difficulty_choice)
 	_endless_toggle = CheckButton.new()
 	_endless_toggle.text = "Endless Mode (the game continues after the final boss)"
+	_endless_toggle.visible = not Config.is_demo()
 	_host_box.add_child(_endless_toggle)
 	_start_button = UIKit.make_button("Start game", _start)
 	_start_button.disabled = true

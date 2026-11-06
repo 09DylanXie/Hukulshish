@@ -1008,6 +1008,14 @@ func on_mega_boss_defeated() -> void:
 		victory.emit()
 
 
+## Ends a demo run in victory once the final demo layer (Catacombs) is cleared.
+func complete_demo() -> void:
+	if run_over:
+		return
+	run_over = true
+	victory.emit()
+
+
 func start_endless() -> void:
 	endless_active = true
 	layer_index = 0

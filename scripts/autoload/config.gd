@@ -33,7 +33,7 @@ func _ready() -> void:
 
 ## One more nest on each layer below the Overworld (§6.7): 2, 3, 4, 5.
 func nests_on_layer(index: int) -> int:
-	return 0 if index >= LAYERS.size() - 1 else FIRST_LAYER_NESTS + index
+	return 0 if index < 0 or index >= LAYERS.size() or LAYERS[index].is_final else FIRST_LAYER_NESTS + index
 
 
 func total_nests() -> int:
@@ -442,13 +442,12 @@ const DIFFICULTIES: Array = [
 	preload("res://resources/difficulty/hard.tres"),
 	preload("res://resources/difficulty/extreme.tres"),
 ]
-const LAYERS: Array = [
+const DEMO_LAYERS: Array = [
 	preload("res://resources/layers/overworld.tres"),
 	preload("res://resources/layers/underworld.tres"),
 	preload("res://resources/layers/catacombs.tres"),
-	preload("res://resources/layers/pandemonium.tres"),
-	preload("res://resources/layers/abyss.tres"),
 ]
+var LAYERS: Array = _load_layers()
 const MAP_SIZES: Array = [
 	preload("res://resources/maps/small.tres"),
 	preload("res://resources/maps/medium.tres"),
@@ -456,6 +455,20 @@ const MAP_SIZES: Array = [
 ]
 const BASE_SPELL: SpellData = preload("res://resources/spells/base_spell.tres")
 const ABYSSAL_CORRUPTION: SpellData = preload("res://resources/spells/abyssal_corruption.tres")
+
+
+## The web build is a reduced demo capped at the Catacombs layer.
+static func is_demo() -> bool:
+	return OS.has_feature("web")
+
+
+static func _load_layers() -> Array:
+	if is_demo():
+		return DEMO_LAYERS
+	var all: Array = DEMO_LAYERS.duplicate()
+	all.append(load("res://resources/layers/pandemonium.tres"))
+	all.append(load("res://resources/layers/abyss.tres"))
+	return all
 
 
 ## True on phones and tablets, which have no cursor or keyboard.

@@ -553,7 +553,13 @@ func _on_portal_entered(player: Player) -> void:
 
 ## Deferred, because physics callbacks can't remove collision objects.
 func _descend() -> void:
-	if GameState.run_over or not GameState.descend():
+	if GameState.run_over:
+		return
+	if Config.is_demo() and GameState.layer_index >= Config.LAYERS.size() - 1:
+		AudioManager.play("portal_enter")
+		GameState.complete_demo()
+		return
+	if not GameState.descend():
 		return
 	AudioManager.play("portal_enter")
 	_clear_layer()

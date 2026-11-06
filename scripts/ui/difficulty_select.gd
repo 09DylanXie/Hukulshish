@@ -15,21 +15,22 @@ func _ready() -> void:
 		var b: Button = UIKit.make_button("%s  (monster HP ×%s, ×%s per layer)" % [data.name, str(data.hp_mult), str(data.hp_growth_per_layer)], _choose.bind(data, false, false))
 		box.add_child(b)
 
-	var endless_btn: Button = UIKit.make_button(
-		"Endless  (the game continues after the final boss)",
-		_choose.bind(Config.DIFFICULTIES[1], true, false)
-	)
-	box.add_child(endless_btn)
+	if not Config.is_demo():
+		var endless_btn: Button = UIKit.make_button(
+			"Endless  (the game continues after the final boss)",
+			_choose.bind(Config.DIFFICULTIES[1], true, false)
+		)
+		box.add_child(endless_btn)
 
-	var sandbox_btn: Button = UIKit.make_button(
-		"Sandbox  (All Resources Infinite)",
-		_choose.bind(Config.DIFFICULTIES[1], false, true)
-	)
-	box.add_child(sandbox_btn)
+		var sandbox_btn: Button = UIKit.make_button(
+			"Sandbox  (All Resources Infinite)",
+			_choose.bind(Config.DIFFICULTIES[1], false, true)
+		)
+		box.add_child(sandbox_btn)
 
-	_endless_toggle = UIKit.make_button("", _toggle_endless, 18)
-	box.add_child(_endless_toggle)
-	_refresh_toggle_text()
+		_endless_toggle = UIKit.make_button("", _toggle_endless, 18)
+		box.add_child(_endless_toggle)
+		_refresh_toggle_text()
 
 	box.add_child(UIKit.make_button("Back", func() -> void: SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT), 20))
 

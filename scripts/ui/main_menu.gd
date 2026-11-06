@@ -10,7 +10,9 @@ var _tab_buttons: Array[Button] = []
 func _ready() -> void:
 	Coop.close()
 	AudioManager.play_music("menu")
-	var box: VBoxContainer = UIKit.make_centered_menu(self, "Hukulshish", "Descend through five layers. Slay the dragon.")
+	var title_text: String = "Hukulshish (Demo)" if Config.is_demo() else "Hukulshish"
+	var sub_text: String = "Web Demo — Descend up to the Catacombs. Download the full game for all 5 layers & audio!" if Config.is_demo() else "Descend through five layers. Slay the dragon."
+	var box: VBoxContainer = UIKit.make_centered_menu(self, title_text, sub_text)
 	var start: Button = UIKit.make_button("Start", func() -> void:
 		GameState.sandbox_mode = false
 		GameState.coop_mode = false
@@ -104,7 +106,7 @@ func _build_rules_overlay() -> void:
 
 	var tab_titles: Array[String] = [
 		"Controls & Shops",
-		"The Five Layers",
+		"The Three Demo Layers" if Config.is_demo() else "The Five Layers",
 		"Augmentations",
 		"Enemies & Bosses",
 	]
