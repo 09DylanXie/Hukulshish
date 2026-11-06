@@ -14,13 +14,13 @@ func _ready() -> void:
 	if is_victory:
 		for line: String in Config.CREDITS:
 			box.add_child(UIKit.make_label(line, 16, Color(0.85, 0.82, 0.95)))
-		box.add_child(UIKit.make_label("Music", 16, Color(0.95, 0.8, 0.3)))
-		var music_credits := GridContainer.new()
-		music_credits.columns = 2
-		music_credits.add_theme_constant_override("h_separation", 32)
-		for line: String in Config.MUSIC_CREDITS:
-			music_credits.add_child(UIKit.make_label(line, 14, Color(0.85, 0.82, 0.95)))
-		box.add_child(music_credits)
+	box.add_child(UIKit.make_label("Music", 16, Color(0.95, 0.8, 0.3)))
+	var music_credits := GridContainer.new()
+	music_credits.columns = 2
+	music_credits.add_theme_constant_override("h_separation", 32)
+	for line: String in Config.MUSIC_CREDITS:
+		music_credits.add_child(UIKit.make_label(line, 14, Color(0.85, 0.82, 0.95)))
+	box.add_child(music_credits)
 	if not Coop.in_run:
 		box.add_child(UIKit.make_button("Play Again", func() -> void: SceneRouter.goto(SceneRouter.MAP_SIZE_SELECT)))
 	box.add_child(UIKit.make_button("Main Menu", func() -> void: SceneRouter.goto(SceneRouter.MAIN_MENU)))
